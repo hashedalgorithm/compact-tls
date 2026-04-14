@@ -4,42 +4,71 @@
 #include "ctls/internal.h"
 #include "crypto.c"
 
-/* --- Accessors --- */
-static inline bool ctls_config_octet_is_valid(ctls_recd_config_octet_t b) {
-    return (b & CTLS_RECD_CONFIG_OCTET_FIXED_MASK) ==
-           CTLS_RECD_CONFIG_OCTET_FIXED_VALUE;
-}
+ctls_op_status_t ctls_build_unified_header(
+    const ctls_recd_config_octet_t *config,
+    uint16_t sequence_number,
+    uint16_t length,
+    uint8_t *buffer,
+    size_t *buffer_length) {
+    CTLS_CHECK_NULL(config);
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(buffer_length);
 
-static inline bool ctls_config_octet_has_cid(ctls_recd_config_octet_t b) {
-    return (b & CTLS_RECD_CONFIG_OCTET_C_MASK) != 0u;
-}
+    size_t offset = 0;
 
-static inline bool ctls_config_octet_seq_is_16bit(ctls_recd_config_octet_t b) {
-    return (b & CTLS_RECD_CONFIG_OCTET_S_MASK) != 0u;
-}
+    /* ---- config octet ---- */
+    /* fixed bits 7-5 = 0b001, per RFC 9147 §4 */
+    uint8_t octet = CTLS_RECD_CONFIG_OCTET_FIXED_VALUE;
 
-static inline bool ctls_config_octet_has_length(ctls_recd_config_octet_t b) {
-    return (b & CTLS_RECD_CONFIG_OCTET_L_MASK) != 0u;
-}
+    /* C bit (4): CID present */
+    if (config->c_bit)
+        octet |= CTLS_RECD_CONFIG_OCTET_C_MASK;
 
-static inline uint8_t ctls_config_octet_epoch_lsb2(ctls_recd_config_octet_t b) {
-    return (uint8_t) (b & CTLS_RECD_CONFIG_OCTET_EPOCH_MASK);
-}
+    /* S bit (3): sequence number length — 0=8bit, 1=16bit */
+    if (config->s_bit)
+        octet |= CTLS_RECD_CONFIG_OCTET_S_MASK;
 
-/* --- Builder --- */
-static inline ctls_recd_config_octet_t ctls_config_octet_builder(
-    bool const has_cid,
-    bool const has_sequence_number,
-    bool const has_length,
-    uint8_t const epoch /* only low 2 bits used */
-) {
-    return (ctls_recd_config_octet_t) (
-        CTLS_RECD_CONFIG_OCTET_FIXED_VALUE
-        | (has_cid ? CTLS_RECD_CONFIG_OCTET_C_MASK : 0u)
-        | (has_sequence_number ? CTLS_RECD_CONFIG_OCTET_S_MASK : 0u)
-        | (has_length ? CTLS_RECD_CONFIG_OCTET_L_MASK : 0u)
-        | (epoch & CTLS_RECD_CONFIG_OCTET_EPOCH_MASK)
-    );
+    /* L bit (2): length field present */
+    if (config->l_bit)
+        octet |= CTLS_RECD_CONFIG_OCTET_L_MASK;
+
+    /* E bits (1-0): low 2 bits of epoch */
+    octet |= (config->epoch & CTLS_RECD_CONFIG_OCTET_EPOCH_MASK);
+
+    buffer[offset++] = octet;
+
+    /* ---- connection ID ---- */
+    /* C bit is 0 in your LoRaWAN setup — CID field omitted entirely.
+     * When CID support is added, write CID bytes here.             */
+
+    /* ---- sequence number ---- */
+    /* cTLS-10 §2.2: on reliable ordered transport (LoRaWAN),
+     * S bit MUST be cleared and sequence number MUST be omitted.
+     * Written here only when S=1 (unreliable transport).           */
+    if (config->s_bit) {
+        if (octet & CTLS_RECD_CONFIG_OCTET_S_MASK) {
+            /* S=1: 16-bit sequence number */
+            ctls_write_u16(buffer, &offset, sequence_number);
+        } else {
+            /* S=0: 8-bit sequence number */
+            buffer[offset++] = sequence_number & 0xFF;
+        }
+    }
+
+    /* ---- length ---- */
+    /* cTLS-10 §2.2: on stream transport, L MUST be 1.
+     * On datagram transport L may be 0 (length inferred from UDP). */
+    if (config->l_bit) {
+        ctls_write_u16(buffer, &offset, length);
+    }
+
+    *buffer_length = offset;
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS,
+    };
 }
 
 

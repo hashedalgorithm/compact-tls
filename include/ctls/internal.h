@@ -34,9 +34,9 @@
 /* ------------------------------------------------------------------ */
 
 struct ctls_recd_config_octet {
-    uint8_t connection_id;
-    uint8_t sequence_number;
-    uint8_t length;
+    uint8_t c_bit; // connection_id
+    uint8_t s_bit; // sequence_number
+    uint8_t l_bit; // length
     uint8_t epoch;
 };
 
