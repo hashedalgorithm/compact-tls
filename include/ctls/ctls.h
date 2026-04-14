@@ -1,0 +1,31 @@
+//
+// Created by Sanjay Kumar Kumaravelan on 31/03/26.
+//
+
+
+#ifndef CTLS__H
+#define CTLS__H
+
+#include "internal.h"
+
+// #if CTLS_CLIENT
+
+ctls_op_status_t ctls_context_init(ctls_context_t *context,
+                                   const ctls_transport_t *transport);
+ctls_op_status_t ctls_connect(ctls_context_t *context);
+ctls_op_status_t ctls_read(ctls_context_t const *context, uint8_t *buffer,
+                           size_t buffer_length);
+ctls_op_status_t ctls_write(ctls_context_t const *context, uint8_t *buffer,
+                            size_t buffer_length);
+
+//
+// static void ctls_client_handshake();
+// #endif
+//
+// #if CTLS_SERVER
+// static void ctls_server_context_init();
+// static void ctls_server_handshake();
+// #endif
+
+
+#endif
