@@ -120,7 +120,7 @@ struct ctls_handshake_message {
 struct ctls_record {
     /* For Client Hello and Server Hello */
     uint8_t content_type;
-    uint8_t profile_id[CTLS_WIRE_PROFILE_ID_LENGTH + CTLS_WIRE_PROFILE_ID];
+    uint8_t profile_id;
     /* Except for Client Hello and Server Hello */
 
     ctls_record_type_t type; // For internal reference

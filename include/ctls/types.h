@@ -1,3 +1,4 @@
+
 //
 // Created by Sanjay Kumar Kumaravelan on 31/03/26.
 //
@@ -32,8 +33,7 @@
     CTLS_WIRE_LENGTH                   \
 )
 
-#define CTLS_WIRE_PROFILE_ID 2U
-#define CTLS_WIRE_PROFILE_ID_LENGTH 1U
+#define CTLS_WIRE_PROFILE_ID 1U
 #define CTLS_WIRE_RANDOM 32U
 #define CTLS_WIRE_KEY_SHARE 32U
 #define CTLS_WIRE_SIGNATURE 64U // If ED25519
