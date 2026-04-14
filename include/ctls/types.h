@@ -113,9 +113,9 @@ typedef enum {
 } ctls_hsmg_signature_algorithm_t;
 
 typedef enum {
-    CTLS_HSMG_VERSION_1_2 = 0x0303,
-    CTLS_HSMG_VERSION_1_3 = 0x0304,
-} ctls_hsmg_version_t;
+    CTLS_HSMG_PROTOCOL_VERSION_1_2 = 0x0303,
+    CTLS_HSMG_PROTOCOL_VERSION_1_3 = 0x0304,
+} ctls_hsmg_protocol_version_t;
 
 typedef enum {
     CTLS_RECD_CONTENT_TYPE_INVALID = 0x00,

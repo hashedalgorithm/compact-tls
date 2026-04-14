@@ -66,7 +66,7 @@ struct ctls_hsmg_extensions {
     ctls_hsmg_extension_key_share_t key_share_entity;
 };
 struct ctls_hshk_client_hello {
-    ctls_hsmg_version_t version;
+    ctls_hsmg_protocol_version_t protocol_version;
     ctls_hsmg_random_t random;
     uint8_t legacy_session_id;
     ctls_hsmg_cipher_suite_t cipher_suite;
