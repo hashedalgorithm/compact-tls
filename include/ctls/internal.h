@@ -114,7 +114,7 @@ typedef union {
 struct ctls_handshake_message {
     ctls_hsmg_type_t message_type;
     uint16_t sequence_number;
-    ctls_hsmg_body_t body;
+    ctls_hsmg_body_t handshake_message_body;
 };
 
 struct ctls_record {
@@ -133,7 +133,7 @@ struct ctls_record {
     uint16_t length;
     /* Except for Client Hello and Server Hello */
 
-    ctls_handshake_message_t body;
+    ctls_handshake_message_t record_body;
 };
 
 struct ctls_op_status {
