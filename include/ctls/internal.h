@@ -112,7 +112,7 @@ typedef union {
 } ctls_hsmg_body_t;
 
 struct ctls_handshake_message {
-    uint8_t message_type;
+    ctls_hsmg_type_t message_type;
     uint16_t sequence_number;
     ctls_hsmg_body_t body;
 };
