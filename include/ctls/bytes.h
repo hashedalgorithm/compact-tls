@@ -28,12 +28,6 @@ static inline void ctls_write_u24(uint8_t *buffer, size_t *offset,
     buffer[(*offset)] = value & 0xFF;
 }
 
-static inline void ctls_write_to_offset_u16(uint8_t *buffer, size_t *offset,
-                                            uint16_t const value) {
-    buffer[(*offset)] = (value >> 8) & 0xFF;
-    buffer[(*offset)++] = value & 0xFF;
-}
-
 
 static inline void ctls_write_u64(uint8_t *buffer, size_t *offset,
                                   uint64_t const value) {
@@ -42,12 +36,12 @@ static inline void ctls_write_u64(uint8_t *buffer, size_t *offset,
     }
 }
 
-static inline void ctls_write_bytes(uint8_t *destination_buffer, size_t length,
-                                    const uint8_t *source_buffer,
-                                    size_t *source_buffer_offset
+static inline void ctls_write_bytes(uint8_t *destination_buffer, size_t *destination_offset, size_t length,
+                                    const uint8_t *source_buffer
+
 ) {
-    memcpy(destination_buffer + *source_buffer_offset, source_buffer, length);
-    *source_buffer_offset += length;
+    memcpy(destination_buffer + *destination_offset, source_buffer, length);
+    *destination_offset += length;
 }
 
 // read primitives — big-endian, network byte order
