@@ -203,11 +203,11 @@ ctls_build_record_finished(ctls_context_t *context);
 ctls_op_status_t ctls_compute_transcript_hash(
     uint8_t *transaction_hash);
 
-ctls_op_status_t ctls_record_serialize(ctls_record_t *record,
+ctls_op_status_t ctls_record_serialize(ctls_record_t const *record,
                                        uint8_t *buffer,
                                        size_t buffer_size,
                                        size_t *buffer_length);
-ctls_op_status_t ctls_record_deserialize(ctls_record_t *record,
+ctls_op_status_t ctls_record_deserialize(ctls_record_t const *record,
                                          uint8_t *buffer,
                                          size_t buffer_length);
 

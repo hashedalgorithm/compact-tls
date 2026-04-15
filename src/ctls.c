@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include "ctls/internal.h"
 #include "crypto.c"
+#include "ctls/bytes.h"
+
 
 ctls_op_status_t ctls_build_unified_header(
     const ctls_recd_config_octet_t *config,
@@ -71,8 +73,20 @@ ctls_op_status_t ctls_build_unified_header(
     };
 }
 
+ctls_op_status_t ctls_write_body_length(uint8_t *buffer, size_t *offset,
+                                        size_t const body_length) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(offset);
 
-ctls_op_status_t ctls_record_serialize(ctls_record_t *record,
+    ctls_write_u16(buffer, offset, body_length);
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS,
+    };
+}
+
+ctls_op_status_t ctls_record_serialize(ctls_record_t const *record,
                                        uint8_t *buffer,
                                        size_t const buffer_size,
                                        size_t *buffer_length) {
@@ -81,100 +95,73 @@ ctls_op_status_t ctls_record_serialize(ctls_record_t *record,
     CTLS_CHECK_NULL(buffer_length);
 
     size_t offset = 0;
+    size_t body_start = offset;
 
-    // header: content_type (1 byte)
-    if (offset + CTLS_WIRE_CONTENT_TYPE > buffer_size)
-        return (ctls_op_status_t){
-            .source = CTLS_ERROR_SOURCE_INTERNAL,
-            .code = CTLS_OP_STATUS_OVERFLOW,
-            .external_code = CTLS_OP_STATUS_OVERFLOW,
-        };
-
-    buffer[offset++] = record->header.content_type;
-
-    // header: sequence_number (8 bytes, big-endian)
-    if (offset + CTLS_WIRE_SEQUENCE_NUMBER > buffer_size)
-        return (ctls_op_status_t){
-            .source = CTLS_ERROR_SOURCE_INTERNAL,
-            .code = CTLS_OP_STATUS_OVERFLOW,
-            .external_code = CTLS_OP_STATUS_OVERFLOW,
-        };
-    ctls_write_u64(buffer, &offset, record->header.sequence_number);
-
-
-    // header: length (2 bytes, big-endian) — placeholder, filled after body
-    if (offset + CTLS_WIRE_LENGTH > buffer_size)
-        return (ctls_op_status_t){
-            .source = CTLS_ERROR_SOURCE_INTERNAL,
-            .code = CTLS_OP_STATUS_OVERFLOW,
-            .external_code = CTLS_OP_STATUS_OVERFLOW,
-        };
-    size_t length_offset = offset;
-    buffer[offset++] = 0;
-    buffer[offset++] = 0;
-
-    // body — depends on record type
-    const size_t body_start = offset;
-
-    switch (record->type) {
-        case CTLS_RECORD_TYPE_CLIENT_HELLO: {
-            const ctls_record_body_client_hello_t *client_hello = &record->body.
-                    client_hello;
-
-            if (offset + CTLS_WIRE_PROFILE_ID >
-                buffer_size)
-                return (ctls_op_status_t){
-                    .source = CTLS_ERROR_SOURCE_INTERNAL,
-                    .code = CTLS_OP_STATUS_OVERFLOW,
-                    .external_code = CTLS_OP_STATUS_OVERFLOW,
-                };
-            ctls_write_u16(buffer, &offset, client_hello->profile_id);
-
-            if (offset + CTLS_WIRE_SIZE_RECORD_BODY_PARAMETER_RANDOM >
-                buffer_size)
-                return (ctls_op_status_t){
-                    .source = CTLS_ERROR_SOURCE_INTERNAL,
-                    .code = CTLS_OP_STATUS_OVERFLOW,
-                    .external_code = CTLS_OP_STATUS_OVERFLOW,
-                };
-            memcpy(buffer + offset, client_hello->random,
-                   CTLS_WIRE_SIZE_RECORD_BODY_PARAMETER_RANDOM);
-            offset += CTLS_WIRE_SIZE_RECORD_BODY_PARAMETER_RANDOM;
-
-            if (offset + CTLS_WIRE_SIZE_RECORD_BODY_PARAMETER_KEY_SHARE >
-                buffer_size)
-                return (ctls_op_status_t){
-                    .source = CTLS_ERROR_SOURCE_INTERNAL,
-                    .code = CTLS_OP_STATUS_OVERFLOW,
-                    .external_code = CTLS_OP_STATUS_OVERFLOW,
-                };
-            memcpy(buffer + offset, client_hello->key_share,
-                   CTLS_WIRE_SIZE_RECORD_BODY_PARAMETER_KEY_SHARE);
-            offset += CTLS_WIRE_SIZE_RECORD_BODY_PARAMETER_KEY_SHARE;
-            break;
-        }
-        case CTLS_RECORD_TYPE_SERVER_HELLO: {
-        }
-        case CTLS_RECORD_TYPE_ENCRYPTED_EXTENSIONS: {
-        }
-        case CTLS_RECORD_TYPE_CERTIFICATE: {
-        }
-        case CTLS_RECORD_TYPE_CERTIFICATE_VERIFY: {
-        }
-        case CTLS_RECORD_TYPE_FINISHED: {
-        }
-        default:
+    if (record->type == CTLS_RECORD_TYPE_PLAINTEXT) {
+        // header: content_type (1 byte)
+        if (offset + CTLS_WIRE_CONTENT_TYPE > buffer_size)
             return (ctls_op_status_t){
                 .source = CTLS_ERROR_SOURCE_INTERNAL,
-                .code = CTLS_OP_STATUS_INVALID,
-                .external_code = CTLS_OP_STATUS_INVALID,
+                .code = CTLS_OP_STATUS_OVERFLOW,
+                .external_code = CTLS_OP_STATUS_OVERFLOW,
             };
+
+        buffer[offset++] = record->content_type;
+
+        if (offset + CTLS_WIRE_PROFILE_ID > buffer_size)
+            return (ctls_op_status_t){
+                .source = CTLS_ERROR_SOURCE_INTERNAL,
+                .code = CTLS_OP_STATUS_OVERFLOW,
+                .external_code = CTLS_OP_STATUS_OVERFLOW
+            };
+
+        // opaque profile_id<0..2^8-1>;
+        buffer[offset++] = 0x01;
+        buffer[offset++] = record->profile_id;
+
+        // record body — depends on record type
+        body_start = offset;
+        offset += 2;
+
+        switch (record->record_body.message_type) {
+            case CTLS_HSMG_TYPE_CLIENT_HELLO: {
+                // opaque Random[32];
+                ctls_write_bytes(buffer, &offset, CTLS_WIRE_RANDOM,
+                                 record->record_body.handshake_message_body.
+                                 client_hello.random);
+
+                // CipherSuite cipher_suites<2..2^16-2>;
+                ctls_write_u16(buffer, &offset, 0x02);
+                ctls_write_u16(buffer, &offset,
+                               (uint16_t) record->record_body.
+                               handshake_message_body.client_hello.
+                               cipher_suite);
+
+                // Extension extensions<1..2^16-1>;
+                ctls_write_bytes(buffer, &offset, CTLS_WIRE_KEY_SHARE,
+                                 record->record_body.handshake_message_body.
+                                 client_hello.extensions.key_share_entity.
+                                 key_share);
+            }
+            case CTLS_HSMG_TYPE_SERVER_HELLO: {
+                // TODO
+                break;
+            }
+            default:
+                return (ctls_op_status_t){
+                    .source = CTLS_ERROR_SOURCE_INTERNAL,
+                    .code = CTLS_OP_STATUS_INVALID,
+                    .external_code = CTLS_OP_STATUS_INVALID,
+                };
+        }
+    }
+    if (record->type == CTLS_RECORD_TYPE_ENCRYPTED) {
     }
 
-    // fill in body length
-    const uint16_t body_length = (uint16_t) (offset - body_start);
-    ctls_write_u16(buffer, &length_offset, body_length);
 
+    // fill in body length
+    ctls_write_body_length(buffer, &body_start,
+                           (uint16_t) (offset - body_start));
     *buffer_length = offset;
 
     return (ctls_op_status_t){
@@ -184,56 +171,15 @@ ctls_op_status_t ctls_record_serialize(ctls_record_t *record,
     };
 }
 
-ctls_op_status_t ctls_record_deserialize(ctls_record_t *record,
+ctls_op_status_t ctls_record_deserialize(ctls_record_t const *record,
                                          uint8_t *buffer,
-                                         size_t const buffer_length) {
+                                         size_t buffer_length) {
     CTLS_CHECK_NULL(buffer);
     CTLS_CHECK_NULL(record);
-    CTLS_CHECK_BOUNDS(0, CTLS_WIRE_SIZE_RECORD_HEADER, buffer_length);
 
     size_t offset = 0;
 
-    // header
-    record->header.content_type = ctls_read_u8(buffer, &offset);
-    record->header.sequence_number = ctls_read_u64(buffer, &offset);
-    record->header.length = ctls_read_u16(buffer, &offset);
-
-    CTLS_CHECK_BOUNDS(offset, record->header.length, buffer_length);
-
-    // body
-    switch (record->header.content_type) {
-        case CTLS_CONTENT_TYPE_HANDSHAKE: {
-            record->type = CTLS_RECORD_TYPE_SERVER_HELLO;
-            ctls_record_body_server_hello_t *server_hello = &record->body.
-                    server_hello;
-            CTLS_CHECK_BOUNDS(
-                offset,
-                CTLS_WIRE_SIZE_RECORD_BODY_PARAMETER_RANDOM +
-                CTLS_WIRE_SIZE_RECORD_BODY_PARAMETER_KEY_SHARE,
-                buffer_length);
-            ctls_read_bytes(server_hello->random,
-                            CTLS_WIRE_SIZE_RECORD_BODY_PARAMETER_RANDOM, buffer,
-                            &offset);
-            ctls_read_bytes(server_hello->key_share,
-                            CTLS_WIRE_SIZE_RECORD_BODY_PARAMETER_KEY_SHARE,
-                            buffer, &offset);
-            break;
-        }
-        case CTLS_CONTENT_TYPE_APPLICATION_DATA: {
-        }
-        case CTLS_CONTENT_TYPE_CHANGE_CIPHER_SPEC: {
-        }
-        case CTLS_CONTENT_TYPE_ALERT: {
-        }
-        case CTLS_CONTENT_TYPE_HEARTBEAT: {
-        }
-        default:
-            return (ctls_op_status_t){
-                .source = CTLS_ERROR_SOURCE_INTERNAL,
-                .code = CTLS_OP_STATUS_INVALID,
-                .external_code = CTLS_OP_STATUS_INVALID,
-            };
-    }
+    // TODO
 
     return (ctls_op_status_t){
         .source = CTLS_ERROR_SOURCE_INTERNAL,
