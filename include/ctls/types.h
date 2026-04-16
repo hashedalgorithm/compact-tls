@@ -17,6 +17,8 @@
 /*  hsmg - Handshake Message                                             */
 /*  hshk - Handshake                                                     */
 /*  recd - Record                                                        */
+/*  tmpl - Template                                                      */
+/*  extn - Extension                                                     */
 /* --------------------------------------------------------------------  */
 
 
@@ -24,20 +26,11 @@
 /*  CONSTANTS                                                         */
 /* ------------------------------------------------------------------ */
 
-#define CTLS_WIRE_CONTENT_TYPE 1U
-#define CTLS_WIRE_SEQUENCE_NUMBER 8U
-#define CTLS_WIRE_LENGTH 2U
-#define CTLS_WIRE_RECORD_HEADER (      \
-    CTLS_WIRE_SEQUENCE_NUMBER +        \
-    CTLS_WIRE_CONTENT_TYPE +           \
-    CTLS_WIRE_LENGTH                   \
-)
 
 #define CTLS_WIRE_PROFILE_ID 1U
-#define CTLS_WIRE_RANDOM 32U
+// #define CTLS_WIRE_RANDOM CTLS_TEMPLATE_RANDOM
 #define CTLS_WIRE_KEY_SHARE 32U
-#define CTLS_WIRE_SIGNATURE 64U // If ED25519
-// #define CTLS_WIRE_SIGNATURE 72U // If ECDSA
+// #define CTLS_WIRE_SIGNATURE CTLS_TEMPLATE_SIGNATURE_ALGORITHM_LENGTH
 #define CTLS_WIRE_VERIFY_DATA 32U
 #define CTLS_SIZE_TRANSCRIPT_HASH 32U
 
@@ -82,35 +75,35 @@ typedef enum {
     CTLS_HSMG_CIPHER_SUITE_CHACHA20_POLY1305_SHA256 = 0x1303,
     CTLS_HSMG_CIPHER_SUITE_AES_128_CCM_SHA256 = 0x1304,
     CTLS_HSMG_CIPHER_SUITE_AES_128_CCM_8_SHA256 = 0x1305,
-} ctls_hsmg_cipher_suite_t;
+} ctls_hsmg_cipher_suite_type_t;
 
 typedef enum {
-    CTLS_HSMG_DHE_GROUP_SECP256R1 = 0x0017,
-    CTLS_HSMG_DHE_GROUP_SECP384R1 = 0x0018,
-    CTLS_HSMG_DHE_GROUP_SECP521R1 = 0x0019,
-    CTLS_HSMG_DHE_GROUP_X25519 = 0x001D,
-    CTLS_HSMG_DHE_GROUP_X448 = 0x001E,
-    CTLS_HSMG_DHE_GROUP_FFDHE2048 = 0x0100,
-    CTLS_HSMG_DHE_GROUP_FFDHE3072 = 0x0101,
-    CTLS_HSMG_DHE_GROUP_FFDHE4096 = 0x0102,
-} ctls_hsmg_dhe_group_t;
+    CTLS_EXTN_DHE_GROUP_SECP256R1 = 0x0017,
+    CTLS_EXTN_DHE_GROUP_SECP384R1 = 0x0018,
+    CTLS_EXTN_DHE_GROUP_SECP521R1 = 0x0019,
+    CTLS_EXTN_DHE_GROUP_X25519 = 0x001D,
+    CTLS_EXTN_DHE_GROUP_X448 = 0x001E,
+    CTLS_EXTN_DHE_GROUP_FFDHE2048 = 0x0100,
+    CTLS_EXTN_DHE_GROUP_FFDHE3072 = 0x0101,
+    CTLS_EXTN_DHE_GROUP_FFDHE4096 = 0x0102,
+} ctls_extn_dhe_group_type_t;
 
 typedef enum {
-    CTLS_HSMG_SIGNATURE_ALGORITHM_RSA_PKCS1_SHA256 = 0x0401,
-    CTLS_HSMG_SIGNATURE_ALGORITHM_RSA_PKCS1_SHA384 = 0x0501,
-    CTLS_HSMG_SIGNATURE_ALGORITHM_RSA_PKCS1_SHA512 = 0x0601,
-    CTLS_HSMG_SIGNATURE_ALGORITHM_ECDSA_SECP256R1_SHA256 = 0x0403,
-    CTLS_HSMG_SIGNATURE_ALGORITHM_ECDSA_SECP384R1_SHA384 = 0x0503,
-    CTLS_HSMG_SIGNATURE_ALGORITHM_ECDSA_SECP521R1_SHA512 = 0x0603,
-    CTLS_HSMG_SIGNATURE_ALGORITHM_RSA_PSS_RSAE_SHA256 = 0x0804,
-    CTLS_HSMG_SIGNATURE_ALGORITHM_RSA_PSS_RSAE_SHA384 = 0x0805,
-    CTLS_HSMG_SIGNATURE_ALGORITHM_RSA_PSS_RSAE_SHA512 = 0x0806,
-    CTLS_HSMG_SIGNATURE_ALGORITHM_ED25519 = 0x0807,
-    CTLS_HSMG_SIGNATURE_ALGORITHM_ED448 = 0x0808,
-    CTLS_HSMG_SIGNATURE_ALGORITHM_RSA_PSS_PSS_SHA256 = 0x0809,
-    CTLS_HSMG_SIGNATURE_ALGORITHM_RSA_PSS_PSS_SHA384 = 0x080A,
-    CTLS_HSMG_SIGNATURE_ALGORITHM_RSA_PSS_PSS_SHA512 = 0x080B,
-} ctls_hsmg_signature_algorithm_t;
+    CTLS_EXTN_SIGNATURE_ALGORITHM_RSA_PKCS1_SHA256 = 0x0401,
+    CTLS_EXTN_SIGNATURE_ALGORITHM_RSA_PKCS1_SHA384 = 0x0501,
+    CTLS_EXTN_SIGNATURE_ALGORITHM_RSA_PKCS1_SHA512 = 0x0601,
+    CTLS_EXTN_SIGNATURE_ALGORITHM_ECDSA_SECP256R1_SHA256 = 0x0403,
+    CTLS_EXTN_SIGNATURE_ALGORITHM_ECDSA_SECP384R1_SHA384 = 0x0503,
+    CTLS_EXTN_SIGNATURE_ALGORITHM_ECDSA_SECP521R1_SHA512 = 0x0603,
+    CTLS_EXTN_SIGNATURE_ALGORITHM_RSA_PSS_RSAE_SHA256 = 0x0804,
+    CTLS_EXTN_SIGNATURE_ALGORITHM_RSA_PSS_RSAE_SHA384 = 0x0805,
+    CTLS_EXTN_SIGNATURE_ALGORITHM_RSA_PSS_RSAE_SHA512 = 0x0806,
+    CTLS_EXTN_SIGNATURE_ALGORITHM_ED25519 = 0x0807,
+    CTLS_EXTN_SIGNATURE_ALGORITHM_ED448 = 0x0808,
+    CTLS_EXTN_SIGNATURE_ALGORITHM_RSA_PSS_PSS_SHA256 = 0x0809,
+    CTLS_EXTN_SIGNATURE_ALGORITHM_RSA_PSS_PSS_SHA384 = 0x080A,
+    CTLS_EXTN_SIGNATURE_ALGORITHM_RSA_PSS_PSS_SHA512 = 0x080B,
+} ctls_extn_signature_algorithm_type_t;
 
 typedef enum {
     CTLS_HSMG_PROTOCOL_VERSION_1_2 = 0x0303,
@@ -132,29 +125,29 @@ typedef enum {
 } ctls_hsmg_alert_level_t;
 
 typedef enum {
-    CTLS_HSMG_EXTENSION_TYPE_SERVER_NAME = 0x0000,
-    CTLS_HSMG_EXTENSION_TYPE_MAX_FRAGMENT_LENGTH = 0x0001,
-    CTLS_HSMG_EXTENSION_TYPE_STATUS_REQUEST = 0x0005,
-    CTLS_HSMG_EXTENSION_TYPE_SUPPORTED_GROUPS = 0x000A,
-    CTLS_HSMG_EXTENSION_TYPE_SIGNATURE_ALGORITHMS = 0x000D,
-    CTLS_HSMG_EXTENSION_TYPE_USE_SRTP = 0x000E,
-    CTLS_HSMG_EXTENSION_TYPE_HEARTBEAT = 0x000F,
-    CTLS_HSMG_EXTENSION_TYPE_APPLICATION_LAYER_PROTOCOL_NEGOTIATION = 0x0010,
-    CTLS_HSMG_EXTENSION_TYPE_SIGNED_CERTIFICATE_TIMESTAMP = 0x0012,
-    CTLS_HSMG_EXTENSION_TYPE_CLIENT_CERTIFICATE_TYPE = 0x0013,
-    CTLS_HSMG_EXTENSION_TYPE_SERVER_CERTIFICATE_TYPE = 0x0014,
-    CTLS_HSMG_EXTENSION_TYPE_PADDING = 0x0015,
-    CTLS_HSMG_EXTENSION_TYPE_PRE_SHARED_KEY = 0x0029,
-    CTLS_HSMG_EXTENSION_TYPE_EARLY_DATA = 0x002A,
-    CTLS_HSMG_EXTENSION_TYPE_SUPPORTED_VERSIONS = 0x002B,
-    CTLS_HSMG_EXTENSION_TYPE_COOKIE = 0x002C,
-    CTLS_HSMG_EXTENSION_TYPE_PSK_KEY_EXCHANGE_MODES = 0x002D,
-    CTLS_HSMG_EXTENSION_TYPE_CERTIFICATE_AUTHORITIES = 0x002F,
-    CTLS_HSMG_EXTENSION_TYPE_OID_FILTERS = 0x0030,
-    CTLS_HSMG_EXTENSION_TYPE_POST_HANDSHAKE_AUTH = 0x0031,
-    CTLS_HSMG_EXTENSION_TYPE_SIGNATURE_ALGORITHMS_CERT = 0x0032,
-    CTLS_HSMG_EXTENSION_TYPE_KEY_SHARE = 0x0033,
-} ctls_hsmg_extension_type_t;
+    CTLS_EXTN_TYPE_SERVER_NAME = 0x0000,
+    CTLS_EXTN_TYPE_MAX_FRAGMENT_LENGTH = 0x0001,
+    CTLS_EXTN_TYPE_STATUS_REQUEST = 0x0005,
+    CTLS_EXTN_TYPE_SUPPORTED_GROUPS = 0x000A,
+    CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS = 0x000D,
+    CTLS_EXTN_TYPE_USE_SRTP = 0x000E,
+    CTLS_EXTN_TYPE_HEARTBEAT = 0x000F,
+    CTLS_EXTN_TYPE_APPLICATION_LAYER_PROTOCOL_NEGOTIATION = 0x0010,
+    CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP = 0x0012,
+    CTLS_EXTN_TYPE_CLIENT_CERTIFICATE_TYPE = 0x0013,
+    CTLS_EXTN_TYPE_SERVER_CERTIFICATE_TYPE = 0x0014,
+    CTLS_EXTN_TYPE_PADDING = 0x0015,
+    CTLS_EXTN_TYPE_PRE_SHARED_KEY = 0x0029,
+    CTLS_EXTN_TYPE_EARLY_DATA = 0x002A,
+    CTLS_EXTN_TYPE_SUPPORTED_VERSIONS = 0x002B,
+    CTLS_EXTN_TYPE_COOKIE = 0x002C,
+    CTLS_EXTN_TYPE_PSK_KEY_EXCHANGE_MODES = 0x002D,
+    CTLS_EXTN_TYPE_CERTIFICATE_AUTHORITIES = 0x002F,
+    CTLS_EXTN_TYPE_OID_FILTERS = 0x0030,
+    CTLS_EXTN_TYPE_POST_HANDSHAKE_AUTH = 0x0031,
+    CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS_CERT = 0x0032,
+    CTLS_EXTN_TYPE_KEY_SHARE = 0x0033,
+} ctls_extn_type_t;
 
 typedef enum {
     CTLS_HSMG_ALERT_TYPE_CLOSE_NOTIFY = 0,
@@ -246,20 +239,42 @@ typedef enum {
     CTLS_RECORD_TYPE_ENCRYPTED,
 } ctls_record_type_t;
 
+typedef enum {
+    CTLS_EXTN_HOST_NAME = 0x00,
+} ctls_extn_host_name_type_t;
 
+typedef enum {
+    CTLS_EXTN_FRAGMENT_LENGTH_512 = 1, // 2^9
+    CTLS_EXTN_FRAGMENT_LENGTH_1024 = 2, // 2^10
+    CTLS_EXTN_FRAGMENT_LENGTH_2048 = 3, // 2^11
+    CTLS_EXTN_FRAGMENT_LENGTH_4096 = 4, // 2^12
+} ctls_extn_fragment_length_t;
+
+typedef enum {
+    CTLS_EXTN_CERTIFICATE_STATUS_TYPE_OSCP = 1,
+} ctls_extn_certificate_status_type_t;
+
+typedef uint8_t ctls_extn_srtp_protection_profile_t[2];
 typedef uint8_t ctls_hsmg_random_t[CTLS_WIRE_RANDOM];
-typedef uint8_t ctls_hsmg_key_share_t[CTLS_WIRE_KEY_SHARE];
+typedef uint8_t ctls_extn_key_share_t[CTLS_WIRE_KEY_SHARE];
+
+typedef struct ctls_extn_server_name ctls_extn_server_name_t;
+typedef struct ctls_extn_host_name ctls_extn_host_name_t;
+typedef struct ctls_extn_server_name_list ctls_extn_server_name_list_t;
+typedef struct ctls_extn_certificate_status_request
+ctls_extn_certificate_status_request_t;
+typedef struct ctls_extn_use_srtp ctls_extn_use_srtp_t;
 
 
 typedef struct ctls_hshk_client_hello ctls_hsmg_client_hello_t;
 typedef struct ctls_hsmg_extensions ctls_hsmg_extensions_t;
-typedef struct ctls_hsmg_extension_supported_groups
-ctls_hsmg_extension_supported_groups_t;
-typedef struct ctls_hsmg_extension_supported_version
-ctls_hsmg_extension_supported_version_t;
-typedef struct ctls_hsmg_extension_signature_algorithm
-ctls_hsmg_extension_signature_algorithm_t;
-typedef struct ctls_hsmg_extension_key_share ctls_hsmg_extension_key_share_t;
+typedef struct ctls_extn_supported_groups
+ctls_extn_supported_groups_t;
+typedef struct ctls_extn_supported_version
+ctls_extn_supported_version_t;
+typedef struct ctls_extn_signature_algorithm
+ctls_extn_signature_algorithm_t;
+typedef struct ctls_extn_key_share ctls_hsmg_extension_key_share_t;
 
 
 typedef struct ctls_hsmg_server_hello ctls_hsmg_server_hello_t;
@@ -276,7 +291,15 @@ typedef struct ctls_recd_config_octet ctls_recd_config_octet_t;
 typedef struct ctls_handshake_message ctls_handshake_message_t;
 
 typedef struct ctls_op_status ctls_op_status_t;
-typedef struct ctls_profile ctls_profile_t;
+typedef struct ctls_template ctls_template_t;
+typedef struct ctls_tmpl_signature_algorithm ctls_tmpl_signature_algorithm_t;
+typedef struct ctls_tmpl_dhe_group ctls_tmpl_dhe_group_t;
+typedef struct ctls_tmpl_extensions ctls_tmpl_extensions_t;
+typedef struct ctls_tmpl_predefined_extensions
+ctls_tmpl_predefined_extensions_t;
+typedef struct ctls_tmpl_extension ctls_tmpl_extension_t;
+typedef ctls_extn_type_t ctls_tmpl_expected_extensions_t[4];
+typedef ctls_extn_type_t ctls_tmpl_self_delimiting_extensions_t[4];
 
 
 #if CTLS_CLIENT

@@ -40,36 +40,65 @@ struct ctls_recd_config_octet {
     uint8_t epoch;
 };
 
+// Extensions
+
+/*
+ * TODO
+ *
+ * Server Name
+    struct ctls_extn_host_name {
+        uint8_t name[32];
+        uint8_t name_length;
+    };
+    struct ctls_extn_server_name {
+        ctls_extn_host_name_type_t name;
+        ctls_extn_host_name_t server_name;
+    };
+    struct ctls_extn_server_name_list {
+        ctls_extn_server_name_t server_name;
+        uint8_t count;
+    };
+
+    struct ctls_extn_certificate_status_request {};
+    struct ctls_extn_srtp_data {
+    };
+    struct ctls_extn_use_srtp {
+        ctls_extn_srtp_protection_profile_t srtp_protection_profile;
+        uint8_t srtp_mki[255];
+    };
+*/
+
+
 // CLIENT HELLO
 
-struct ctls_hsmg_extension_supported_groups {
-    ctls_hsmg_extension_type_t extension_type;
-    ctls_hsmg_dhe_group_t supported_group;
+struct ctls_extn_supported_groups {
+    ctls_extn_type_t extension_type;
+    ctls_extn_dhe_group_type_t supported_group;
 };
-struct ctls_hsmg_extension_supported_version {
-    ctls_hsmg_extension_type_t extension_type;
+struct ctls_extn_supported_version {
+    ctls_extn_type_t extension_type;
     uint16_t version;
 };
-struct ctls_hsmg_extension_signature_algorithm {
-    ctls_hsmg_extension_type_t extension_type;
-    ctls_hsmg_signature_algorithm_t signature_algorithm;
+struct ctls_extn_signature_algorithm {
+    ctls_extn_type_t extension_type;
+    ctls_extn_signature_algorithm_type_t signature_algorithm;
 };
-struct ctls_hsmg_extension_key_share {
-    ctls_hsmg_extension_type_t extension_type;
-    ctls_hsmg_key_share_t key_share;
+struct ctls_extn_key_share {
+    ctls_extn_type_t extension_type;
+    ctls_extn_key_share_t key_share;
 };
 
 struct ctls_hsmg_extensions {
-    ctls_hsmg_extension_supported_groups_t supported_groups;
-    ctls_hsmg_extension_supported_version_t supported_versions;
-    ctls_hsmg_extension_signature_algorithm_t signature_algorithm;
-    ctls_hsmg_extension_key_share_t key_share_entity;
+    ctls_extn_supported_groups_t supported_groups;
+    ctls_extn_supported_version_t supported_versions;
+    ctls_extn_signature_algorithm_t signature_algorithm;
+    ctls_extn_key_share_t key_share_entity;
 };
 struct ctls_hshk_client_hello {
     ctls_hsmg_protocol_version_t protocol_version;
     ctls_hsmg_random_t random;
     uint8_t legacy_session_id;
-    ctls_hsmg_cipher_suite_t cipher_suite;
+    ctls_hsmg_cipher_suite_type_t cipher_suite;
     uint8_t legacy_compression_methods;
     ctls_hsmg_extensions_t extensions;
 };
@@ -78,7 +107,7 @@ struct ctls_hshk_client_hello {
 
 struct ctls_hsmg_server_hello {
     ctls_hsmg_random_t random;
-    ctls_hsmg_key_share_t key_share;
+    ctls_extn_key_share_t key_share;
 };
 struct ctls_hsmg_encrypted_extensions {
     uint8_t extensions[];
@@ -120,7 +149,7 @@ struct ctls_handshake_message {
 struct ctls_record {
     /* For Client Hello and Server Hello */
     uint8_t content_type;
-    uint8_t profile_id;
+    uint8_t template_id;
     /* Except for Client Hello and Server Hello */
 
     ctls_record_type_t type; // For internal reference
@@ -142,15 +171,45 @@ struct ctls_op_status {
     uint16_t external_code;
 };
 
-struct ctls_profile {
-    uint8_t profile_id;
-    uint16_t version;
-    ctls_hsmg_cipher_suite_t cipher_suite;
-    ctls_hsmg_dhe_group_t dhe_group;
-    ctls_hsmg_signature_algorithm_t signature_algorithm;
+struct ctls_tmpl_dhe_group {
+    uint16_t length;
+    ctls_extn_dhe_group_type_t dhe_group;
+};
+struct ctls_tmpl_signature_algorithm {
+    uint16_t length;
+    ctls_extn_signature_algorithm_type_t signature_algorithm;
+};
+struct ctls_tmpl_predefined_extensions {
+    uint8_t server_name;
+};
+struct ctls_tmpl_extension {
+    ctls_tmpl_predefined_extensions_t predefined_extensions;
+    ctls_tmpl_expected_extensions_t expected_extensions;
+    ctls_tmpl_self_delimiting_extensions_t self_delimiting_extensions;
+    uint16_t allow_additional;
 };
 
-extern struct ctls_profile ctls_profiles[];
+struct ctls_tmpl_extensions {
+    ctls_tmpl_extension_t client_hello_extension;
+    ctls_tmpl_extension_t server_hello_extension;
+    ctls_tmpl_extension_t encrypted_extension;
+    ctls_tmpl_extension_t certificate_request_extension;
+};
+
+struct ctls_template {
+    uint8_t profile_id;
+    uint16_t ctls_version;
+    ctls_hsmg_protocol_version_t protocol_version;
+    ctls_hsmg_cipher_suite_type_t cipher_suite;
+    ctls_tmpl_dhe_group_t dhe_group;
+    ctls_tmpl_signature_algorithm_t signature_algorithm;
+    uint16_t random;
+    uint8_t mutual_auth;
+    uint8_t handshake_framing;
+    ctls_tmpl_extensions_t extensions;
+};
+
+extern struct ctls_template ctls_templates[];
 
 struct ctls_record_header {
     uint8_t content_type;
@@ -171,7 +230,7 @@ struct ctls_transport {
 };
 
 struct ctls_context {
-    ctls_profile_t profile;
+    ctls_template_t *template;
     ctls_transcript_hash_t transcript_hash;
     ctls_hshk_state_t state;
     ctls_transport_t transport;
@@ -182,7 +241,7 @@ struct ctls_context {
 
 ctls_op_status_t ctls_clear_record_buffer(ctls_record_t *record_buffer);
 
-ctls_op_status_t ctls_validate_profile(ctls_profile_t const *profile);
+ctls_op_status_t ctls_validate_template(ctls_template_t const *template);
 
 ctls_op_status_t ctls_handshake(ctls_context_t *context);
 
