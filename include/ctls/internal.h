@@ -230,7 +230,7 @@ struct ctls_transport {
 };
 
 struct ctls_context {
-    ctls_template_t *template;
+    ctls_template_t const *template;
     ctls_transcript_hash_t transcript_hash;
     ctls_hshk_state_t state;
     ctls_transport_t transport;

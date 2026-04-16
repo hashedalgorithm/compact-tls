@@ -26,11 +26,19 @@
 /*  CONSTANTS                                                         */
 /* ------------------------------------------------------------------ */
 
+#define CTLS_WIRE_CONTENT_TYPE 1U
+#define CTLS_WIRE_SEQUENCE_NUMBER 8U
+#define CTLS_WIRE_LENGTH 2U
+#define CTLS_WIRE_RECORD_HEADER (      \
+CTLS_WIRE_SEQUENCE_NUMBER +        \
+CTLS_WIRE_CONTENT_TYPE +           \
+CTLS_WIRE_LENGTH                   \
+)
 
 #define CTLS_WIRE_PROFILE_ID 1U
-// #define CTLS_WIRE_RANDOM CTLS_TEMPLATE_RANDOM
+#define CTLS_WIRE_RANDOM 32U
 #define CTLS_WIRE_KEY_SHARE 32U
-// #define CTLS_WIRE_SIGNATURE CTLS_TEMPLATE_SIGNATURE_ALGORITHM_LENGTH
+#define CTLS_WIRE_SIGNATURE 64U
 #define CTLS_WIRE_VERIFY_DATA 32U
 #define CTLS_SIZE_TRANSCRIPT_HASH 32U
 

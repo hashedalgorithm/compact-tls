@@ -36,10 +36,25 @@ static const ctls_template_t ctls_template_1 = {
     }
 };
 
-const inline ctls_template_t *ctls_get_template(uint8_t const profile_id) {
+static inline ctls_op_status_t ctls_set_template(
+    uint8_t const profile_id, ctls_template_t *template) {
     switch (profile_id) {
-        case 0x01: return &ctls_template_1;
-        default: return NULL;
+        case 0x01: {
+            template = &ctls_template_1;
+            return (ctls_op_status_t) (ctls_op_status_t){
+                .source = CTLS_ERROR_SOURCE_INTERNAL,
+                .code = CTLS_OP_STATUS_SUCCESS,
+                .external_code = CTLS_OP_STATUS_SUCCESS,
+            };
+        }
+        default: {
+            template = NULL;
+            return (ctls_op_status_t){
+                .source = CTLS_ERROR_SOURCE_INTERNAL,
+                .code = CTLS_OP_STATUS_INVALID,
+                .external_code = CTLS_OP_STATUS_INVALID,
+            };
+        }
     }
 }
 

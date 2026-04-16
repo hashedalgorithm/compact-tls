@@ -134,7 +134,7 @@ ctls_op_status_t ctls_generate_ephemeral_public_key(
 
     psa_status_t const result = psa_export_public_key(key_id,
         buffer,
-        CTLS_WIRE_SIZE_RECORD_BODY_PARAMETER_KEY_SHARE,
+        CTLS_WIRE_KEY_SHARE,
         &buffer_length);
 
     if (result != PSA_SUCCESS) return ctls_map_psa_error(result);
@@ -144,7 +144,7 @@ ctls_op_status_t ctls_generate_ephemeral_public_key(
 
 ctls_op_status_t ctls_generate_random(uint8_t *buffer) {
     psa_status_t const result = psa_generate_random(
-        buffer, CTLS_WIRE_SIZE_RECORD_BODY_PARAMETER_RANDOM);
+        buffer, CTLS_WIRE_RANDOM);
     return ctls_map_psa_error(result);
 }
 

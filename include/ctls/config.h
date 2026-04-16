@@ -13,4 +13,8 @@
 /* Using a wrong profile with wrong parameters results in connection
  * failure. Refer profile-registry.md for profile definitions. */
 
+#define CTLS_PROFILE_ID 0x01    // Refer profile-registry.md to get respective profileId
+
+
+
 #endif
