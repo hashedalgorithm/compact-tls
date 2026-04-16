@@ -149,7 +149,7 @@ struct ctls_handshake_message {
 struct ctls_record {
     /* For Client Hello and Server Hello */
     uint8_t content_type;
-    uint8_t template_id;
+    uint8_t profile_id;
     /* Except for Client Hello and Server Hello */
 
     ctls_record_type_t type; // For internal reference
@@ -262,11 +262,13 @@ ctls_build_record_finished(ctls_context_t *context);
 ctls_op_status_t ctls_compute_transcript_hash(
     uint8_t *transaction_hash);
 
-ctls_op_status_t ctls_record_serialize(ctls_record_t const *record,
+ctls_op_status_t ctls_record_serialize(ctls_template_t const *template,
+                                       ctls_record_t const *record,
                                        uint8_t *buffer,
                                        size_t buffer_size,
                                        size_t *buffer_length);
-ctls_op_status_t ctls_record_deserialize(ctls_record_t const *record,
+ctls_op_status_t ctls_record_deserialize(ctls_template_t const *template,
+                                         ctls_record_t const *record,
                                          uint8_t *buffer,
                                          size_t buffer_length);
 

@@ -4,6 +4,7 @@
 #include "ctls/internal.h"
 #include "crypto.c"
 #include "ctls/bytes.h"
+#include "templates.h"
 
 
 ctls_op_status_t ctls_build_unified_header(
@@ -86,7 +87,8 @@ ctls_op_status_t ctls_write_body_length(uint8_t *buffer, size_t *offset,
     };
 }
 
-ctls_op_status_t ctls_record_serialize(ctls_record_t const *record,
+ctls_op_status_t ctls_record_serialize(ctls_template_t const *template,
+                                       ctls_record_t const *record,
                                        uint8_t *buffer,
                                        size_t const buffer_size,
                                        size_t *buffer_length) {
@@ -126,7 +128,7 @@ ctls_op_status_t ctls_record_serialize(ctls_record_t const *record,
         switch (record->record_body.message_type) {
             case CTLS_HSMG_TYPE_CLIENT_HELLO: {
                 // opaque Random[32];
-                ctls_write_bytes(buffer, &offset, CTLS_WIRE_RANDOM,
+                ctls_write_bytes(buffer, &offset, template->random,
                                  record->record_body.handshake_message_body.
                                  client_hello.random);
 
@@ -140,8 +142,7 @@ ctls_op_status_t ctls_record_serialize(ctls_record_t const *record,
                 // Extension extensions<1..2^16-1>;
                 ctls_write_bytes(buffer, &offset, CTLS_WIRE_KEY_SHARE,
                                  record->record_body.handshake_message_body.
-                                 client_hello.extensions.key_share_entity.
-                                 key_share);
+                                 client_hello.extensions.key_share_entity);
             }
             case CTLS_HSMG_TYPE_SERVER_HELLO: {
                 // TODO
@@ -171,7 +172,8 @@ ctls_op_status_t ctls_record_serialize(ctls_record_t const *record,
     };
 }
 
-ctls_op_status_t ctls_record_deserialize(ctls_record_t const *record,
+ctls_op_status_t ctls_record_deserialize(ctls_template_t const *template,
+                                         ctls_record_t const *record,
                                          uint8_t *buffer,
                                          size_t buffer_length) {
     CTLS_CHECK_NULL(buffer);
@@ -199,13 +201,13 @@ ctls_op_status_t ctls_clear_record_buffer(
     };
 }
 
-ctls_op_status_t ctls_validate_profile(
-    const ctls_profile_t *profile) {
-    CTLS_CHECK_NULL(profile);
+ctls_op_status_t ctls_validate_template(
+    const ctls_template_t *template) {
+    CTLS_CHECK_NULL(template);
 
-    if (profile->cipher_suite == 0 ||
-        profile->dhe_group == 0 ||
-        profile->signature_algorithm == 0)
+    if (template->cipher_suite == 0 ||
+        template->dhe_group.dhe_group == 0 ||
+        template->signature_algorithm.signature_algorithm == 0)
         return (ctls_op_status_t){
             .source = CTLS_ERROR_SOURCE_INTERNAL,
             .code = CTLS_OP_STATUS_INVALID,
@@ -228,18 +230,13 @@ ctls_op_status_t ctls_context_init(ctls_context_t *context,
 
     context->state = CTLS_HSHK_STATE_START;
 
-    context->profile.version = CTLS_HSMG_VERSION_1_3;
-    context->profile.profile_id = CTLS_PROFILE_ID;
-    context->profile.dhe_group = CTLS_DHE_GROUP;
-    context->profile.cipher_suite = CTLS_CIPHER_SUIT;
-    context->profile.signature_algorithm = CTLS_SIGNATURE_ALGORITHM;
-
-    return ctls_validate_profile(&context->profile);
+    ctls_set_template(CTLS_PROFILE_ID, context->template);
+    return ctls_validate_template(context->template);
 }
 
 ctls_op_status_t ctls_connect(ctls_context_t *context) {
-    ctls_op_status_t const result = ctls_validate_profile(
-        &context->profile);
+    ctls_op_status_t const result = ctls_validate_template(
+        context->template);
     if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
     return ctls_handshake(context);
@@ -248,53 +245,53 @@ ctls_op_status_t ctls_connect(ctls_context_t *context) {
 
 ctls_op_status_t ctls_build_ctls_record(ctls_context_t *context,
                                         const ctls_record_type_t type) {
-    switch (type) {
-        case CTLS_RECORD_TYPE_CLIENT_HELLO: return
-                    ctls_build_ctls_record_client_hello(context);
-        case CTLS_RECORD_TYPE_SERVER_HELLO: return
-                    ctls_build_ctls_record_server_hello(context);
-        case CTLS_RECORD_TYPE_ENCRYPTED_EXTENSIONS: return
-                    ctls_build_record_encrypted_extensions(context);
-        case CTLS_RECORD_TYPE_CERTIFICATE: return ctls_build_record_certificate(
-                context);
-        case CTLS_RECORD_TYPE_CERTIFICATE_VERIFY: return
-                    ctls_build_record_certificate_verify(context);
-        case CTLS_RECORD_TYPE_FINISHED: return ctls_build_record_finished(
-                context);
-        default: return (ctls_op_status_t){
-                .source = CTLS_ERROR_SOURCE_INTERNAL,
-                .code = CTLS_OP_STATUS_INVALID,
-                .external_code = CTLS_OP_STATUS_INVALID,
-            };
-    }
+    // switch (type) {
+    //     case CTLS_RECORD_TYPE_CLIENT_HELLO: return
+    //                 ctls_build_ctls_record_client_hello(context);
+    //     case CTLS_RECORD_TYPE_SERVER_HELLO: return
+    //                 ctls_build_ctls_record_server_hello(context);
+    //     case CTLS_RECORD_TYPE_ENCRYPTED_EXTENSIONS: return
+    //                 ctls_build_record_encrypted_extensions(context);
+    //     case CTLS_RECORD_TYPE_CERTIFICATE: return ctls_build_record_certificate(
+    //             context);
+    //     case CTLS_RECORD_TYPE_CERTIFICATE_VERIFY: return
+    //                 ctls_build_record_certificate_verify(context);
+    //     case CTLS_RECORD_TYPE_FINISHED: return ctls_build_record_finished(
+    //             context);
+    //     default: return (ctls_op_status_t){
+    //             .source = CTLS_ERROR_SOURCE_INTERNAL,
+    //             .code = CTLS_OP_STATUS_INVALID,
+    //             .external_code = CTLS_OP_STATUS_INVALID,
+    //         };
+    // }
 }
 
 ctls_op_status_t
 ctls_build_ctls_record_client_hello(ctls_context_t *context) {
     CTLS_CHECK_NULL(context);
     ctls_clear_record_buffer(&context->record);
-
-    context->record.type = CTLS_RECORD_TYPE_CLIENT_HELLO;
-    uint8_t random[CTLS_WIRE_SIZE_RECORD_BODY_PARAMETER_RANDOM];
-    uint8_t key_share[CTLS_WIRE_SIZE_RECORD_BODY_PARAMETER_KEY_SHARE];
-
-    ctls_op_status_t result = ctls_generate_random(random);
-    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
-
-
-    result = ctls_generate_ephemeral_public_key(
-        key_share, CTLS_WIRE_SIZE_RECORD_BODY_PARAMETER_KEY_SHARE);
-    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
-
-    context->record.header.content_type = CTLS_CONTENT_TYPE_HANDSHAKE;
-    context->record.header.sequence_number = context->sequence_number;
-
-    context->record.body.client_hello.profile_id = context->profile.
-            profile_id;
-    memcpy(context->record.body.client_hello.random, random,
-           CTLS_WIRE_SIZE_RECORD_BODY_PARAMETER_RANDOM);
-    memcpy(context->record.body.client_hello.key_share, key_share,
-           CTLS_WIRE_SIZE_RECORD_BODY_PARAMETER_KEY_SHARE);
+    //
+    // context->record.type = CTLS_RECORD_TYPE_CLIENT_HELLO;
+    // uint8_t random[CTLS_WIRE_SIZE_RECORD_BODY_PARAMETER_RANDOM];
+    // uint8_t key_share[CTLS_WIRE_SIZE_RECORD_BODY_PARAMETER_KEY_SHARE];
+    //
+    // ctls_op_status_t result = ctls_generate_random(random);
+    // if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+    //
+    //
+    // result = ctls_generate_ephemeral_public_key(
+    //     key_share, CTLS_WIRE_SIZE_RECORD_BODY_PARAMETER_KEY_SHARE);
+    // if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+    //
+    // context->record.header.content_type = CTLS_CONTENT_TYPE_HANDSHAKE;
+    // context->record.header.sequence_number = context->sequence_number;
+    //
+    // context->record.record_body.client_hello.profile_id = context->profile.
+    //         profile_id;
+    // memcpy(context->record.record_body.client_hello.random, random,
+    //        CTLS_WIRE_SIZE_RECORD_BODY_PARAMETER_RANDOM);
+    // memcpy(context->record.record_body.client_hello.key_share, key_share,
+    //        CTLS_WIRE_SIZE_RECORD_BODY_PARAMETER_KEY_SHARE);
 
     context->sequence_number++;
     return (ctls_op_status_t){
@@ -362,51 +359,51 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
     size_t buffer_length = 0;
 
     // 1. build ClientHello into context->record
-    ctls_op_status_t result = ctls_build_ctls_record(
-        context, CTLS_RECORD_TYPE_CLIENT_HELLO);
-    if (result.code != CTLS_OP_STATUS_SUCCESS) {
-        context->state = CTLS_STATE_ERROR;
-        return result;
-    }
-
-    // 2. serialize record to wire bytes
-    result = ctls_record_serialize(&context->record, buffer, sizeof(buffer),
-                                   &buffer_length);
-    if (result.code != CTLS_OP_STATUS_SUCCESS) {
-        context->state = CTLS_STATE_ERROR;
-        return result;
-    }
-
-    // 3. send
-    result = context->transport.fn_send(buffer, buffer_length);
-    if (result.code != CTLS_OP_STATUS_SUCCESS) {
-        context->state = CTLS_STATE_ERROR;
-        return result;
-    }
-
-    ctls_update_transcript_hash(&context->record, &context->profile,
-                                &context->transcript_hash.hash_operator);
-
-    context->state = CTLS_STATE_WAIT_SERVER_HELLO;
-    // 4. recv — blocks until server responds
-    size_t recv_len = 0;
-    result = context->transport.recd_receive(buffer, &recv_len, sizeof(buffer));
-    if (result.code != CTLS_OP_STATUS_SUCCESS) {
-        context->state = CTLS_STATE_ERROR;
-        return result;
-    }
-
-    // 5. deserialize into record
-    ctls_clear_record_buffer(&context->record);
-    result = ctls_record_deserialize(&context->record, buffer, recv_len);
-    if (result.code != CTLS_OP_STATUS_SUCCESS) {
-        context->state = CTLS_STATE_ERROR;
-        return result;
-    }
-
-    // 6. parse ServerHello — next step
-    context->state = CTLS_STATE_WAIT_ENCRYPTED_EXTENSIONS;
-
+    // ctls_op_status_t result = ctls_build_ctls_record(
+    //     context, CTLS_RECORD_TYPE_CLIENT_HELLO);
+    // if (result.code != CTLS_OP_STATUS_SUCCESS) {
+    //     context->state = CTLS_STATE_ERROR;
+    //     return result;
+    // }
+    //
+    // // 2. serialize record to wire bytes
+    // result = ctls_record_serialize(&context->record, buffer, sizeof(buffer),
+    //                                &buffer_length);
+    // if (result.code != CTLS_OP_STATUS_SUCCESS) {
+    //     context->state = CTLS_STATE_ERROR;
+    //     return result;
+    // }
+    //
+    // // 3. send
+    // result = context->transport.fn_send(buffer, buffer_length);
+    // if (result.code != CTLS_OP_STATUS_SUCCESS) {
+    //     context->state = CTLS_STATE_ERROR;
+    //     return result;
+    // }
+    //
+    // ctls_update_transcript_hash(&context->record, &context->profile,
+    //                             &context->transcript_hash.hash_operator);
+    //
+    // context->state = CTLS_STATE_WAIT_SERVER_HELLO;
+    // // 4. recv — blocks until server responds
+    // size_t recv_len = 0;
+    // result = context->transport.recd_receive(buffer, &recv_len, sizeof(buffer));
+    // if (result.code != CTLS_OP_STATUS_SUCCESS) {
+    //     context->state = CTLS_STATE_ERROR;
+    //     return result;
+    // }
+    //
+    // // 5. deserialize into record
+    // ctls_clear_record_buffer(&context->record);
+    // result = ctls_record_deserialize(&context->record, buffer, recv_len);
+    // if (result.code != CTLS_OP_STATUS_SUCCESS) {
+    //     context->state = CTLS_STATE_ERROR;
+    //     return result;
+    // }
+    //
+    // // 6. parse ServerHello — next step
+    // context->state = CTLS_STATE_WAIT_ENCRYPTED_EXTENSIONS;
+    //
 
     return (ctls_op_status_t){
         .source = CTLS_ERROR_SOURCE_INTERNAL,
