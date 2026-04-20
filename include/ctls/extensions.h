@@ -53,6 +53,16 @@ struct ctls_extn_client_hello {
     ctls_extn_supported_version_t supported_versions;
     ctls_extn_signature_algorithm_t signature_algorithm;
     ctls_extn_key_share_t key_share_entity;
+    ctls_extn_server_name_t server_name;
+    ctls_extn_maximum_fragment_length_t maximum_fragment_length;
+    ctls_extn_certificate_status_request_t certificate_status_request;
+    ctls_extn_heartbeat_type_t heartbeat_type;
+    ctls_extn_alpn_list_t alpn_list;
+    ctls_extn_certificate_type_t client_certificate_type;
+    ctls_extn_certificate_type_t server_certificate_type;
+    ctls_extn_psk_key_exchange_mode_t psk_key_exchange_modes;
+    ctls_extn_post_handshake_auth_t post_handshake_auth;
+    ctls_extn_signature_algorithm_type_t signature_algorithm_cert;
 };
 
 
