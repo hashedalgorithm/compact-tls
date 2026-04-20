@@ -13,18 +13,24 @@ include_directories(src)
 include_directories(examples)
 
 add_executable(compact_tls
-        include/ctls/ctls.h
-        include/ctls/internal.h
-        include/ctls/types.h
-        include/ctls/templates.h
-        include/ctls/bytes.h
-        include/ctls/config.h
-        src/ctls.c
-        src/crypto.c
         examples/main.c
         examples/client.c
+        include/ctls/bytes.h
+        include/ctls/config.h
+        include/ctls/crypto.h
+        include/ctls/ctls.h
+        include/ctls/extensions.h
+        include/ctls/hsmg.h
+        include/ctls/internal.h
+        include/ctls/record.h
+        include/ctls/templates.h
+        include/ctls/types.h
+        src/crypto.c
+        src/ctls.c
+        src/extensions.c
+        src/hsmg.c
         src/record.c
-        src/record.c
+        src/templates.c
 )
 target_link_libraries(compact_tls
         MbedTLS::tfpsacrypto

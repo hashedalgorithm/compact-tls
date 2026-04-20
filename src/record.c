@@ -1,0 +1,278 @@
+//
+// Created by Sanjay Kumar Kumaravelan on 15/04/26.
+//
+
+#include <string.h>
+#include "ctls/internal.h"
+#include "ctls/bytes.h"
+#include "ctls/hsmg.h"
+#include "ctls/record.h"
+#include "ctls/templates.h"
+
+ctls_op_status_t ctls_build_unified_header(
+    const ctls_recd_config_octet_t *config,
+    uint16_t sequence_number,
+    uint16_t length,
+    uint8_t *buffer,
+    size_t *buffer_length) {
+    CTLS_CHECK_NULL(config);
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(buffer_length);
+
+    size_t offset = 0;
+
+    /* ---- config octet ---- */
+    /* fixed bits 7-5 = 0b001, per RFC 9147 §4 */
+    uint8_t octet = CTLS_RECD_CONFIG_OCTET_FIXED_VALUE;
+
+    /* C bit (4): CID present */
+    if (config->c_bit)
+        octet |= CTLS_RECD_CONFIG_OCTET_C_MASK;
+
+    /* S bit (3): sequence number length — 0=8bit, 1=16bit */
+    if (config->s_bit)
+        octet |= CTLS_RECD_CONFIG_OCTET_S_MASK;
+
+    /* L bit (2): length field present */
+    if (config->l_bit)
+        octet |= CTLS_RECD_CONFIG_OCTET_L_MASK;
+
+    /* E bits (1-0): low 2 bits of epoch */
+    octet |= (config->epoch & CTLS_RECD_CONFIG_OCTET_EPOCH_MASK);
+
+    buffer[offset++] = octet;
+
+    /* ---- connection ID ---- */
+    /* C bit is 0 in your LoRaWAN setup — CID field omitted entirely.
+     * When CID support is added, write CID bytes here.             */
+
+    /* ---- sequence number ---- */
+    /* cTLS-10 §2.2: on reliable ordered transport (LoRaWAN),
+     * S bit MUST be cleared and sequence number MUST be omitted.
+     * Written here only when S=1 (unreliable transport).           */
+    if (config->s_bit) {
+        if (octet & CTLS_RECD_CONFIG_OCTET_S_MASK) {
+            /* S=1: 16-bit sequence number */
+            ctls_write_u16(buffer, &offset, sequence_number);
+        } else {
+            /* S=0: 8-bit sequence number */
+            buffer[offset++] = sequence_number & 0xFF;
+        }
+    }
+
+    /* ---- length ---- */
+    /* cTLS-10 §2.2: on stream transport, L MUST be 1.
+     * On datagram transport L may be 0 (length inferred from UDP). */
+    if (config->l_bit) {
+        ctls_write_u16(buffer, &offset, length);
+    }
+
+    *buffer_length = offset;
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS,
+    };
+}
+
+ctls_op_status_t ctls_write_body_length(uint8_t *buffer, size_t *offset,
+                                        size_t const body_length) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(offset);
+
+    ctls_write_u16(buffer, offset, body_length);
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS,
+    };
+}
+
+ctls_op_status_t ctls_record_serialize(ctls_template_t const *template,
+                                       ctls_record_t const *record,
+                                       uint8_t *buffer,
+                                       size_t const buffer_size,
+                                       size_t *buffer_length) {
+    CTLS_CHECK_NULL(record);
+    CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(buffer_length);
+
+    size_t offset = 0;
+    size_t body_start = offset;
+
+    if (record->type == CTLS_RECORD_TYPE_PLAINTEXT) {
+        // header: content_type (1 byte)
+        if (offset + CTLS_WIRE_CONTENT_TYPE > buffer_size)
+            return (ctls_op_status_t){
+                .source = CTLS_ERROR_SOURCE_INTERNAL,
+                .code = CTLS_OP_STATUS_OVERFLOW,
+                .external_code = CTLS_OP_STATUS_OVERFLOW,
+            };
+
+        buffer[offset++] = record->content_type;
+
+        if (offset + CTLS_WIRE_PROFILE_ID > buffer_size)
+            return (ctls_op_status_t){
+                .source = CTLS_ERROR_SOURCE_INTERNAL,
+                .code = CTLS_OP_STATUS_OVERFLOW,
+                .external_code = CTLS_OP_STATUS_OVERFLOW
+            };
+
+        // opaque profile_id<0..2^8-1>;
+        buffer[offset++] = 0x01;
+        buffer[offset++] = record->profile_id;
+
+        // record body — depends on record type
+        body_start = offset;
+        offset += 2;
+
+        switch (record->record_body.message_type) {
+            case CTLS_HSMG_TYPE_CLIENT_HELLO: {
+                // opaque Random[32];
+                ctls_write_bytes(buffer, &offset, template->random,
+                                 record->record_body.handshake_message_body.
+                                 client_hello.random);
+
+                // CipherSuite cipher_suites<2..2^16-2>;
+                ctls_write_u16(buffer, &offset, 0x02);
+                ctls_write_u16(buffer, &offset,
+                               (uint16_t) record->record_body.
+                               handshake_message_body.client_hello.
+                               cipher_suite);
+
+                // Extension extensions<1..2^16-1>;
+                ctls_write_bytes(buffer, &offset, CTLS_WIRE_KEY_SHARE,
+                                 record->record_body.handshake_message_body.
+                                 client_hello.extensions.key_share_entity);
+            }
+            case CTLS_HSMG_TYPE_SERVER_HELLO: {
+                // TODO
+                break;
+            }
+            default:
+                return (ctls_op_status_t){
+                    .source = CTLS_ERROR_SOURCE_INTERNAL,
+                    .code = CTLS_OP_STATUS_INVALID,
+                    .external_code = CTLS_OP_STATUS_INVALID,
+                };
+        }
+    }
+    if (record->type == CTLS_RECORD_TYPE_ENCRYPTED) {
+    }
+
+
+    // fill in body length
+    ctls_write_body_length(buffer, &body_start,
+                           (uint16_t) (offset - body_start));
+    *buffer_length = offset;
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS,
+    };
+}
+
+ctls_op_status_t ctls_record_deserialize(ctls_template_t const *template,
+                                         ctls_record_t const *record,
+                                         uint8_t *buffer,
+                                         size_t buffer_length) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(record);
+
+    size_t offset = 0;
+
+    // TODO
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS,
+    };
+}
+
+ctls_op_status_t ctls_recd_buffer_clear(
+    ctls_record_t *record_buffer) {
+    memset(record_buffer, 0, sizeof(ctls_record_t));
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS,
+    };
+}
+
+
+ctls_op_status_t ctls_recd_client_hello_create(ctls_record_t *record,
+                                               ctls_template_t const *
+                                               template) {
+    CTLS_CHECK_NULL(record);
+    CTLS_CHECK_NULL(template);
+
+    ctls_op_status_t const result = ctls_recd_buffer_clear(record);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
+    record->profile_id = template->profile_id;
+    record->type = CTLS_RECORD_TYPE_PLAINTEXT;
+    record->record_body.message_type = CTLS_HSMG_TYPE_CLIENT_HELLO;
+    record->record_body.sequence_number = 0;
+
+    return ctls_hsmg_client_hello_create(&record->record_body, template);
+}
+
+ctls_op_status_t ctls_recd_client_hello_to_struct() {
+}
+
+ctls_op_status_t ctls_recd_client_hello_to_wire() {
+}
+
+ctls_op_status_t ctls_recd_server_hello_create() {
+}
+
+ctls_op_status_t ctls_recd_server_hello_to_struct() {
+}
+
+ctls_op_status_t ctls_recd_server_hello_to_wire() {
+}
+
+ctls_op_status_t ctls_recd_encrypted_extensions_create() {
+}
+
+ctls_op_status_t ctls_recd_encrypted_extensions_to_struct() {
+}
+
+ctls_op_status_t ctls_recd_encrypted_extensions_to_wire() {
+}
+
+ctls_op_status_t ctls_recd_certificate_create() {
+}
+
+ctls_op_status_t ctls_recd_certificate_to_struct() {
+}
+
+ctls_op_status_t ctls_recd_certificate_to_wire() {
+}
+
+ctls_op_status_t ctls_recd_certificate_verify_create() {
+}
+
+ctls_op_status_t ctls_recd_certificate_verify_to_struct() {
+}
+
+ctls_op_status_t ctls_recd_certificate_verify_to_wire() {
+}
+
+ctls_op_status_t ctls_recd_finished_create() {
+}
+
+ctls_op_status_t ctls_recd_finished_to_struct() {
+}
+
+ctls_op_status_t ctls_recd_finished_to_wire() {
+}
+
+
+
+

@@ -29,17 +29,16 @@
 #define CTLS_WIRE_CONTENT_TYPE 1U
 #define CTLS_WIRE_SEQUENCE_NUMBER 8U
 #define CTLS_WIRE_LENGTH 2U
-#define CTLS_WIRE_RECORD_HEADER (      \
-CTLS_WIRE_SEQUENCE_NUMBER +        \
-CTLS_WIRE_CONTENT_TYPE +           \
-CTLS_WIRE_LENGTH                   \
-)
 
 #define CTLS_WIRE_PROFILE_ID 1U
 #define CTLS_WIRE_RANDOM 32U
 #define CTLS_WIRE_KEY_SHARE 32U
 #define CTLS_WIRE_SIGNATURE 64U
 #define CTLS_WIRE_VERIFY_DATA 32U
+#define CTLS_WIRE_SERVER_NAME 64U
+#define CTLS_WIRE_ALPN 12U
+#define CTLS_WIRE_ALPN_COUNT 3
+
 #define CTLS_SIZE_TRANSCRIPT_HASH 32U
 
 /* config_octet — RFC 9147 §4, used verbatim by cTLS-10 §2.2
@@ -53,24 +52,20 @@ CTLS_WIRE_LENGTH                   \
  */
 
 /* Fixed bits (bits 7–5) — must be 0b001 on every record */
-#define CTLS_RECD_CONFIG_OCTET_FIXED_MASK     0xE0u   /* 1110 0000 */
 #define CTLS_RECD_CONFIG_OCTET_FIXED_VALUE    0x20u   /* 0010 0000 */
 
 /* Bit 4: Connection ID present */
 #define CTLS_RECD_CONFIG_OCTET_C_MASK         0x10u   /* 0001 0000 */
-#define CTLS_RECD_CONFIG_OCTET_C_BIT          4u
 
 /* Bit 3: Sequence number length (0=8-bit, 1=16-bit) */
 #define CTLS_RECD_CONFIG_OCTET_S_MASK         0x08u   /* 0000 1000 */
-#define CTLS_RECD_CONFIG_OCTET_S_BIT          3u
+
 
 /* Bit 2: Length field present */
 #define CTLS_RECD_CONFIG_OCTET_L_MASK         0x04u   /* 0000 0100 */
-#define CTLS_RECD_CONFIG_OCTET_L_BIT          2u
 
 /* Bits 1–0: Low 2 bits of epoch */
 #define CTLS_RECD_CONFIG_OCTET_EPOCH_MASK     0x03u   /* 0000 0011 */
-#define CTLS_RECD_CONFIG_OCTET_EPOCH_SHIFT    0u
 
 
 /* ------------------------------------------------------------------ */
@@ -238,9 +233,9 @@ typedef enum {
 } ctls_hsmg_psk_key_exchange_mode_t;
 
 typedef enum {
-    CTLS_HSMG_CERTIFICATE_TYPE_X509 = 0x00,
-    CTLS_HSMG_CERTIFICATE_TYPE_RAW_PUBLIC_KEY = 0x02,
-} ctls_hsmg_certificate_type_t;
+    CTLS_EXTN_CERTIFICATE_TYPE_X509 = 0x00,
+    CTLS_EXTN_CERTIFICATE_TYPE_RAW_PUBLIC_KEY = 0x02,
+} ctls_extn_certificate_type_t;
 
 typedef enum {
     CTLS_RECORD_TYPE_PLAINTEXT = 0,
@@ -262,20 +257,38 @@ typedef enum {
     CTLS_EXTN_CERTIFICATE_STATUS_TYPE_OSCP = 1,
 } ctls_extn_certificate_status_type_t;
 
-typedef uint8_t ctls_extn_srtp_protection_profile_t[2];
+typedef enum {
+    CTLS_EXTN_HEARTBEAT_TYPE_PEER_ALLOWED_TO_SEND = 1,
+    CTLS_EXTN_HEARTBEAT_TYPE_PEER_NOT_ALLOWED_TO_SEND = 2,
+} ctls_extn_heartbeat_type_t;
+
+typedef enum {
+    CTLS_WIRE_FORMAT_DEFAULT = 0,
+    CTLS_WIRE_FORMAT_TRANSCRIPT_HASH = 1,
+} ctls_wire_format_t;
+
+typedef enum {
+    CTLS_EXTN_PSK_KEY_EXCHANGE_MODE_PSK_KEY = 0,
+    CTLS_EXTN_PSK_KEY_EXCHANGE_MODE_PSK_DHE_KEY = 1,
+} ctls_extn_psk_key_exchange_mode_t;
+
+typedef uint16_t ctls_extn_maximum_fragment_length_t;
+typedef uint8_t ctls_extn_alpn_protocol_name_t[CTLS_WIRE_ALPN];
+typedef ctls_extn_alpn_protocol_name_t ctls_extn_alpn_list_t[
+    CTLS_WIRE_ALPN_COUNT];
+
+typedef uint8_t ctls_extn_post_handshake_auth_t;
 typedef uint8_t ctls_hsmg_random_t[CTLS_WIRE_RANDOM];
 typedef uint8_t ctls_extn_key_share_t[CTLS_WIRE_KEY_SHARE];
 
 typedef struct ctls_extn_server_name ctls_extn_server_name_t;
-typedef struct ctls_extn_host_name ctls_extn_host_name_t;
 typedef struct ctls_extn_server_name_list ctls_extn_server_name_list_t;
 typedef struct ctls_extn_certificate_status_request
 ctls_extn_certificate_status_request_t;
-typedef struct ctls_extn_use_srtp ctls_extn_use_srtp_t;
+typedef struct ctls_extn_ocsp_status_request ctls_extn_ocsp_status_request_t;
 
-
-typedef struct ctls_hshk_client_hello ctls_hsmg_client_hello_t;
-typedef struct ctls_hsmg_extensions ctls_hsmg_extensions_t;
+typedef struct ctls_hsmg_client_hello ctls_hsmg_client_hello_t;
+typedef struct ctls_extn_client_hello ctls_extn_client_hello_t;
 typedef struct ctls_extn_supported_groups
 ctls_extn_supported_groups_t;
 typedef struct ctls_extn_supported_version
@@ -299,6 +312,7 @@ typedef struct ctls_recd_config_octet ctls_recd_config_octet_t;
 typedef struct ctls_handshake_message ctls_handshake_message_t;
 
 typedef struct ctls_op_status ctls_op_status_t;
+
 typedef struct ctls_template ctls_template_t;
 typedef struct ctls_tmpl_signature_algorithm ctls_tmpl_signature_algorithm_t;
 typedef struct ctls_tmpl_dhe_group ctls_tmpl_dhe_group_t;

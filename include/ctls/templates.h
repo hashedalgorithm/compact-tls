@@ -7,84 +7,70 @@
 #define CTLS_TEMPLATES_H
 
 #include <stddef.h>
-#include "internal.h"
+#include "extensions.h"
 #include "types.h"
 
-#if CTLS_CLIENT
-static const ctls_template_t ctls_template_1 = {
-    .profile_id = 0x01,
-    .ctls_version = 0x00,
-    .protocol_version = 0x0304, // TLS 1.3
-    .random = 32U,
-    .dhe_group = 0x001D, // CTLS_DHE_GROUP_X25519
-    .cipher_suite = 0x1301, // CTLS_CIPHER_SUITE_AES_128_CCM_8_SHA256
-    .signature_algorithm = 0x0807, // CTLS_SIGNATURE_ALGORITHM_ED25519
-    .mutual_auth = 0,
-    .handshake_framing = 0,
-    .extensions = {
-        .client_hello_extension = {
-            .allow_additional = 0,
-            .expected_extensions = {CTLS_EXTN_TYPE_KEY_SHARE},
-        },
-        .server_hello_extension = {
-            .allow_additional = 0,
-            .expected_extensions = {CTLS_EXTN_TYPE_KEY_SHARE},
-        },
-        .encrypted_extension = {
-            .allow_additional = 0
-        }
-    }
+struct ctls_tmpl_dhe_group {
+    uint16_t length;
+    ctls_extn_dhe_group_type_t dhe_group;
+};
+struct ctls_tmpl_signature_algorithm {
+    uint16_t length;
+    ctls_extn_signature_algorithm_type_t signature_algorithm;
+};
+struct ctls_tmpl_predefined_extensions {
+    ctls_extn_server_name_t server_name;
+    ctls_extn_maximum_fragment_length_t maximum_fragment_length;
+    ctls_extn_certificate_status_request_t certificate_status_request;
+    ctls_extn_heartbeat_type_t heartbeat_type;
+    ctls_extn_alpn_list_t alpn_list;
+    ctls_extn_certificate_type_t client_certificate_type;
+    ctls_extn_certificate_type_t server_certificate_type;
+    ctls_extn_psk_key_exchange_mode_t psk_key_exchange_modes;
+    ctls_extn_post_handshake_auth_t post_handshake_auth;
+    ctls_extn_signature_algorithm_type_t signature_algorithm_cert;
+};
+struct ctls_tmpl_extension {
+    ctls_tmpl_predefined_extensions_t predefined_extensions;
+    ctls_tmpl_expected_extensions_t expected_extensions;
+    ctls_tmpl_self_delimiting_extensions_t self_delimiting_extensions;
+    uint16_t allow_additional;
 };
 
-static inline ctls_op_status_t ctls_set_template(
-    uint8_t const profile_id, ctls_template_t *template) {
-    switch (profile_id) {
-        case 0x01: {
-            template = &ctls_template_1;
-            return (ctls_op_status_t) (ctls_op_status_t){
-                .source = CTLS_ERROR_SOURCE_INTERNAL,
-                .code = CTLS_OP_STATUS_SUCCESS,
-                .external_code = CTLS_OP_STATUS_SUCCESS,
-            };
-        }
-        default: {
-            template = NULL;
-            return (ctls_op_status_t){
-                .source = CTLS_ERROR_SOURCE_INTERNAL,
-                .code = CTLS_OP_STATUS_INVALID,
-                .external_code = CTLS_OP_STATUS_INVALID,
-            };
-        }
-    }
-}
+struct ctls_tmpl_extensions {
+    ctls_tmpl_extension_t client_hello_extension;
+    ctls_tmpl_extension_t server_hello_extension;
+    ctls_tmpl_extension_t encrypted_extension;
+    ctls_tmpl_extension_t certificate_request_extension;
+};
+
+struct ctls_template {
+    uint8_t profile_id;
+    uint16_t ctls_version;
+    ctls_hsmg_protocol_version_t protocol_version;
+    ctls_hsmg_cipher_suite_type_t cipher_suite;
+    ctls_tmpl_dhe_group_t dhe_group;
+    ctls_tmpl_signature_algorithm_t signature_algorithm;
+    uint16_t random;
+    uint8_t mutual_auth;
+    uint8_t handshake_framing;
+    ctls_tmpl_extensions_t extensions;
+};
+
+
+#if CTLS_CLIENT
+
+extern const ctls_template_t ctls_template_1;
+
+ctls_op_status_t ctls_set_template(
+    uint8_t profile_id, ctls_context_t *context);
 
 #endif
 
 
 #if CTLS_SERVER
-static const ctls_template_t CTLS_PROFILES[] = {
-    // AES-128-GCM + X25519 + ECDSA_P256
-    {
-        .profile_id = 0x01,
-        .version = CTLS_VERSION_1_3,
-        .cipher_suite = CTLS_CIPHER_SUITE_AES_128_GCM_SHA256,
-        .dhe_group = CTLS_DHE_GROUP_X25519,
-        .signature_algorithm = CTLS_SIGNATURE_ALGORITHM_ECDSA_SECP256R1_SHA256,
-        .certificate = NULL,
-        .certificate_length = 0,
-    },
-    // AES-128-GCM + SECP256R1 + ECDSA_P256
-    {
-        .profile_id = 0x02,
-        .version = CTLS_VERSION_1_3,
-        .cipher_suite = CTLS_CIPHER_SUITE_AES_128_GCM_SHA256,
-        .dhe_group = CTLS_DHE_GROUP_SECP256R1,
-        .signature_algorithm = CTLS_SIGNATURE_ALGORITHM_ECDSA_SECP256R1_SHA256,
-        .certificate = NULL,
-        .certificate_length = 0,
-    },
-};
-
+// TODO
+// Define default profiles for server
 #endif
 
 
