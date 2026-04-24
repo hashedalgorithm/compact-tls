@@ -258,9 +258,9 @@ typedef enum {
 } ctls_extn_certificate_status_type_t;
 
 typedef enum {
-    CTLS_EXTN_HEARTBEAT_TYPE_PEER_ALLOWED_TO_SEND = 1,
-    CTLS_EXTN_HEARTBEAT_TYPE_PEER_NOT_ALLOWED_TO_SEND = 2,
-} ctls_extn_heartbeat_type_t;
+    CTLS_EXTN_HEARTBEAT_MODE_PEER_ALLOWED_TO_SEND = 1,
+    CTLS_EXTN_HEARTBEAT_MODE_PEER_NOT_ALLOWED_TO_SEND = 2,
+} ctls_extn_heartbeat_mode_t;
 
 typedef enum {
     CTLS_WIRE_FORMAT_DEFAULT = 0,
