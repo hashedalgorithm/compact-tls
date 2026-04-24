@@ -21,7 +21,6 @@ add_executable(compact_tls
         include/ctls/ctls.h
         include/ctls/extensions.h
         include/ctls/hsmg.h
-        include/ctls/internal.h
         include/ctls/record.h
         include/ctls/templates.h
         include/ctls/types.h
