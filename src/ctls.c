@@ -1,12 +1,6 @@
-#include "ctls/ctls.h"
-
-#include <stdbool.h>
 #include <string.h>
-#include "ctls/internal.h"
-#include "ctls/bytes.h"
-#include "ctls/crypto.h"
+#include "ctls/ctls.h"
 #include "ctls/templates.h"
-#include "ctls/record.h"
 
 ctls_op_status_t ctls_set_template(
     uint8_t const profile_id, ctls_context_t *context) {

@@ -6,9 +6,7 @@
 #ifndef CTLS_TEMPLATES_H
 #define CTLS_TEMPLATES_H
 
-#include <stddef.h>
 #include "extensions.h"
-#include "types.h"
 
 struct ctls_tmpl_dhe_group {
     uint16_t length;

@@ -1,5 +1,5 @@
 #include "ctls/types.h"
-#include "ctls/internal.h"
+#include "ctls/ctls.h"
 #include "psa/crypto.h"
 
 #include "bytes.h"

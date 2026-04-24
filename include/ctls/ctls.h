@@ -6,7 +6,9 @@
 #ifndef CTLS__H
 #define CTLS__H
 
-#include "types.h"
+#include <stdint.h>
+#include "crypto.h"
+#include "record.h"
 
 ctls_op_status_t ctls_context_init(ctls_context_t *context,
                                    const ctls_transport_t *transport);

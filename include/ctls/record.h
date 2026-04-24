@@ -5,10 +5,7 @@
 #ifndef CTLS_RECORD_H
 #define CTLS_RECORD_H
 
-#include <stdint.h>
-#include <stddef.h>
 #include "hsmg.h"
-#include "types.h"
 
 struct ctls_recd_config_octet {
     uint8_t c_bit; // connection_id

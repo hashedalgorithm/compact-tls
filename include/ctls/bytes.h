@@ -6,7 +6,6 @@
 #define CTLS_BYTES_H
 
 #include <stdint.h>
-#include <stddef.h>
 #include <string.h>
 
 // write primitives — big-endian, network byte order

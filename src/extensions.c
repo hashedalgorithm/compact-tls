@@ -2,8 +2,10 @@
 // Created by Sanjay Kumar Kumaravelan on 18/04/26.
 //
 
-#include "ctls/internal.h"
+#include "ctls/ctls.h"
 #include "ctls/extensions.h"
+#include "ctls/templates.h"
+#include "ctls/bytes.h"
 
 
 ctls_op_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer, size_t *offset,

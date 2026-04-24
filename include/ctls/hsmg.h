@@ -5,9 +5,7 @@
 #ifndef CTLS_HSMG_H
 #define CTLS_HSMG_H
 
-#include <stdint.h>
 #include "extensions.h"
-#include "types.h"
 
 struct ctls_hsmg_client_hello {
     ctls_hsmg_protocol_version_t protocol_version;

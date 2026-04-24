@@ -2,11 +2,11 @@
 // Created by Sanjay Kumar Kumaravelan on 19/04/26.
 //
 
-#ifndef COMPACT_TLS_CRYPTO_H
-#define COMPACT_TLS_CRYPTO_H
+#ifndef CTLS_CRYPTO_H
+#define CTLS_CRYPTO_H
 
-#include "types.h"
 #include <psa/crypto.h>
+#include "types.h"
 
 struct ctls_transcript_hash {
     uint8_t hash[CTLS_SIZE_TRANSCRIPT_HASH];
@@ -29,4 +29,4 @@ ctls_op_status_t ctls_ephemeral_public_key_generate(
     uint8_t *buffer, size_t buffer_length);
 ctls_op_status_t ctls_random_generate(uint8_t *buffer);
 
-#endif //COMPACT_TLS_CRYPTO_H
+#endif //CTLS_CRYPTO_H

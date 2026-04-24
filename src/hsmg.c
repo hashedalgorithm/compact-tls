@@ -3,7 +3,8 @@
 //
 
 #include <string.h>
-#include "ctls/internal.h"
+#include "ctls/bytes.h"
+#include "ctls/ctls.h"
 #include "ctls/extensions.h"
 #include "ctls/hsmg.h"
 #include "ctls/templates.h"
