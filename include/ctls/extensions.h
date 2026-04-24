@@ -8,18 +8,23 @@
 #include <stdint.h>
 #include "types.h"
 
+struct ctls_hshk_buffer_block {
+    uint8_t *buffer;
+    size_t buffer_length;
+};
+
 struct ctls_extn_server_name {
     ctls_extn_host_name_type_t name_type;
-    uint8_t server_name[CTLS_WIRE_SERVER_NAME];
+    ctls_hshk_buffer_block_t server_name;
 };
 struct ctls_extn_server_name_list {
-    ctls_extn_server_name_t server_name;
+    ctls_extn_server_name_t server_name[CTLS_WIRE_ALPN_COUNT];
 };
 
 struct ctls_extn_ocsp_status_request {
     // set these values to 0.
-    uint8_t responder_id;
-    uint8_t request_extensions;
+    ctls_hshk_buffer_block_t responder_id;
+    ctls_hshk_buffer_block_t request_extensions;
 };
 struct ctls_extn_certificate_status_request {
     ctls_extn_certificate_status_type_t certificate_status_type;
@@ -28,7 +33,7 @@ struct ctls_extn_certificate_status_request {
 
 // Application layer protocol negotiation
 struct ctls_extn_alpn {
-    ctls_extn_alpn_list_t alpn_list;
+    ctls_hshk_buffer_block_t alpn_list[CTLS_WIRE_ALPN_COUNT];
 };
 
 struct ctls_extn_supported_groups {
@@ -37,7 +42,7 @@ struct ctls_extn_supported_groups {
 };
 struct ctls_extn_supported_version {
     ctls_extn_type_t extension_type;
-    uint16_t version;
+    ctls_hsmg_protocol_version_t version;
 };
 struct ctls_extn_signature_algorithm {
     ctls_extn_type_t extension_type;
@@ -45,7 +50,7 @@ struct ctls_extn_signature_algorithm {
 };
 struct ctls_extn_key_share {
     ctls_extn_type_t extension_type;
-    ctls_extn_key_share_t key_share;
+    ctls_hshk_buffer_block_t key_share;
 };
 
 struct ctls_extn_client_hello {
@@ -56,8 +61,8 @@ struct ctls_extn_client_hello {
     ctls_extn_server_name_t server_name;
     ctls_extn_maximum_fragment_length_t maximum_fragment_length;
     ctls_extn_certificate_status_request_t certificate_status_request;
-    ctls_extn_heartbeat_type_t heartbeat_type;
-    ctls_extn_alpn_list_t alpn_list;
+    ctls_extn_heartbeat_mode_t heartbeat_mode;
+    ctls_extn_alpn_t alpn;
     ctls_extn_certificate_type_t client_certificate_type;
     ctls_extn_certificate_type_t server_certificate_type;
     ctls_extn_psk_key_exchange_mode_t psk_key_exchange_modes;

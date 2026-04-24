@@ -8,20 +8,24 @@
 
 #include "extensions.h"
 
-struct ctls_tmpl_dhe_group {
+struct ctls_template_bytes {
+    uint8_t *data;
     uint16_t length;
+};
+struct ctls_tmpl_dhe_group {
+    uint16_t key_share_length;
     ctls_extn_dhe_group_type_t dhe_group;
 };
 struct ctls_tmpl_signature_algorithm {
-    uint16_t length;
-    ctls_extn_signature_algorithm_type_t signature_algorithm;
+    uint16_t signature_length;
+    ctls_extn_signature_algorithm_type_t signature_algorithm_type;
 };
 struct ctls_tmpl_predefined_extensions {
-    ctls_extn_server_name_t server_name;
+    ctls_template_bytes_t server_name;
     ctls_extn_maximum_fragment_length_t maximum_fragment_length;
-    ctls_extn_certificate_status_request_t certificate_status_request;
-    ctls_extn_heartbeat_type_t heartbeat_type;
-    ctls_extn_alpn_list_t alpn_list;
+    ctls_template_bytes_t certificate_status_request;
+    ctls_extn_heartbeat_mode_t heartbeat_mode;
+    ctls_template_bytes_t alpn;
     ctls_extn_certificate_type_t client_certificate_type;
     ctls_extn_certificate_type_t server_certificate_type;
     ctls_extn_psk_key_exchange_mode_t psk_key_exchange_modes;
@@ -53,6 +57,7 @@ struct ctls_template {
     uint8_t mutual_auth;
     uint8_t handshake_framing;
     ctls_tmpl_extensions_t extensions;
+    uint8_t finished_size;
 };
 
 

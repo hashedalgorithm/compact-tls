@@ -38,6 +38,8 @@
 /*  DEFINITIONS                                                       */
 /* ------------------------------------------------------------------ */
 
+uint8_t ctls_hshk_buffer[CTLS_HSHK_BUFFER_SIZE];
+
 struct ctls_op_status {
     ctls_op_status_code_t code;
     ctls_error_source_t source;

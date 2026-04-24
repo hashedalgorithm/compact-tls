@@ -7,9 +7,10 @@
 
 #include "extensions.h"
 
+
 struct ctls_hsmg_client_hello {
     ctls_hsmg_protocol_version_t protocol_version;
-    ctls_hsmg_random_t random;
+    ctls_hshk_buffer_block_t random;
     uint8_t legacy_session_id;
     ctls_hsmg_cipher_suite_type_t cipher_suite;
     uint8_t legacy_compression_methods;

@@ -25,6 +25,7 @@
 /* ------------------------------------------------------------------ */
 /*  CONSTANTS                                                         */
 /* ------------------------------------------------------------------ */
+#define CTLS_HSHK_BUFFER_SIZE 512U
 
 #define CTLS_WIRE_CONTENT_TYPE 1U
 #define CTLS_WIRE_SEQUENCE_NUMBER 8U
@@ -38,6 +39,7 @@
 #define CTLS_WIRE_SERVER_NAME 64U
 #define CTLS_WIRE_ALPN 12U
 #define CTLS_WIRE_ALPN_COUNT 3
+#define CTLS_WIRE_SERVER_NAME_COUNT 3
 
 #define CTLS_SIZE_TRANSCRIPT_HASH 32U
 
@@ -272,20 +274,19 @@ typedef enum {
     CTLS_EXTN_PSK_KEY_EXCHANGE_MODE_PSK_DHE_KEY = 1,
 } ctls_extn_psk_key_exchange_mode_t;
 
+
+typedef struct ctls_hshk_buffer_block ctls_hshk_buffer_block_t;
+
 typedef uint16_t ctls_extn_maximum_fragment_length_t;
-typedef uint8_t ctls_extn_alpn_protocol_name_t[CTLS_WIRE_ALPN];
-typedef ctls_extn_alpn_protocol_name_t ctls_extn_alpn_list_t[
-    CTLS_WIRE_ALPN_COUNT];
 
 typedef uint8_t ctls_extn_post_handshake_auth_t;
-typedef uint8_t ctls_hsmg_random_t[CTLS_WIRE_RANDOM];
-typedef uint8_t ctls_extn_key_share_t[CTLS_WIRE_KEY_SHARE];
 
 typedef struct ctls_extn_server_name ctls_extn_server_name_t;
 typedef struct ctls_extn_server_name_list ctls_extn_server_name_list_t;
 typedef struct ctls_extn_certificate_status_request
 ctls_extn_certificate_status_request_t;
 typedef struct ctls_extn_ocsp_status_request ctls_extn_ocsp_status_request_t;
+typedef struct ctls_extn_alpn ctls_extn_alpn_t;
 
 typedef struct ctls_hsmg_client_hello ctls_hsmg_client_hello_t;
 typedef struct ctls_extn_client_hello ctls_extn_client_hello_t;
@@ -295,7 +296,7 @@ typedef struct ctls_extn_supported_version
 ctls_extn_supported_version_t;
 typedef struct ctls_extn_signature_algorithm
 ctls_extn_signature_algorithm_t;
-typedef struct ctls_extn_key_share ctls_hsmg_extension_key_share_t;
+typedef struct ctls_extn_key_share ctls_extn_key_share_t;
 
 
 typedef struct ctls_hsmg_server_hello ctls_hsmg_server_hello_t;
@@ -314,6 +315,7 @@ typedef struct ctls_handshake_message ctls_handshake_message_t;
 typedef struct ctls_op_status ctls_op_status_t;
 
 typedef struct ctls_template ctls_template_t;
+typedef struct ctls_template_bytes ctls_template_bytes_t;
 typedef struct ctls_tmpl_signature_algorithm ctls_tmpl_signature_algorithm_t;
 typedef struct ctls_tmpl_dhe_group ctls_tmpl_dhe_group_t;
 typedef struct ctls_tmpl_extensions ctls_tmpl_extensions_t;
