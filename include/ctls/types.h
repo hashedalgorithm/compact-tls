@@ -288,7 +288,6 @@ ctls_extn_certificate_status_request_t;
 typedef struct ctls_extn_ocsp_status_request ctls_extn_ocsp_status_request_t;
 typedef struct ctls_extn_alpn ctls_extn_alpn_t;
 
-typedef struct ctls_hsmg_client_hello ctls_hsmg_client_hello_t;
 typedef struct ctls_extn_client_hello ctls_extn_client_hello_t;
 typedef struct ctls_extn_supported_groups
 ctls_extn_supported_groups_t;
@@ -298,6 +297,7 @@ typedef struct ctls_extn_signature_algorithm
 ctls_extn_signature_algorithm_t;
 typedef struct ctls_extn_key_share ctls_extn_key_share_t;
 
+typedef struct ctls_hsmg_client_hello ctls_hsmg_client_hello_t;
 
 typedef struct ctls_hsmg_server_hello ctls_hsmg_server_hello_t;
 typedef struct ctls_hsmg_encrypted_extensions ctls_hsmg_encrypted_extensions_t;
@@ -343,9 +343,9 @@ typedef struct ctls_transcript_hash ctls_transcript_hash_t;
 /* ------------------------------------------------------------------ */
 
 typedef ctls_op_status_t (*ctls_recd_send)(uint8_t *buffer,
-                                           size_t buffer_length);
+                                           ctls_size_t buffer_length);
 typedef ctls_op_status_t (*ctls_recd_receive)(uint8_t *buffer,
-                                              size_t *buffer_length,
-                                              size_t buffer_size);
+                                              ctls_size_t *buffer_length,
+                                              ctls_size_t buffer_size);
 
 #endif

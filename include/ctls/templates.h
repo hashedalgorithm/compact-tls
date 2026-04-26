@@ -10,14 +10,14 @@
 
 struct ctls_template_bytes {
     uint8_t *data;
-    uint16_t length;
+    ctls_size_t length;
 };
 struct ctls_tmpl_dhe_group {
-    uint16_t key_share_length;
+    ctls_size_t key_share_length;
     ctls_extn_dhe_group_type_t dhe_group;
 };
 struct ctls_tmpl_signature_algorithm {
-    uint16_t signature_length;
+    ctls_size_t signature_length;
     ctls_extn_signature_algorithm_type_t signature_algorithm_type;
 };
 struct ctls_tmpl_predefined_extensions {
@@ -65,8 +65,7 @@ struct ctls_template {
 
 extern const ctls_template_t ctls_template_1;
 
-ctls_op_status_t ctls_set_template(
-    uint8_t profile_id, ctls_context_t *context);
+ctls_op_status_t ctls_set_template(uint8_t profile_id, ctls_context_t *context);
 
 #endif
 

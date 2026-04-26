@@ -14,19 +14,18 @@ struct ctls_transcript_hash {
     uint64_t offset;
 };
 
-ctls_op_status_t ctls_map_psa_error(psa_status_t status);
-ctls_op_status_t ctls_init_crypto(ctls_transcript_hash_t *transcript_hash);
-ctls_op_status_t ctls_calculate_transcript_hash(
-    psa_hash_operation_t *hash_operator,
-    uint8_t const *buffer, size_t const *offset);
-ctls_op_status_t ctls_update_transcript_hash(ctls_record_t const *record,
+ctls_op_status_t ctls_psa_error_map(psa_status_t status);
+ctls_op_status_t ctls_crypto_init(ctls_transcript_hash_t *transcript_hash);
+ctls_op_status_t ctls_transcript_hash_calculate(psa_hash_operation_t *hash_operator,
+                                                uint8_t const *buffer,
+                                                size_t const *offset);
+ctls_op_status_t ctls_transcript_hash_update(ctls_record_t const *record,
                                              ctls_template_t const *template,
-                                             psa_hash_operation_t *
-                                             hash_operator);
-ctls_op_status_t transcript_snapshot(psa_hash_operation_t *hash_operator,
+                                             psa_hash_operation_t *hash_operator);
+ctls_op_status_t transcript_snapshot(psa_hash_operation_t const *hash_operator,
                                      uint8_t *buffer);
-ctls_op_status_t ctls_ephemeral_public_key_generate(
-    uint8_t *buffer, size_t buffer_length);
+ctls_op_status_t ctls_ephemeral_public_key_generate(uint8_t *buffer,
+                                                    ctls_size_t buffer_length);
 ctls_op_status_t ctls_random_generate(uint8_t *buffer);
 
 #endif //CTLS_CRYPTO_H

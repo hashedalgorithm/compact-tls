@@ -34,7 +34,7 @@ struct ctls_hsmg_finished {
 };
 struct ctls_hsmg_application_data {
     uint8_t *payload;
-    uint16_t payload_length;
+    ctls_size_t payload_length;
 };
 struct ctls_hsmg_alert {
     uint8_t level;
@@ -60,9 +60,15 @@ struct ctls_handshake_message {
 
 
 ctls_op_status_t ctls_hsmg_client_hello_create(ctls_handshake_message_t *hsmg,
+                                               ctls_hshk_buffer_t *hshk_buffer,
                                                ctls_template_t const *template);
 ctls_op_status_t ctls_hsmg_client_hello_to_struct(void);
-ctls_op_status_t ctls_hsmg_client_hello_to_wire(void);
+ctls_op_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
+                                                ctls_size_t *offset,
+                                                ctls_size_t const *buffer_size,
+                                                ctls_handshake_message_t const *hsmg,
+                                                ctls_template_t const *template,
+                                                ctls_wire_format_t wire_format);
 
 ctls_op_status_t ctls_hsmg_server_hello_create(void);
 ctls_op_status_t ctls_hsmg_server_hello_to_struct(void);
