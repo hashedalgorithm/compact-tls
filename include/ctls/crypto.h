@@ -25,7 +25,12 @@ ctls_op_status_t ctls_transcript_hash_update(ctls_record_t const *record,
 ctls_op_status_t transcript_snapshot(psa_hash_operation_t const *hash_operator,
                                      uint8_t *buffer);
 ctls_op_status_t ctls_ephemeral_public_key_generate(uint8_t *buffer,
-                                                    ctls_size_t buffer_length);
-ctls_op_status_t ctls_random_generate(uint8_t *buffer);
+                                                    ctls_size_t const *offset,
+                                                    ctls_size_t *bytes_written);
+);
+ctls_op_status_t ctls_random_generate(uint8_t *buffer,
+                                      ctls_size_t *offset,
+                                      ctls_size_t *bytes_written,
+                                      uint8_t random_size);
 
 #endif //CTLS_CRYPTO_H

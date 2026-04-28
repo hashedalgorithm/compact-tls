@@ -47,7 +47,6 @@ ctls_op_status_t ctls_record_serialize(ctls_template_t const *template,
                                        uint8_t *buffer,
                                        ctls_size_t buffer_size,
                                        ctls_size_t *buffer_length);
-
 ctls_op_status_t ctls_record_deserialize(ctls_template_t const *template,
                                          ctls_record_t const *record,
                                          uint8_t *buffer,

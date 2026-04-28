@@ -2,8 +2,8 @@
 #include "ctls/ctls.h"
 #include "ctls/templates.h"
 
-ctls_op_status_t ctls_set_template(
-    uint8_t const profile_id, ctls_context_t *context) {
+
+ctls_op_status_t ctls_set_template(uint8_t const profile_id, ctls_context_t *context) {
     switch (profile_id) {
         case 0x01: {
             context->template = &ctls_template_1;
@@ -39,15 +39,14 @@ ctls_op_status_t ctls_handshake_state_update(ctls_hshk_state_t *location,
 ctls_op_status_t ctls_validate_template(ctls_template_t const *template) {
     CTLS_CHECK_NULL(template);
 
-    if (template->cipher_suite == 0 ||
-        template->dhe_group.dhe_group == 0 ||
-        template->signature_algorithm.signature_algorithm == 0)
+    if (template->cipher_suite == 0 || template->dhe_group.dhe_group == 0 || template->
+        signature_algorithm.signature_algorithm_type == 0)
         return (ctls_op_status_t){
             .source = CTLS_ERROR_SOURCE_INTERNAL,
             .code = CTLS_OP_STATUS_INVALID,
             .external_code = CTLS_OP_STATUS_INVALID,
         };
-
+    // TODO
     return (ctls_op_status_t){
         .source = CTLS_ERROR_SOURCE_INTERNAL,
         .code = CTLS_OP_STATUS_SUCCESS,
@@ -56,7 +55,7 @@ ctls_op_status_t ctls_validate_template(ctls_template_t const *template) {
 }
 
 ctls_op_status_t ctls_context_init(ctls_context_t *context,
-                                   const ctls_transport_t *transport) {
+                                   ctls_transport_t const *transport) {
     memset(context, 0, sizeof(ctls_context_t));
 
     ctls_init_crypto(&context->transcript_hash);
@@ -130,8 +129,7 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
 
 
 ctls_op_status_t ctls_connect(ctls_context_t *context) {
-    ctls_op_status_t const result = ctls_validate_template(
-        context->template);
+    ctls_op_status_t const result = ctls_validate_template(context->template);
     if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
     return ctls_handshake(context);

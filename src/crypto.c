@@ -116,9 +116,9 @@ ctls_op_status_t transcript_snapshot(psa_hash_operation_t const *hash_operator,
 
 
 ctls_op_status_t ctls_ephemeral_public_key_generate(uint8_t *buffer,
-                                                    ctls_size_t const buffer_length) {
-    size_t buffer_length_st = buffer_length;
-
+                                                    ctls_size_t const *offset,
+                                                    ctls_size_t *bytes_written) {
+    size_t bytes_written_st = *bytes_written;
     psa_key_id_t key_id;
     psa_key_attributes_t key_attributes = PSA_KEY_ATTRIBUTES_INIT;
 
@@ -131,17 +131,25 @@ ctls_op_status_t ctls_ephemeral_public_key_generate(uint8_t *buffer,
 
 
     psa_status_t const result = psa_export_public_key(key_id,
-                                                      buffer,
+                                                      &buffer[*offset],
                                                       CTLS_WIRE_KEY_SHARE,
-                                                      &buffer_length_st);
+                                                      &bytes_written_st);
 
+    *bytes_written += bytes_written_st;
     if (result != PSA_SUCCESS) return ctls_psa_error_map(result);
 
     return ctls_psa_error_map(PSA_SUCCESS);
 }
 
-ctls_op_status_t ctls_random_generate(uint8_t *buffer) {
-    psa_status_t const result = psa_generate_random(buffer, CTLS_WIRE_RANDOM);
+ctls_op_status_t ctls_random_generate(uint8_t *buffer,
+                                      ctls_size_t *offset,
+                                      ctls_size_t *bytes_written,
+                                      const uint8_t random_size) {
+    psa_status_t const result = psa_generate_random(&buffer[*offset], random_size);
+
+    *bytes_written = random_size;
+    *offset += random_size;
+
     return ctls_psa_error_map(result);
 }
 

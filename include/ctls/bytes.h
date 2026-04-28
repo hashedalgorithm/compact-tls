@@ -9,9 +9,14 @@
 #include "types.h"
 
 
+static inline void ctls_hshk_buffer_offset_update(ctls_size_t *offset, uint16_t value) {
+    *offset = *offset + value;
+}
+
 // write primitives — big-endian, network byte order
-static inline void
-ctls_write_u8(uint8_t *buffer, ctls_size_t *offset, uint8_t const value) {
+static inline void ctls_write_u8(uint8_t *buffer,
+                                 ctls_size_t *offset,
+                                 uint8_t const value) {
     buffer[(*offset)++] = value;
 }
 
@@ -41,10 +46,10 @@ static inline void ctls_write_u64(uint8_t *buffer,
 
 static inline void ctls_write_bytes(uint8_t *destination_buffer,
                                     ctls_size_t *destination_offset,
-                                    ctls_size_t length,
-                                    uint8_t *source_buffer) {
-    memcpy(destination_buffer + *destination_offset, source_buffer, length);
-    *destination_offset += length;
+                                    ctls_size_t write_size,
+                                    uint8_t const *source_buffer) {
+    memcpy(destination_buffer + *destination_offset, source_buffer, write_size);
+    *destination_offset += write_size;
 }
 
 // read primitives — big-endian, network byte order
@@ -67,11 +72,11 @@ static inline uint64_t ctls_read_u64(uint8_t const *buffer, ctls_size_t *offset)
 }
 
 static inline void ctls_read_bytes(uint8_t *destination_buffer,
-                                   ctls_size_t length,
+                                   ctls_size_t write_size,
                                    uint8_t const *source_buffer,
                                    ctls_size_t *source_buffer_offset) {
-    memcpy(destination_buffer, source_buffer + *source_buffer_offset, length);
-    *source_buffer_offset += length;
+    memcpy(destination_buffer, source_buffer + *source_buffer_offset, write_size);
+    *source_buffer_offset += write_size;
 }
 
 #endif //CTLS_BYTES_H
