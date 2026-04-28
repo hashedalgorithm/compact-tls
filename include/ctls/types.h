@@ -36,8 +36,6 @@
 #define CTLS_WIRE_KEY_SHARE 32U
 #define CTLS_WIRE_SIGNATURE 64U
 #define CTLS_WIRE_VERIFY_DATA 32U
-#define CTLS_WIRE_SERVER_NAME 64U
-#define CTLS_WIRE_ALPN 12U
 #define CTLS_WIRE_ALPN_COUNT 3
 #define CTLS_WIRE_SERVER_NAME_COUNT 3
 
@@ -274,27 +272,34 @@ typedef enum {
     CTLS_EXTN_PSK_KEY_EXCHANGE_MODE_PSK_DHE_KEY = 1,
 } ctls_extn_psk_key_exchange_mode_t;
 
+typedef enum {
+    CTLS_DATA_FORM_OPAQUE = 0,
+    CTLS_DATA_FORM_PARSED = 1,
+} ctls_data_form_t;
 
+typedef uint16_t ctls_size_t;
+typedef struct ctls_hshk_buffer ctls_hshk_buffer_t;
 typedef struct ctls_hshk_buffer_block ctls_hshk_buffer_block_t;
 
 typedef uint16_t ctls_extn_maximum_fragment_length_t;
 
 typedef uint8_t ctls_extn_post_handshake_auth_t;
 
+typedef struct ctls_extn_server_name_item ctls_extn_server_name_item_t;
 typedef struct ctls_extn_server_name ctls_extn_server_name_t;
-typedef struct ctls_extn_server_name_list ctls_extn_server_name_list_t;
+
+typedef struct ctls_extn_certificate_status_request_parsed
+ctls_extn_certificate_status_request_parsed_t;
 typedef struct ctls_extn_certificate_status_request
 ctls_extn_certificate_status_request_t;
 typedef struct ctls_extn_ocsp_status_request ctls_extn_ocsp_status_request_t;
+
 typedef struct ctls_extn_alpn ctls_extn_alpn_t;
 
 typedef struct ctls_extn_client_hello ctls_extn_client_hello_t;
-typedef struct ctls_extn_supported_groups
-ctls_extn_supported_groups_t;
-typedef struct ctls_extn_supported_version
-ctls_extn_supported_version_t;
-typedef struct ctls_extn_signature_algorithm
-ctls_extn_signature_algorithm_t;
+typedef struct ctls_extn_supported_groups ctls_extn_supported_groups_t;
+typedef struct ctls_extn_supported_version ctls_extn_supported_version_t;
+typedef struct ctls_extn_signature_algorithm ctls_extn_signature_algorithm_t;
 typedef struct ctls_extn_key_share ctls_extn_key_share_t;
 
 typedef struct ctls_hsmg_client_hello ctls_hsmg_client_hello_t;
@@ -319,8 +324,7 @@ typedef struct ctls_template_bytes ctls_template_bytes_t;
 typedef struct ctls_tmpl_signature_algorithm ctls_tmpl_signature_algorithm_t;
 typedef struct ctls_tmpl_dhe_group ctls_tmpl_dhe_group_t;
 typedef struct ctls_tmpl_extensions ctls_tmpl_extensions_t;
-typedef struct ctls_tmpl_predefined_extensions
-ctls_tmpl_predefined_extensions_t;
+typedef struct ctls_tmpl_predefined_extensions ctls_tmpl_predefined_extensions_t;
 typedef struct ctls_tmpl_extension ctls_tmpl_extension_t;
 typedef ctls_extn_type_t ctls_tmpl_expected_extensions_t[4];
 typedef ctls_extn_type_t ctls_tmpl_self_delimiting_extensions_t[4];
@@ -342,8 +346,7 @@ typedef struct ctls_transcript_hash ctls_transcript_hash_t;
 /*  VIRTUAL FUNCTIONS                                                 */
 /* ------------------------------------------------------------------ */
 
-typedef ctls_op_status_t (*ctls_recd_send)(uint8_t *buffer,
-                                           ctls_size_t buffer_length);
+typedef ctls_op_status_t (*ctls_recd_send)(uint8_t *buffer, ctls_size_t buffer_length);
 typedef ctls_op_status_t (*ctls_recd_receive)(uint8_t *buffer,
                                               ctls_size_t *buffer_length,
                                               ctls_size_t buffer_size);

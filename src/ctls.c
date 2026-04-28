@@ -2,6 +2,8 @@
 #include "ctls/ctls.h"
 #include "ctls/templates.h"
 
+ctls_hshk_buffer_t hshk_buffer;
+
 
 ctls_op_status_t ctls_set_template(uint8_t const profile_id, ctls_context_t *context) {
     switch (profile_id) {
@@ -70,11 +72,12 @@ ctls_op_status_t ctls_context_init(ctls_context_t *context,
 
 ctls_op_status_t ctls_handshake(ctls_context_t *context) {
     uint8_t buffer[256];
-    size_t buffer_length = 0;
+    ctls_size_t buffer_length = 0;
 
     // 1. build new ClientHello into context->record
-    ctls_op_status_t result = ctls_recd_client_hello_create(
-        &context->record, context->template);
+    ctls_op_status_t result = ctls_recd_client_hello_create(&context->record,
+                                                                context->hshk_buffer,
+                                                                context->template);
     if (result.code != CTLS_OP_STATUS_SUCCESS) {
         context->state = CTLS_HSHK_STATE_ERROR;
         return result;

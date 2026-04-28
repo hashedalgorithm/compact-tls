@@ -9,10 +9,6 @@
 #include "types.h"
 
 
-static inline void ctls_hshk_buffer_offset_update(ctls_size_t *offset, uint16_t value) {
-    *offset = *offset + value;
-}
-
 // write primitives — big-endian, network byte order
 static inline void ctls_write_u8(uint8_t *buffer,
                                  ctls_size_t *offset,

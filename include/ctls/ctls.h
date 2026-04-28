@@ -38,7 +38,10 @@
 /*  DEFINITIONS                                                       */
 /* ------------------------------------------------------------------ */
 
-uint8_t ctls_hshk_buffer[CTLS_HSHK_BUFFER_SIZE];
+struct ctls_hshk_buffer {
+    uint8_t buffer[CTLS_HSHK_BUFFER_SIZE];
+    ctls_size_t buffer_length;
+};
 
 struct ctls_op_status {
     ctls_op_status_code_t code;
@@ -58,6 +61,7 @@ struct ctls_context {
     ctls_transport_t transport;
     uint64_t sequence_number;
     ctls_record_t record;
+    ctls_hshk_buffer_t *hshk_buffer;
 };
 
 ctls_op_status_t ctls_handshake_state_update(ctls_hshk_state_t *location,

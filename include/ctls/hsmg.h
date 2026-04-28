@@ -18,7 +18,7 @@ struct ctls_hsmg_client_hello {
 };
 
 struct ctls_hsmg_server_hello {
-    ctls_hsmg_random_t random;
+    ctls_hshk_buffer_block_t random;
     ctls_extn_key_share_t key_share;
 };
 struct ctls_hsmg_encrypted_extensions {
