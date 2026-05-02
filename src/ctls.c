@@ -38,13 +38,15 @@ ctls_op_status_t ctls_validate_template(ctls_template_t const *template) {
 ctls_op_status_t ctls_context_init(ctls_context_t *context,
                                    ctls_transport_t const *transport) {
     memset(context, 0, sizeof(ctls_context_t));
+    memset(&context->record, 0, sizeof(ctls_record_t));
+    memset(&hshk_buffer, 0, sizeof(hshk_buffer));
 
-    ctls_init_crypto(&context->transcript_hash);
+    ctls_crypto_init(&context->transcript_hash);
     context->transport = *transport;
 
     context->state = CTLS_HSHK_STATE_START;
 
-    ctls_set_template(CTLS_PROFILE_ID, context);
+    ctls_template_set(CTLS_PROFILE_ID, context);
     return ctls_validate_template(context->template);
 }
 
