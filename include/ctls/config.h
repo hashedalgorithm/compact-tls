@@ -31,16 +31,16 @@
     .dhe_group            = { .key_share_length = CTLS_DEFAULT_KEY_SHARE_LENGTH,        \
                               .dhe_group = 0x001D },                                    \
     .signature_algorithm  = { .signature_algorithm_type = 0x0807,                       \
-                              .signature_length = CTLS_DEFAULT_SIGNATURE_LENGTH },                \
+                              .signature_length = CTLS_DEFAULT_SIGNATURE_LENGTH },      \
     .random               = CTLS_DEFAULT_RANDOM_LENGTH,                                 \
-    .mutual_auth          = CTLS_DEFAULT_SENTINEL,                                                          \
-    .handshake_framing    = CTLS_DEFAULT_SENTINEL,                                                          \
+    .mutual_auth          = CTLS_DEFAULT_SENTINEL,                                      \
+    .handshake_framing    = CTLS_DEFAULT_SENTINEL,                                      \
     .client_hello_extension = { .allow_additional = 0,                                  \
                                 .expected_extensions = { 0x0033 } },                    \
     .server_hello_extension = { .allow_additional = 0,                                  \
                                 .expected_extensions = { 0x0033 } },                    \
     .encrypted_extension  = { .allow_additional = 0 },                                  \
-    .finished_size        = CTLS_DEFAULT_FINISHED_LENGTH,                                                        \
+    .finished_size        = CTLS_DEFAULT_FINISHED_LENGTH,                               \
 }
 
 
