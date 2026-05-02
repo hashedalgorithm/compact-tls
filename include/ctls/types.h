@@ -73,6 +73,24 @@
 /* ------------------------------------------------------------------ */
 
 typedef enum {
+    CTLS_TMPL_TYPE_PROFILE_ID = 0x0000,
+    CTLS_TMPL_TYPE_VERSION = 0x0001,
+    CTLS_TMPL_TYPE_CIPHER_SUITE = 0x0002,
+    CTLS_TMPL_TYPE_DH_GROUP = 0x0003,
+    CTLS_TMPL_TYPE_SIGNATURE_ALGORITHM = 0x0004,
+    CTLS_TMPL_TYPE_RANDOM = 0x0005,
+    CTLS_TMPL_TYPE_MUTUAL_AUTH = 0x0006,
+    CTLS_TMPL_TYPE_HANDSHAKE_FRAMING = 0x0007,
+    CTLS_TMPL_TYPE_CLIENT_HELLO_EXTENSIONS = 0x0008,
+    CTLS_TMPL_TYPE_SERVER_HELLO_EXTENSIONS = 0x0009,
+    CTLS_TMPL_TYPE_ENCRYPTED_EXTENSIONS = 0x000A,
+    CTLS_TMPL_TYPE_CERTIFICATE_REQUEST_EXTENSIONS = 0x000B,
+    CTLS_TMPL_TYPE_KNOWN_CERTIFICATES = 0x000C,
+    CTLS_TMPL_TYPE_FINISHED_SIZE = 0x000D,
+    CTLS_TMPL_TYPE_OPTIONAL = 0xFFFF,
+} ctls_tmpl_type_t;
+
+typedef enum {
     CTLS_HSMG_CIPHER_SUITE_AES_128_GCM_SHA256 = 0x1301,
     CTLS_HSMG_CIPHER_SUITE_AES_256_GCM_SHA384 = 0x1302,
     CTLS_HSMG_CIPHER_SUITE_CHACHA20_POLY1305_SHA256 = 0x1303,
@@ -120,6 +138,12 @@ typedef enum {
     CTLS_RECD_CONTENT_TYPE_HANDSHAKE = 0x16,
     CTLS_RECD_CONTENT_TYPE_APPLICATION_DATA = 0x17,
     CTLS_RECD_CONTENT_TYPE_HEARTBEAT = 0x18,
+    /* 28 - 30 is unassigned in IANA registry.
+     * Since ContentType for template is not assigned, we are using 28 for this implementation.
+     * https://arc.net/l/quote/voyphzxt
+     */
+    CTLS_RECD_CONTENT_TYPE_TEMPLATE = 0x28,
+    CTLS_RECD_CONTENT_TYPE_SENTINEL = 0xFF, // default value (uninitialized)
 } ctls_recd_content_type_t;
 
 typedef enum {
@@ -228,11 +252,6 @@ typedef enum {
 } ctls_error_source_t;
 
 typedef enum {
-    CTLS_HSMG_PSK_PSK_ONLY = 0x00,
-    CTLS_HSMG_PSK_PSK_WITH_DHE_KEY = 0x01,
-} ctls_hsmg_psk_key_exchange_mode_t;
-
-typedef enum {
     CTLS_EXTN_CERTIFICATE_TYPE_X509 = 0x00,
     CTLS_EXTN_CERTIFICATE_TYPE_RAW_PUBLIC_KEY = 0x02,
 } ctls_extn_certificate_type_t;
@@ -277,11 +296,17 @@ typedef enum {
     CTLS_DATA_FORM_PARSED = 1,
 } ctls_data_form_t;
 
+typedef enum {
+    CTLS_MAX_FRAGMENT_LENGTH_9 = 1,
+    CTLS_MAX_FRAGMENT_LENGTH_10,
+    CTLS_MAX_FRAGMENT_LENGTH_11,
+    CTLS_MAX_FRAGMENT_LENGTH_12,
+    CTLS_MAX_FRAGMENT_LENGTH_14,
+} ctls_max_fragment_length_t;
+
 typedef uint16_t ctls_size_t;
 typedef struct ctls_hshk_buffer ctls_hshk_buffer_t;
 typedef struct ctls_hshk_buffer_block ctls_hshk_buffer_block_t;
-
-typedef uint16_t ctls_extn_maximum_fragment_length_t;
 
 typedef uint8_t ctls_extn_post_handshake_auth_t;
 
@@ -323,7 +348,6 @@ typedef struct ctls_template ctls_template_t;
 typedef struct ctls_template_bytes ctls_template_bytes_t;
 typedef struct ctls_tmpl_signature_algorithm ctls_tmpl_signature_algorithm_t;
 typedef struct ctls_tmpl_dhe_group ctls_tmpl_dhe_group_t;
-typedef struct ctls_tmpl_extensions ctls_tmpl_extensions_t;
 typedef struct ctls_tmpl_predefined_extensions ctls_tmpl_predefined_extensions_t;
 typedef struct ctls_tmpl_extension ctls_tmpl_extension_t;
 typedef ctls_extn_type_t ctls_tmpl_expected_extensions_t[4];

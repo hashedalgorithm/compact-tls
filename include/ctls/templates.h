@@ -6,7 +6,12 @@
 #ifndef CTLS_TEMPLATES_H
 #define CTLS_TEMPLATES_H
 
+#include "config.h"
 #include "extensions.h"
+
+#define CTLS_IS_TEMPLATE_BYTES_INITIALIZED(buffer, length)          \
+    ((buffer) != NULL && length != 0)
+
 
 struct ctls_template_bytes {
     uint8_t *data;
@@ -22,7 +27,7 @@ struct ctls_tmpl_signature_algorithm {
 };
 struct ctls_tmpl_predefined_extensions {
     ctls_template_bytes_t server_name;
-    ctls_extn_maximum_fragment_length_t maximum_fragment_length;
+    ctls_max_fragment_length_t maximum_fragment_length;
     ctls_template_bytes_t certificate_status_request;
     ctls_extn_heartbeat_mode_t heartbeat_mode;
     ctls_template_bytes_t alpn;
@@ -35,15 +40,8 @@ struct ctls_tmpl_predefined_extensions {
 struct ctls_tmpl_extension {
     ctls_tmpl_predefined_extensions_t predefined_extensions;
     ctls_tmpl_expected_extensions_t expected_extensions;
-    ctls_tmpl_self_delimiting_extensions_t self_delimiting_extensions;
+    ctls_tmpl_self_delimiting_extensions_t self_delimiting_aextensions;
     uint16_t allow_additional;
-};
-
-struct ctls_tmpl_extensions {
-    ctls_tmpl_extension_t client_hello_extension;
-    ctls_tmpl_extension_t server_hello_extension;
-    ctls_tmpl_extension_t encrypted_extension;
-    ctls_tmpl_extension_t certificate_request_extension;
 };
 
 struct ctls_template {
@@ -56,7 +54,10 @@ struct ctls_template {
     uint16_t random;
     uint8_t mutual_auth;
     uint8_t handshake_framing;
-    ctls_tmpl_extensions_t extensions;
+    ctls_tmpl_extension_t client_hello_extension;
+    ctls_tmpl_extension_t server_hello_extension;
+    ctls_tmpl_extension_t encrypted_extension;
+    ctls_tmpl_extension_t certificate_request_extension;
     uint8_t finished_size;
 };
 
@@ -65,7 +66,16 @@ struct ctls_template {
 
 extern const ctls_template_t ctls_template_1;
 
-ctls_op_status_t ctls_set_template(uint8_t profile_id, ctls_context_t *context);
+ctls_op_status_t ctls_template_set(uint8_t profile_id, ctls_context_t *context);
+ctls_op_status_t ctls_template_element_to_wire(uint8_t *buffer,
+                                               ctls_size_t *offset,
+                                               ctls_template_t const *template,
+                                               ctls_tmpl_type_t type);
+ctls_op_status_t ctls_tmpl_extension_to_wire(uint8_t *buffer,
+                                             ctls_size_t *offset,
+                                             ctls_tmpl_extension_t const *extensions);
+ctls_op_status_t ctls_template_to_wire(uint8_t *buffer, ctls_template_t const *template);
+
 
 #endif
 
@@ -74,6 +84,5 @@ ctls_op_status_t ctls_set_template(uint8_t profile_id, ctls_context_t *context);
 // TODO
 // Define default profiles for server
 #endif
-
 
 #endif
