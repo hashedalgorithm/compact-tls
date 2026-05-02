@@ -5,27 +5,6 @@
 ctls_hshk_buffer_t hshk_buffer;
 
 
-ctls_op_status_t ctls_set_template(uint8_t const profile_id, ctls_context_t *context) {
-    switch (profile_id) {
-        case 0x01: {
-            context->template = &ctls_template_1;
-            return (ctls_op_status_t) (ctls_op_status_t){
-                .source = CTLS_ERROR_SOURCE_INTERNAL,
-                .code = CTLS_OP_STATUS_SUCCESS,
-                .external_code = CTLS_OP_STATUS_SUCCESS,
-            };
-        }
-        default: {
-            context->template = NULL;
-            return (ctls_op_status_t){
-                .source = CTLS_ERROR_SOURCE_INTERNAL,
-                .code = CTLS_OP_STATUS_INVALID,
-                .external_code = CTLS_OP_STATUS_INVALID,
-            };
-        }
-    }
-}
-
 ctls_op_status_t ctls_handshake_state_update(ctls_hshk_state_t *location,
                                              ctls_hshk_state_t const state) {
     CTLS_CHECK_NULL(location);
