@@ -61,8 +61,11 @@ ctls_op_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
 
         if (template->cipher_suite == 0) {
             // CipherSuite cipher_suites<2..2^16-2>;
-            ctls_write_u16(buffer, offset, 0x02);
-            ctls_write_u16(buffer, offset, CTLS_DEFAULT_CIPHER_SUITE);
+            ctls_write_u16(buffer,
+                           offset,
+                           sizeof(hsmg->handshake_message_body.client_hello.
+                               cipher_suite));
+            ctls_write_u16(buffer, offset, CTLS_DEFAULT_SENTINEL);
         }
 
         // Extension extensions<1..2^16-1>;
@@ -72,8 +75,7 @@ ctls_op_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
             template,
             CTLS_WIRE_FORMAT_DEFAULT);
 
-        ctls_size_t const body_length = *offset - body_start;
-        ctls_write_u16(buffer, &body_start, body_length);
+        ctls_write_u16(buffer, &body_start, *offset - body_start);
 
         return result;
     }
