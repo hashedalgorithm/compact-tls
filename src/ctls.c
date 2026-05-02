@@ -35,6 +35,10 @@ ctls_op_status_t ctls_validate_template(ctls_template_t const *template) {
     };
 }
 
+void ctls_wire_buffer_clear(uint8_t *buffer) {
+    memset(buffer, 0, 256);
+}
+
 ctls_op_status_t ctls_context_init(ctls_context_t *context,
                                    ctls_transport_t const *transport) {
     memset(context, 0, sizeof(ctls_context_t));
