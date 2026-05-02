@@ -2,7 +2,6 @@
 #include "ctls/ctls.h"
 #include "psa/crypto.h"
 
-#include "bytes.h"
 #include "ctls/templates.h"
 
 
@@ -168,59 +167,4 @@ ctls_op_status_t ctls_random_generate(uint8_t *buffer,
     *offset += random_size;
 
     return ctls_psa_error_map(result);
-}
-
-ctls_op_status_t ctls_handshake_message_serialize(ctls_handshake_message_t *message,
-                                                  ctls_template_t const *template,
-                                                  uint8_t *buffer) {
-    CTLS_CHECK_NULL(message);
-    CTLS_CHECK_NULL(template);
-    CTLS_CHECK_NULL(buffer);
-
-    /*
-     * RFC 8446
-     * struct {
-     *    ProtocolVersion legacy_version;
-     *    Random random;
-     *    opaque legacy_session_id<0..32>;
-     *    CipherSuite cipher_suites<2..2^16-2>;
-     *    opaque legacy_compression_methods<1..2^8-1>;
-     *    Extension extensions<8..2^16-1>;
-     * } ClientHello;
-    */
-
-    ctls_size_t offset = 0;
-
-    ctls_write_u8(buffer, &offset, message->message_type);
-
-    ctls_size_t body_start = offset;
-    offset += 3;
-
-    ctls_write_u16(buffer,
-                   &offset,
-                   message->handshake_message_body.client_hello.protocol_version);
-    ctls_write_bytes(buffer,
-                     &offset,
-                     CTLS_WIRE_RANDOM,
-                     message->handshake_message_body.client_hello.random.buffer);
-
-    ctls_write_u8(buffer, &offset, 0x01);
-    ctls_write_u8(buffer,
-                  &offset,
-                  message->handshake_message_body.client_hello.legacy_session_id);
-    ctls_write_u16(buffer, &offset, 0x01);
-    ctls_write_u16(buffer,
-                   &offset,
-                   message->handshake_message_body.client_hello.cipher_suite);
-
-
-    // uint8 legacy_compression_method = 0;
-    ctls_write_u8(buffer, &offset, 0x01);
-    ctls_write_u8(buffer, &offset, 0x00);
-
-    // Extension extensions<8..2^16-1>;
-    ctls_size_t extenstions_start = offset;
-    offset += 2;
-
-    // ctls_write_u16(buffer, &offset, )
 }

@@ -27,11 +27,6 @@
 /* ------------------------------------------------------------------ */
 #define CTLS_HSHK_BUFFER_SIZE 512U
 
-#define CTLS_WIRE_CONTENT_TYPE 1U
-#define CTLS_WIRE_SEQUENCE_NUMBER 8U
-#define CTLS_WIRE_LENGTH 2U
-
-#define CTLS_WIRE_PROFILE_ID 1U
 #define CTLS_WIRE_RANDOM 32U
 #define CTLS_WIRE_KEY_SHARE 32U
 #define CTLS_WIRE_SIGNATURE 64U
