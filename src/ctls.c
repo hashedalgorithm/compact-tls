@@ -98,7 +98,9 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
         return result;
     }
 
-    ctls_update_transcript_hash(&context->record, context->template,
+    ctls_transcript_hash_update(&context->record,
+                                context->template,
+                                context->record.record_body.message_type,
                                 &context->transcript_hash.hash_operator);
 
     // context->state = CTLS_STATE_WAIT_SERVER_HELLO;

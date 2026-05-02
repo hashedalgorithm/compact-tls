@@ -32,14 +32,14 @@ struct ctls_record {
     ctls_handshake_message_t record_body;
 };
 
-ctls_op_status_t ctls_build_unified_header(
-    const ctls_recd_config_octet_t *config,
-    uint16_t sequence_number,
-    uint16_t length,
-    uint8_t *buffer,
-    ctls_size_t *buffer_length);
+ctls_op_status_t ctls_build_unified_header(const ctls_recd_config_octet_t *config,
+                                           uint16_t sequence_number,
+                                           uint16_t length,
+                                           uint8_t *buffer,
+                                           ctls_size_t *buffer_length);
 
-ctls_op_status_t ctls_write_body_length(uint8_t *buffer, ctls_size_t *offset,
+ctls_op_status_t ctls_write_body_length(uint8_t *buffer,
+                                        ctls_size_t *offset,
                                         ctls_size_t body_length);
 
 ctls_op_status_t ctls_record_serialize(ctls_template_t const *template,
@@ -56,12 +56,12 @@ ctls_op_status_t ctls_recd_client_hello_create(ctls_record_t *record,
                                                ctls_hshk_buffer_t *hshk_buffer,
                                                ctls_template_t const *template);
 ctls_op_status_t ctls_recd_client_hello_to_struct(void);
-ctls_op_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer, ctls_size_t *offset,
-                                                ctls_size_t const *buffer_size,
+ctls_op_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
+                                                ctls_size_t *offset,
+                                                ctls_size_t buffer_size,
                                                 ctls_record_t const *record,
                                                 ctls_template_t const *template,
-                                                ctls_wire_format_t
-                                                wire_format);
+                                                ctls_wire_format_t wire_format);
 
 ctls_op_status_t ctls_recd_server_hello_create(void);
 ctls_op_status_t ctls_recd_server_hello_to_struct(void);

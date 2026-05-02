@@ -61,7 +61,7 @@ ctls_op_status_t ctls_transcript_hash_init(ctls_transcript_hash_t *transcript_ha
     CTLS_CHECK_NULL(transcript_hash);
 
     uint8_t buffer[256];
-    size_t offset = 0;
+    ctls_size_t offset = 0;
 
     ctls_op_status_t const result = ctls_template_to_wire(buffer, template);
     if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
@@ -73,41 +73,68 @@ ctls_op_status_t ctls_transcript_hash_init(ctls_transcript_hash_t *transcript_ha
 
 ctls_op_status_t ctls_transcript_hash_calculate(psa_hash_operation_t *hash_operator,
                                                 uint8_t const *buffer,
-                                                size_t const *offset) {
+                                                ctls_size_t const *offset) {
     psa_status_t const result = psa_hash_update(hash_operator, buffer, *offset);
     return ctls_psa_error_map(result);
 }
 
 ctls_op_status_t ctls_transcript_hash_update(ctls_record_t const *record,
                                              ctls_template_t const *template,
+                                             ctls_hsmg_type_t const type,
                                              psa_hash_operation_t *hash_operator) {
     CTLS_CHECK_NULL(record);
     CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL(hash_operator);
 
-    uint8_t buffer[256];
-    size_t offset = 0;
+    uint8_t buffer[CTLS_WIRE_BUFFER_SIZE];
+    ctls_size_t offset = 0;
 
-    // switch (record->type) {
-    //     case CTLS_RECORD_TYPE_CLIENT_HELLO: {
-    //         tls_record_body_t tls_record_body;
-    //
-    //         tls_build_record_client_hello(&tls_record_body, record, template);
-    //         tls_serialize_client_hello(&tls_record_body, buffer, &offset);
-    //         break;
-    //     }
-    //     case CTLS_RECORD_TYPE_SERVER_HELLO: break;
-    //     case CTLS_RECORD_TYPE_ENCRYPTED_EXTENSIONS: break;
-    //     case CTLS_RECORD_TYPE_CERTIFICATE: break;
-    //     case CTLS_RECORD_TYPE_CERTIFICATE_VERIFY: break;
-    //     case CTLS_RECORD_TYPE_FINISHED: break;
-    //
-    //     default: return (ctls_op_status_t){
-    //             .source = CTLS_ERROR_SOURCE_INTERNAL,
-    //             .code = CTLS_OP_STATUS_INVALID,
-    //             .external_code = CTLS_OP_STATUS_INVALID,
-    //         };
-    // }
+    switch (type) {
+        case CTLS_HSMG_TYPE_CLIENT_HELLO: {
+            ctls_recd_client_hello_to_wire(buffer,
+                                           &offset,
+                                           CTLS_WIRE_BUFFER_SIZE,
+                                           record,
+                                           template,
+                                           CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
+
+            break;
+        }
+        case CTLS_HSMG_TYPE_SERVER_HELLO: {
+            ctls_recd_server_hello_to_wire();
+            break;
+        }
+        case CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS: {
+            ctls_recd_encrypted_extensions_to_wire();
+            break;
+        }
+        case CTLS_HSMG_TYPE_CERTIFICATE: {
+            ctls_recd_certificate_to_wire();
+            break;
+        }
+        case CTLS_HSMG_TYPE_CERTIFICATE_VERIFY: {
+            ctls_recd_certificate_verify_to_wire();
+            break;
+        }
+        case CTLS_HSMG_TYPE_FINISHED: {
+            ctls_recd_finished_to_wire();
+            break;
+        }
+        case CTLS_HSMG_TYPE_NEW_SESSION_TICKET:
+        case CTLS_HSMG_TYPE_END_OF_EARLY_DATA:
+        case CTLS_HSMG_TYPE_HELLO_RETRY_REQUEST:
+        case CTLS_HSMG_TYPE_CERTIFICATE_REQUEST:
+        case CTLS_HSMG_TYPE_KEY_UPDATE:
+        case CTLS_HSMG_TYPE_MESSAGE_HASH:
+        case CTLS_HSMG_TYPE_SENTINEL:
+            break;
+
+        default: return (ctls_op_status_t){
+                .source = CTLS_ERROR_SOURCE_INTERNAL,
+                .code = CTLS_OP_STATUS_INVALID,
+                .external_code = CTLS_OP_STATUS_INVALID,
+            };
+    }
 
     return ctls_transcript_hash_calculate(hash_operator, buffer, &offset);
 }

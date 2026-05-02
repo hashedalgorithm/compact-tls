@@ -88,13 +88,13 @@ ctls_op_status_t ctls_write_body_length(uint8_t *buffer,
 
 ctls_op_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
                                                 ctls_size_t *offset,
-                                                ctls_size_t const *buffer_size,
+                                                ctls_size_t buffer_size,
                                                 ctls_record_t const *record,
                                                 ctls_template_t const *template,
                                                 ctls_wire_format_t wire_format) {
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
         // §ctls draft 10: 2.2 - ContentType content_type = ctls_handshake;
-        if (sizeof(record->content_type) + offset > buffer_size)
+        if (sizeof(record->content_type) + *offset > buffer_size)
             return (ctls_op_status_t){
                 .source = CTLS_ERROR_SOURCE_INTERNAL,
                 .code = CTLS_OP_STATUS_OVERFLOW,
@@ -103,7 +103,7 @@ ctls_op_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
 
         ctls_write_u8(buffer, offset, record->content_type);
 
-        if ((sizeof(record->profile_id) + sizeof(uint8_t)) + offset > buffer_size)
+        if ((sizeof(record->profile_id) + sizeof(uint8_t)) + *offset > buffer_size)
             return (ctls_op_status_t){
                 .source = CTLS_ERROR_SOURCE_INTERNAL,
                 .code = CTLS_OP_STATUS_OVERFLOW,
@@ -116,7 +116,7 @@ ctls_op_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
 
         ctls_hsmg_client_hello_to_wire(buffer,
                                        offset,
-                                       buffer_size,
+                                       &buffer_size,
                                        &record->record_body,
                                        template,
                                        CTLS_WIRE_FORMAT_DEFAULT);
@@ -147,7 +147,7 @@ ctls_op_status_t ctls_record_serialize(ctls_template_t const *template,
             case CTLS_HSMG_TYPE_CLIENT_HELLO: {
                 ctls_recd_client_hello_to_wire(buffer,
                                                &offset,
-                                               &buffer_size,
+                                               buffer_size,
                                                record,
                                                template,
                                                CTLS_WIRE_FORMAT_DEFAULT);
@@ -170,10 +170,6 @@ ctls_op_status_t ctls_record_serialize(ctls_template_t const *template,
     if (record->type == CTLS_RECORD_TYPE_ENCRYPTED) {
     }
 
-
-    // fill in body length
-    ctls_write_body_length(buffer, &body_start, (ctls_size_t) (offset - body_start));
-    *buffer_length = offset;
 
     return (ctls_op_status_t){
         .source = CTLS_ERROR_SOURCE_INTERNAL,

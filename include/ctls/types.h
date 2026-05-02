@@ -26,6 +26,7 @@
 /*  CONSTANTS                                                         */
 /* ------------------------------------------------------------------ */
 #define CTLS_HSHK_BUFFER_SIZE 512U
+#define CTLS_WIRE_BUFFER_SIZE 256U
 
 #define CTLS_WIRE_RANDOM 32U
 #define CTLS_WIRE_KEY_SHARE 32U
