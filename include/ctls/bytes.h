@@ -31,6 +31,14 @@ static inline void ctls_write_u24(uint8_t *buffer,
     buffer[(*offset)] = value & 0xFF;
 }
 
+static inline void ctls_write_u32(uint8_t *buffer,
+                                  ctls_size_t *offset,
+                                  uint32_t const value) {
+    for (int i = 3; i >= 0; i--) {
+        buffer[(*offset)++] = (value >> (i * 8)) & 0xFF;
+    }
+}
+
 
 static inline void ctls_write_u64(uint8_t *buffer,
                                   ctls_size_t *offset,
