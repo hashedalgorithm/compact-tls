@@ -73,13 +73,19 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
     }
 
     // 2. serialize record to wire bytes
-    result = ctls_record_serialize(context->template, &context->record, buffer,
+    result = ctls_record_serialize(context->template,
+                                   &context->record,
+                                   buffer,
                                    sizeof(buffer),
                                    &buffer_length);
     if (result.code != CTLS_OP_STATUS_SUCCESS) {
-        ctls_handshake_state_update(&context->state, CTLS_HSHK_STATE_ERROR);
+        ctls_wire_buffer_clear(buffer);
         return result;
     }
+
+    ctls_handshake_state_update(&context->state, CTLS_HSHK_STATE_ERROR);
+    // clears the buffer for next step
+    ctls_wire_buffer_clear(buffer);
 
     // 3. send
     result = context->transport.recd_send(buffer, buffer_length);

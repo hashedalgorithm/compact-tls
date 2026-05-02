@@ -66,6 +66,7 @@ struct ctls_context {
 
 ctls_op_status_t ctls_handshake_state_update(ctls_hshk_state_t *location,
                                              ctls_hshk_state_t state);
+void ctls_wire_buffer_clear(uint8_t *buffer);
 ctls_op_status_t ctls_recd_buffer_clear(ctls_record_t *record_buffer);
 ctls_op_status_t ctls_validate_template(ctls_template_t const *template);
 ctls_op_status_t ctls_context_init(ctls_context_t *context,
