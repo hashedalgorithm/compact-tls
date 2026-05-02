@@ -93,6 +93,7 @@ ctls_op_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
                                                 ctls_template_t const *template,
                                                 ctls_wire_format_t wire_format) {
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
+        // §ctls draft 10: 2.2 - ContentType content_type = ctls_handshake;
         if (offset + CTLS_WIRE_CONTENT_TYPE > buffer_size)
             return (ctls_op_status_t){
                 .source = CTLS_ERROR_SOURCE_INTERNAL,
@@ -100,7 +101,7 @@ ctls_op_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
                 .external_code = CTLS_OP_STATUS_OVERFLOW,
             };
 
-        buffer[(*offset)++] = record->content_type;
+        ctls_write_u8(buffer, offset, record->content_type);
 
         if (offset + CTLS_WIRE_PROFILE_ID > buffer_size)
             return (ctls_op_status_t){
@@ -110,8 +111,8 @@ ctls_op_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
             };
 
         // opaque profile_id<0..2^8-1>;
-        buffer[(*offset)++] = 0x01;
-        buffer[(*offset)++] = record->profile_id;
+        ctls_write_u8(buffer, offset, 0x01);
+        ctls_write_u8(buffer, offset, record->profile_id);
 
         ctls_hsmg_client_hello_to_wire(buffer,
                                        offset,
