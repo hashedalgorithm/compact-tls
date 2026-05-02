@@ -74,10 +74,18 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
     uint8_t buffer[256];
     ctls_size_t buffer_length = 0;
 
+    ctls_op_status_t result = ctls_transcript_hash_init(&context->transcript_hash,
+                                                        context->template);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) {
+        context->state = CTLS_HSHK_STATE_ERROR;
+        return result;
+    }
+
+
     // 1. build new ClientHello into context->record
-    ctls_op_status_t result = ctls_recd_client_hello_create(&context->record,
-                                                                context->hshk_buffer,
-                                                                context->template);
+    result = ctls_recd_client_hello_create(&context->record,
+                                           context->hshk_buffer,
+                                           context->template);
     if (result.code != CTLS_OP_STATUS_SUCCESS) {
         context->state = CTLS_HSHK_STATE_ERROR;
         return result;

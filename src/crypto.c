@@ -57,6 +57,21 @@ ctls_op_status_t ctls_crypto_init(ctls_transcript_hash_t *transcript_hash) {
     return ctls_psa_error_map(result);
 }
 
+ctls_op_status_t ctls_transcript_hash_init(ctls_transcript_hash_t *transcript_hash,
+                                           ctls_template_t const *template) {
+    CTLS_CHECK_NULL(transcript_hash);
+
+    uint8_t buffer[256];
+    size_t offset = 0;
+
+    ctls_op_status_t const result = ctls_template_to_wire(buffer, template);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
+    return ctls_transcript_hash_calculate(&transcript_hash->hash_operator,
+                                          buffer,
+                                          &offset);
+}
+
 ctls_op_status_t ctls_transcript_hash_calculate(psa_hash_operation_t *hash_operator,
                                                 uint8_t const *buffer,
                                                 size_t const *offset) {
@@ -116,7 +131,7 @@ ctls_op_status_t transcript_snapshot(psa_hash_operation_t const *hash_operator,
 
 
 ctls_op_status_t ctls_ephemeral_public_key_generate(uint8_t *buffer,
-                                                    ctls_size_t const *offset,
+                                                    ctls_size_t *offset,
                                                     ctls_size_t *bytes_written) {
     size_t bytes_written_st = *bytes_written;
     psa_key_id_t key_id;
@@ -135,7 +150,9 @@ ctls_op_status_t ctls_ephemeral_public_key_generate(uint8_t *buffer,
                                                       CTLS_WIRE_KEY_SHARE,
                                                       &bytes_written_st);
 
-    *bytes_written += bytes_written_st;
+    *offset += (ctls_size_t) bytes_written_st;
+    *bytes_written = (ctls_size_t) bytes_written_st;
+
     if (result != PSA_SUCCESS) return ctls_psa_error_map(result);
 
     return ctls_psa_error_map(PSA_SUCCESS);
