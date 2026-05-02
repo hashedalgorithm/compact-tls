@@ -16,147 +16,112 @@ ctls_op_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions,
     ctls_hshk_buffer_t *hshk_buffer,
     ctls_template_t const *template) {
-    ctls_op_status_t result;
-
     uint8_t const size_of_expected_extensions =
-            ctls_expected_extensions_size_get(&template->extensions.client_hello_extension
-                                              .expected_extensions);
+            ctls_expected_extensions_size_get(&template->client_hello_extension.
+                                              expected_extensions);
 
     // server_name
-    if (template->extensions.client_hello_extension.predefined_extensions.server_name.data
-        != NULL) {
+    if (template->client_hello_extension.predefined_extensions.server_name.data != NULL) {
         client_hello_extensions->server_name.form = CTLS_DATA_FORM_OPAQUE;
         client_hello_extensions->server_name.extension_type = CTLS_EXTN_TYPE_SERVER_NAME;
-        client_hello_extensions->server_name.opaque.buffer_length = template->extensions.
+        client_hello_extensions->server_name.opaque.buffer_length = template->
                 client_hello_extension.predefined_extensions.server_name.length;
-        client_hello_extensions->server_name.opaque.buffer = template->extensions.
+        client_hello_extensions->server_name.opaque.buffer = template->
                 client_hello_extension.predefined_extensions.server_name.data;
     }
 
     // max_fragment_length
-    if (template->extensions.client_hello_extension.predefined_extensions.
-        maximum_fragment_length == 0) {
-        client_hello_extensions->maximum_fragment_length = template->extensions.
+    if (template->client_hello_extension.predefined_extensions.maximum_fragment_length ==
+        0) {
+        client_hello_extensions->maximum_fragment_length = template->
                 client_hello_extension.predefined_extensions.maximum_fragment_length;
     }
 
     // certificate_status_request
-    if (template->extensions.client_hello_extension.predefined_extensions.
-        certificate_status_request.data != NULL) {
+    if (template->client_hello_extension.predefined_extensions.certificate_status_request.
+        data != NULL) {
         client_hello_extensions->certificate_status_request.form = CTLS_DATA_FORM_OPAQUE;
         client_hello_extensions->certificate_status_request.extension_type =
                 CTLS_EXTN_TYPE_STATUS_REQUEST;
         client_hello_extensions->certificate_status_request.opaque.buffer_length =
-                template->extensions.client_hello_extension.predefined_extensions.
+                template->client_hello_extension.predefined_extensions.
                 certificate_status_request.length;
         client_hello_extensions->certificate_status_request.opaque.buffer = template->
-                extensions.client_hello_extension.predefined_extensions.
-                certificate_status_request.data;
+                client_hello_extension.predefined_extensions.certificate_status_request.
+                data;
     }
 
     // heartbeat
-    if (template->extensions.client_hello_extension.predefined_extensions.heartbeat_mode
-        != 0) {
-        client_hello_extensions->heartbeat_mode = template->extensions.
-                client_hello_extension.predefined_extensions.heartbeat_mode;
+    if (template->client_hello_extension.predefined_extensions.heartbeat_mode != 0) {
+        client_hello_extensions->heartbeat_mode = template->client_hello_extension.
+                predefined_extensions.heartbeat_mode;
     }
 
     // alpn
-    if (template->extensions.client_hello_extension.predefined_extensions.alpn.data !=
-        NULL) {
+    if (template->client_hello_extension.predefined_extensions.alpn.data != NULL) {
         client_hello_extensions->alpn.form = CTLS_DATA_FORM_OPAQUE;
         client_hello_extensions->alpn.extension_type =
                 CTLS_EXTN_TYPE_APPLICATION_LAYER_PROTOCOL_NEGOTIATION;
-        client_hello_extensions->alpn.opaque.buffer = template->extensions.
-                client_hello_extension.predefined_extensions.alpn.data;
-        client_hello_extensions->alpn.opaque.buffer_length = template->extensions.
+        client_hello_extensions->alpn.opaque.buffer = template->client_hello_extension.
+                predefined_extensions.alpn.data;
+        client_hello_extensions->alpn.opaque.buffer_length = template->
                 client_hello_extension.predefined_extensions.alpn.length;
     }
 
     // client_certificate_type
-    if (template->extensions.client_hello_extension.predefined_extensions.
-        client_certificate_type != 0) {
-        client_hello_extensions->client_certificate_type = template->extensions.
+    if (template->client_hello_extension.predefined_extensions.client_certificate_type !=
+        0) {
+        client_hello_extensions->client_certificate_type = template->
                 client_hello_extension.predefined_extensions.client_certificate_type;
     }
 
     // server_certificate_type
-    if (template->extensions.client_hello_extension.predefined_extensions.
-        server_certificate_type != 0) {
-        client_hello_extensions->server_certificate_type = template->extensions.
+    if (template->client_hello_extension.predefined_extensions.server_certificate_type !=
+        0) {
+        client_hello_extensions->server_certificate_type = template->
                 client_hello_extension.predefined_extensions.server_certificate_type;
     }
 
     // psk_key_exchange_modes
-    if (template->extensions.client_hello_extension.predefined_extensions.
-        psk_key_exchange_modes != 0) {
-        client_hello_extensions->psk_key_exchange_modes = template->extensions.
-                client_hello_extension.predefined_extensions.psk_key_exchange_modes;
+    if (template->client_hello_extension.predefined_extensions.psk_key_exchange_modes !=
+        0) {
+        client_hello_extensions->psk_key_exchange_modes = template->client_hello_extension
+                .predefined_extensions.psk_key_exchange_modes;
     }
 
     // post_handshake_auth
-    if (template->extensions.client_hello_extension.predefined_extensions.
-        post_handshake_auth != 0) {
-        client_hello_extensions->post_handshake_auth = template->extensions.
-                client_hello_extension.predefined_extensions.post_handshake_auth;
+    if (template->client_hello_extension.predefined_extensions.post_handshake_auth != 0) {
+        client_hello_extensions->post_handshake_auth = template->client_hello_extension.
+                predefined_extensions.post_handshake_auth;
     }
 
 
     // signature_algorithm_cert
-    if (template->extensions.client_hello_extension.predefined_extensions.
-        signature_algorithm_cert != 0) {
-        client_hello_extensions->signature_algorithm_cert = template->extensions.
+    if (template->client_hello_extension.predefined_extensions.signature_algorithm_cert !=
+        0) {
+        client_hello_extensions->signature_algorithm_cert = template->
                 client_hello_extension.predefined_extensions.signature_algorithm_cert;
     }
 
     for (uint8_t i = 0; i < size_of_expected_extensions; i++) {
-        switch (template->extensions.client_hello_extension.expected_extensions[i]) {
-            case CTLS_EXTN_TYPE_SERVER_NAME:
-            case CTLS_EXTN_TYPE_MAX_FRAGMENT_LENGTH:
-            case CTLS_EXTN_TYPE_STATUS_REQUEST:
-            case CTLS_EXTN_TYPE_HEARTBEAT:
-            case CTLS_EXTN_TYPE_APPLICATION_LAYER_PROTOCOL_NEGOTIATION:
-            case CTLS_EXTN_TYPE_CLIENT_CERTIFICATE_TYPE:
-            case CTLS_EXTN_TYPE_SERVER_CERTIFICATE_TYPE:
-            case CTLS_EXTN_TYPE_PSK_KEY_EXCHANGE_MODES:
-            case CTLS_EXTN_TYPE_POST_HANDSHAKE_AUTH:
-            case CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS_CERT:
-#if CTLS_SERVER
-            case CTLS_EXTN_TYPE_OID_FILTERS: {
-                return (ctls_op_status_t){
-                    .source = CTLS_ERROR_SOURCE_INTERNAL,
-                    .code = CTLS_OP_STATUS_INVALID,
-                    .external_code = CTLS_OP_STATUS_INVALID,
-                };
-            }
-#endif
-            case CTLS_EXTN_TYPE_CERTIFICATE_AUTHORITIES:
-            case CTLS_EXTN_TYPE_SUPPORTED_GROUPS:
-            case CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS:
-            case CTLS_EXTN_TYPE_USE_SRTP:
-            case CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP:
-            case CTLS_EXTN_TYPE_PADDING:
-            case CTLS_EXTN_TYPE_PRE_SHARED_KEY:
-            case CTLS_EXTN_TYPE_EARLY_DATA:
-            case CTLS_EXTN_TYPE_SUPPORTED_VERSIONS:
-            case CTLS_EXTN_TYPE_COOKIE:
-            case CTLS_EXTN_TYPE_OID_FILTERS:
-                return (ctls_op_status_t){
-                    .source = CTLS_ERROR_SOURCE_INTERNAL,
-                    .code = CTLS_OP_STATUS_INVALID,
-                    .external_code = CTLS_OP_STATUS_INVALID,
-                };
-            case CTLS_EXTN_TYPE_KEY_SHARE: {
-                result = ctls_ephemeral_public_key_generate(hshk_buffer->buffer,
-                                                                &hshk_buffer->
-                                                                buffer_length,
-                                                                &client_hello_extensions->
-                                                                key_share_entity.key_share
-                                                                .buffer_length);
-                if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
-            }
-            break;
+        if (template->client_hello_extension.expected_extensions[i] !=
+            CTLS_EXTN_TYPE_KEY_SHARE) {
+            return (ctls_op_status_t){
+                .source = CTLS_ERROR_SOURCE_INTERNAL,
+                .code = CTLS_OP_STATUS_INVALID,
+                .external_code = CTLS_OP_STATUS_INVALID,
+            };
         }
+
+
+        ctls_op_status_t const result =
+                ctls_ephemeral_public_key_generate(hshk_buffer->buffer,
+                                                   &hshk_buffer->buffer_length,
+                                                   &client_hello_extensions->
+                                                   key_share_entity.key_share.
+                                                   buffer_length);
+
+        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
     }
 
     return (ctls_op_status_t){
@@ -180,68 +145,48 @@ ctls_op_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
                                                 ctls_template_t const *template,
                                                 ctls_wire_format_t wire_format) {
     uint8_t const size_of_expected_extensions =
-            sizeof(template->extensions.client_hello_extension.
-                expected_extensions) / sizeof(template->extensions.
-                client_hello_extension.expected_extensions[0]);
+            ctls_expected_extensions_size_get(&template->client_hello_extension.
+                                              expected_extensions);
 
-    for (uint8_t i = 0; i < size_of_expected_extensions; i++) {
-        switch (template->extensions.client_hello_extension.expected_extensions[
-            i]) {
-            case CTLS_EXTN_TYPE_SERVER_NAME:
-            case CTLS_EXTN_TYPE_MAX_FRAGMENT_LENGTH:
-            case CTLS_EXTN_TYPE_STATUS_REQUEST:
-            case CTLS_EXTN_TYPE_USE_SRTP:
-            case CTLS_EXTN_TYPE_HEARTBEAT:
-            case CTLS_EXTN_TYPE_APPLICATION_LAYER_PROTOCOL_NEGOTIATION:
-            case CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP:
-            case CTLS_EXTN_TYPE_CLIENT_CERTIFICATE_TYPE:
-            case CTLS_EXTN_TYPE_SERVER_CERTIFICATE_TYPE:
-            case CTLS_EXTN_TYPE_PSK_KEY_EXCHANGE_MODES:
-            case CTLS_EXTN_TYPE_CERTIFICATE_AUTHORITIES:
-            case CTLS_EXTN_TYPE_POST_HANDSHAKE_AUTH:
-            case CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS_CERT:
-                // TODO
-                break;
-
-            case CTLS_EXTN_TYPE_OID_FILTERS: {
-                if (CTLS_SERVER) {
-                    // TODO
-                }
+    if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
+        // Extension extensions<1..2^16-1>;
+        for (uint8_t i = 0; i < size_of_expected_extensions; i++) {
+            if (template->client_hello_extension.expected_extensions[i] !=
+                CTLS_EXTN_TYPE_KEY_SHARE) {
                 return (ctls_op_status_t){
-
                     .source = CTLS_ERROR_SOURCE_INTERNAL,
                     .code = CTLS_OP_STATUS_INVALID,
                     .external_code = CTLS_OP_STATUS_INVALID,
                 };
             }
 
-            case CTLS_EXTN_TYPE_KEY_SHARE: {
-                result = ctls_ephemeral_public_key_generate(
-                    client_hello->
-                    extensions.
-                    key_share_entity, CTLS_WIRE_KEY_SHARE);
-                if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+            ctls_size_t key_share_start = *offset;
+            if (template->dhe_group.key_share_length == 0) {
+                ctls_write_u16(buffer,
+                               &key_share_start,
+                               client_hello_extensions->key_share_entity.key_share.
+                               buffer_length);
             }
-            break;
-            case CTLS_EXTN_TYPE_SUPPORTED_GROUPS:
-            case CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS:
-            case CTLS_EXTN_TYPE_PADDING:
-            case CTLS_EXTN_TYPE_PRE_SHARED_KEY:
-            case CTLS_EXTN_TYPE_EARLY_DATA:
-            case CTLS_EXTN_TYPE_SUPPORTED_VERSIONS:
-            case CTLS_EXTN_TYPE_COOKIE:
-                return (ctls_op_status_t){
-                    .source = CTLS_ERROR_SOURCE_INTERNAL,
-                    .code = CTLS_OP_STATUS_INVALID,
-                    .external_code = CTLS_OP_STATUS_INVALID,
-                };
+
+            ctls_write_bytes(buffer,
+                             offset,
+                             client_hello_extensions->key_share_entity.key_share.
+                             buffer_length,
+                             client_hello_extensions->key_share_entity.key_share.buffer);
         }
-    }
 
+        return (ctls_op_status_t){
+            . source = CTLS_ERROR_SOURCE_INTERNAL,
+            . code = CTLS_OP_STATUS_SUCCESS,
+            . external_code = CTLS_OP_STATUS_SUCCESS,
+        };
+    }
+    if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
+    }
     return (ctls_op_status_t){
-        .source = CTLS_ERROR_SOURCE_INTERNAL,
-        .code = CTLS_OP_STATUS_INVALID,
-        .external_code = CTLS_OP_STATUS_INVALID,
+        . source = CTLS_ERROR_SOURCE_INTERNAL,
+        . code = CTLS_OP_STATUS_INVALID,
+        . external_code = CTLS_OP_STATUS_INVALID,
     };
 }
 

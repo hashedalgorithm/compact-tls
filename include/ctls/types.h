@@ -174,6 +174,7 @@ typedef enum {
     CTLS_EXTN_TYPE_POST_HANDSHAKE_AUTH = 0x0031,
     CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS_CERT = 0x0032,
     CTLS_EXTN_TYPE_KEY_SHARE = 0x0033,
+    CTLS_EXTN_TYPE_SENTINEL = 0xFFFF, // default value (uninitialized)
 } ctls_extn_type_t;
 
 typedef enum {
@@ -219,6 +220,7 @@ typedef enum {
     CTLS_HSMG_TYPE_FINISHED = 0x14,
     CTLS_HSMG_TYPE_KEY_UPDATE = 0x18,
     CTLS_HSMG_TYPE_MESSAGE_HASH = 0xFE,
+    CTLS_HSMG_TYPE_SENTINEL = 0xFF,
 } ctls_hsmg_type_t;
 
 typedef enum {
@@ -254,6 +256,7 @@ typedef enum {
 typedef enum {
     CTLS_EXTN_CERTIFICATE_TYPE_X509 = 0x00,
     CTLS_EXTN_CERTIFICATE_TYPE_RAW_PUBLIC_KEY = 0x02,
+    CTLS_EXTN_CERTIFICATE_TYPE_SENTINEL = 0xFF,
 } ctls_extn_certificate_type_t;
 
 typedef enum {
@@ -263,6 +266,7 @@ typedef enum {
 
 typedef enum {
     CTLS_EXTN_HOST_NAME = 0x00,
+    CTLS_EXTN_HOST_NAME_SENTINEL = 0xFF,
 } ctls_extn_host_name_type_t;
 
 typedef enum {
@@ -287,8 +291,9 @@ typedef enum {
 } ctls_wire_format_t;
 
 typedef enum {
-    CTLS_EXTN_PSK_KEY_EXCHANGE_MODE_PSK_KEY = 0,
-    CTLS_EXTN_PSK_KEY_EXCHANGE_MODE_PSK_DHE_KEY = 1,
+    CTLS_EXTN_PSK_KEY_EXCHANGE_MODE_PSK_KEY = 0x00,
+    CTLS_EXTN_PSK_KEY_EXCHANGE_MODE_PSK_DHE_KEY = 0x01,
+    CTLS_EXTN_PSK_KEY_EXCHANGE_MODE_SENTINEL = 0xFF,
 } ctls_extn_psk_key_exchange_mode_t;
 
 typedef enum {

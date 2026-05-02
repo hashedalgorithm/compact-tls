@@ -90,7 +90,7 @@ struct ctls_extn_key_share {
 
 struct ctls_extn_client_hello {
     ctls_extn_server_name_t server_name;
-    ctls_extn_maximum_fragment_length_t maximum_fragment_length;
+    ctls_max_fragment_length_t maximum_fragment_length;
     ctls_extn_certificate_status_request_t certificate_status_request;
     ctls_extn_supported_groups_t supported_groups;
     ctls_extn_signature_algorithm_t signature_algorithm;
