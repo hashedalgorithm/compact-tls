@@ -87,6 +87,7 @@ typedef enum {
 } ctls_tmpl_type_t;
 
 typedef enum {
+    CTLS_HSMG_CIPHER_SUITE_SENTINEL = 0x0000,
     CTLS_HSMG_CIPHER_SUITE_AES_128_GCM_SHA256 = 0x1301,
     CTLS_HSMG_CIPHER_SUITE_AES_256_GCM_SHA384 = 0x1302,
     CTLS_HSMG_CIPHER_SUITE_CHACHA20_POLY1305_SHA256 = 0x1303,
@@ -95,6 +96,7 @@ typedef enum {
 } ctls_hsmg_cipher_suite_type_t;
 
 typedef enum {
+    CTLS_EXTN_DHE_GROUP_SENTINEL = 0x0000,
     CTLS_EXTN_DHE_GROUP_SECP256R1 = 0x0017,
     CTLS_EXTN_DHE_GROUP_SECP384R1 = 0x0018,
     CTLS_EXTN_DHE_GROUP_SECP521R1 = 0x0019,
@@ -106,6 +108,7 @@ typedef enum {
 } ctls_extn_dhe_group_type_t;
 
 typedef enum {
+    CTLS_EXTN_SIGNATURE_ALGORITHM_SENTINEL = 0x0000,
     CTLS_EXTN_SIGNATURE_ALGORITHM_RSA_PKCS1_SHA256 = 0x0401,
     CTLS_EXTN_SIGNATURE_ALGORITHM_RSA_PKCS1_SHA384 = 0x0501,
     CTLS_EXTN_SIGNATURE_ALGORITHM_RSA_PKCS1_SHA512 = 0x0601,
@@ -123,6 +126,7 @@ typedef enum {
 } ctls_extn_signature_algorithm_type_t;
 
 typedef enum {
+    CTLS_HSMG_PROTOCOL_VERSION_SENTINEL = 0x0000,
     CTLS_HSMG_PROTOCOL_VERSION_1_2 = 0x0303,
     CTLS_HSMG_PROTOCOL_VERSION_1_3 = 0x0304,
 } ctls_hsmg_protocol_version_t;
@@ -277,6 +281,7 @@ typedef enum {
 } ctls_extn_certificate_status_type_t;
 
 typedef enum {
+    CTLS_EXTN_HEARTBEAT_MODE_SENTINEL = 0,
     CTLS_EXTN_HEARTBEAT_MODE_PEER_ALLOWED_TO_SEND = 1,
     CTLS_EXTN_HEARTBEAT_MODE_PEER_NOT_ALLOWED_TO_SEND = 2,
 } ctls_extn_heartbeat_mode_t;
@@ -293,8 +298,9 @@ typedef enum {
 } ctls_extn_psk_key_exchange_mode_t;
 
 typedef enum {
-    CTLS_DATA_FORM_OPAQUE = 0,
-    CTLS_DATA_FORM_PARSED = 1,
+    CTLS_DATA_FORM_SENTINEL = 0,
+    CTLS_DATA_FORM_OPAQUE = 1,
+    CTLS_DATA_FORM_PARSED = 2,
 } ctls_data_form_t;
 
 typedef enum {

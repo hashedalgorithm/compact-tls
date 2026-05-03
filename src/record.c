@@ -92,8 +92,14 @@ ctls_op_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
                                                 ctls_record_t const *record,
                                                 ctls_template_t const *template,
                                                 ctls_wire_format_t wire_format) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(offset);
+    CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(record);
+
+
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
-        // §ctls draft 10: 2.2 - ContentType content_type = ctls_handshake;
+        // § ctls draft 10: 2.2 - ContentType content_type = ctls_handshake;
         if (sizeof(record->content_type) + *offset > buffer_size)
             return (ctls_op_status_t){
                 .source = CTLS_ERROR_SOURCE_INTERNAL,
@@ -114,14 +120,29 @@ ctls_op_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
         ctls_write_u8(buffer, offset, sizeof(record->profile_id));
         ctls_write_u8(buffer, offset, record->profile_id);
 
-        ctls_hsmg_client_hello_to_wire(buffer,
-                                       offset,
-                                       &buffer_size,
-                                       &record->record_body,
-                                       template,
-                                       CTLS_WIRE_FORMAT_DEFAULT);
+        return ctls_hsmg_client_hello_to_wire(buffer,
+                                              offset,
+                                              &buffer_size,
+                                              &record->record_body,
+                                              template,
+                                              CTLS_WIRE_FORMAT_DEFAULT);
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
+        ctls_write_u8(buffer, offset, record->content_type);
+        ctls_write_u16(buffer, offset, CTLS_HSMG_PROTOCOL_VERSION_1_2);
+
+        ctls_size_t record_body_length = *offset;
+        *offset += 2;
+        ctls_op_status_t const result = ctls_hsmg_client_hello_to_wire(buffer,
+            offset,
+            &buffer_size,
+            &record->record_body,
+            template,
+            CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
+
+        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
+        ctls_write_u16(buffer, &record_body_length, *offset - record_body_length);
     }
     return (ctls_op_status_t){
         .source = CTLS_ERROR_SOURCE_INTERNAL,

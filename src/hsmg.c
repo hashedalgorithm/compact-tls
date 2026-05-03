@@ -80,6 +80,49 @@ ctls_op_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
         return result;
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
+        ctls_write_u8(buffer, offset, hsmg->message_type);
+        ctls_size_t hsmg_body_length_offset = *offset;
+
+        *offset += 3;
+
+        ctls_write_u16(buffer, offset, CTLS_HSMG_PROTOCOL_VERSION_1_2);
+        ctls_write_bytes(buffer,
+                         offset,
+                         hsmg->handshake_message_body.client_hello.random.buffer_length,
+                         hsmg->handshake_message_body.client_hello.random.buffer);
+        ctls_write_u8(buffer,
+                      offset,
+                      sizeof(hsmg->handshake_message_body.client_hello.
+                          legacy_session_id));
+        ctls_write_u8(buffer,
+                      offset,
+                      hsmg->handshake_message_body.client_hello.legacy_session_id);
+        ctls_write_u16(buffer,
+                       offset,
+                       sizeof(hsmg->handshake_message_body.client_hello.cipher_suite));
+        ctls_write_u16(buffer,
+                       offset,
+                       hsmg->handshake_message_body.client_hello.cipher_suite);
+        ctls_write_u8(buffer,
+                      offset,
+                      sizeof(hsmg->handshake_message_body.client_hello.
+                          legacy_compression_methods));
+        ctls_write_u8(buffer,
+                      offset,
+                      hsmg->handshake_message_body.client_hello.
+                      legacy_compression_methods);
+
+        ctls_op_status_t result = ctls_extn_client_hello_to_wire(buffer,
+            offset,
+            &hsmg->handshake_message_body.client_hello.extensions,
+            template,
+            CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
+
+        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
+        ctls_write_u24(buffer,
+                       &hsmg_body_length_offset,
+                       *offset - hsmg_body_length_offset);
     }
     return (ctls_op_status_t){
         .source = CTLS_ERROR_SOURCE_INTERNAL,
