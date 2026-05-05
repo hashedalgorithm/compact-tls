@@ -43,6 +43,13 @@ struct ctls_hshk_buffer {
     ctls_size_t buffer_length;
 };
 
+struct ctls_hshk_data {
+    ctls_hshk_buffer_block_t client_random;
+    ctls_hshk_buffer_block_t server_random;
+    ctls_hshk_buffer_block_t client_key_share;
+    ctls_hshk_buffer_block_t server_key_share;
+};
+
 struct ctls_op_status {
     ctls_op_status_code_t code;
     ctls_error_source_t source;
@@ -58,6 +65,7 @@ struct ctls_context {
     ctls_template_t const *template;
     ctls_transcript_hash_t transcript_hash;
     ctls_hshk_state_t state;
+    ctls_hshk_data_t hshk_data;
     ctls_transport_t transport;
     uint64_t sequence_number;
     ctls_record_t record;

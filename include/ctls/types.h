@@ -371,6 +371,7 @@ typedef ctls_extn_type_t ctls_tmpl_self_delimiting_extensions_t[4];
 typedef struct ctls_context ctls_context_t;
 typedef struct ctls_transport ctls_transport_t;
 typedef struct ctls_transcript_hash ctls_transcript_hash_t;
+typedef struct ctls_hshk_data ctls_hshk_data_t;
 
 
 /* ------------------------------------------------------------------ */

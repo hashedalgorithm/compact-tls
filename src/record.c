@@ -230,7 +230,8 @@ ctls_op_status_t ctls_recd_buffer_clear(ctls_record_t *record_buffer) {
 
 ctls_op_status_t ctls_recd_client_hello_create(ctls_record_t *record,
                                                ctls_hshk_buffer_t *hshk_buffer,
-                                               ctls_template_t const *template) {
+                                               ctls_template_t const *template,
+                                               ctls_hshk_data_t *hshk_data) {
     CTLS_CHECK_NULL(record);
     CTLS_CHECK_NULL(template);
 
@@ -242,7 +243,10 @@ ctls_op_status_t ctls_recd_client_hello_create(ctls_record_t *record,
     record->record_body.message_type = CTLS_HSMG_TYPE_CLIENT_HELLO;
     record->record_body.sequence_number = 0;
 
-    return ctls_hsmg_client_hello_create(&record->record_body, hshk_buffer, template);
+    return ctls_hsmg_client_hello_create(&record->record_body,
+                                         hshk_buffer,
+                                         template,
+                                         hshk_data);
 }
 
 ctls_op_status_t ctls_recd_client_hello_to_struct() {

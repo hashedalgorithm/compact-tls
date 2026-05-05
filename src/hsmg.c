@@ -12,15 +12,22 @@
 
 ctls_op_status_t ctls_hsmg_client_hello_create(ctls_handshake_message_t *hsmg,
                                                ctls_hshk_buffer_t *hshk_buffer,
-                                               ctls_template_t const *template) {
+                                               ctls_template_t const *template,
+                                               ctls_hshk_data_t *hshk_data) {
+    hsmg->handshake_message_body.client_hello.random.buffer = &hshk_buffer->buffer[
+        hshk_buffer->buffer_length];
     ctls_op_status_t const result = ctls_random_generate(hshk_buffer->buffer,
                                                          &hshk_buffer->buffer_length,
                                                          &hsmg->handshake_message_body.
                                                          client_hello.random.
                                                          buffer_length,
                                                          template->random);
-    hsmg->handshake_message_body.client_hello.random.buffer = &hshk_buffer->buffer[
-        hshk_buffer->buffer_length - 1];
+    hsmg->handshake_message_body.client_hello.random.buffer_length = template->random;
+
+    hshk_data->client_random.buffer = hsmg->handshake_message_body.client_hello.random.
+            buffer;
+    hshk_data->client_random.buffer_length = hsmg->handshake_message_body.client_hello.
+            random.buffer_length;
 
     if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
@@ -33,7 +40,8 @@ ctls_op_status_t ctls_hsmg_client_hello_create(ctls_handshake_message_t *hsmg,
     return ctls_extn_client_hello_create(&hsmg->handshake_message_body.client_hello.
                                          extensions,
                                          hshk_buffer,
-                                         template);
+                                         template,
+                                         hshk_data);
 }
 
 

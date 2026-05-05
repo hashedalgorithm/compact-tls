@@ -15,7 +15,8 @@ uint8_t ctls_expected_extensions_size_get(
 ctls_op_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions,
     ctls_hshk_buffer_t *hshk_buffer,
-    ctls_template_t const *template) {
+    ctls_template_t const *template,
+    ctls_hshk_data_t *hshk_data) {
     uint8_t const size_of_expected_extensions =
             ctls_expected_extensions_size_get(&template->client_hello_extension.
                                               expected_extensions);
@@ -142,12 +143,22 @@ ctls_op_status_t ctls_extn_client_hello_create(
         }
 
 
+        client_hello_extensions->key_share_entity.extension_type =
+                CTLS_EXTN_TYPE_KEY_SHARE;
+        client_hello_extensions->key_share_entity.form = CTLS_DATA_FORM_PARSED;
+        client_hello_extensions->key_share_entity.key_share.buffer = &hshk_buffer->buffer[
+            hshk_buffer->buffer_length];
+
         ctls_op_status_t const result =
                 ctls_ephemeral_public_key_generate(hshk_buffer->buffer,
                                                    &hshk_buffer->buffer_length,
                                                    &client_hello_extensions->
                                                    key_share_entity.key_share.
                                                    buffer_length);
+
+        hshk_data->client_key_share.buffer = client_hello_extensions->key_share_entity.key_share.buffer;
+        hshk_data->client_key_share.buffer_length = client_hello_extensions->
+                key_share_entity.key_share.buffer_length;
 
         if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
     }

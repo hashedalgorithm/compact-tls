@@ -61,8 +61,8 @@ struct ctls_handshake_message {
 
 ctls_op_status_t ctls_hsmg_client_hello_create(ctls_handshake_message_t *hsmg,
                                                ctls_hshk_buffer_t *hshk_buffer,
-                                               ctls_template_t const *template);
-ctls_op_status_t ctls_hsmg_client_hello_to_struct(void);
+                                               ctls_template_t const *template,
+                                               ctls_hshk_data_t *hshk_data);
 ctls_op_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
                                                 ctls_size_t *offset,
                                                 ctls_size_t const *buffer_size,
