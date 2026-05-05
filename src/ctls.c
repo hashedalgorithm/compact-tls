@@ -104,22 +104,27 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
                                 context->record.record_body.message_type,
                                 &context->transcript_hash.hash_operator);
 
-    // context->state = CTLS_STATE_WAIT_SERVER_HELLO;
-    // // 4. recv — blocks until server responds
-    // size_t recv_len = 0;
-    // result = context->transport.recd_receive(buffer, &recv_len, sizeof(buffer));
-    // if (result.code != CTLS_OP_STATUS_SUCCESS) {
-    //     context->state = CTLS_STATE_ERROR;
-    //     return result;
-    // }
-    //
-    // // 5. deserialize into record
-    // ctls_clear_record_buffer(&context->record);
-    // result = ctls_record_deserialize(&context->record, buffer, recv_len);
-    // if (result.code != CTLS_OP_STATUS_SUCCESS) {
-    //     context->state = CTLS_STATE_ERROR;
-    //     return result;
-    // }
+    context->state = CTLS_HSHK_STATE_WAIT_SERVER_HELLO;
+    // 4. recv — blocks until server responds
+    ctls_size_t recv_len = 0;
+    result = context->transport.recd_receive(buffer, &recv_len, sizeof(buffer));
+    if (result.code != CTLS_OP_STATUS_SUCCESS) {
+        context->state = CTLS_HSHK_STATE_ERROR;
+        return result;
+    }
+
+    // 5. deserialize into record
+    ctls_recd_buffer_clear(&context->record);
+    result = ctls_record_deserialize(&context->record,
+                                     context->template,
+                                     context->hshk_buffer,
+                                     &context->hshk_data,
+                                     buffer,
+                                     recv_len);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) {
+        context->state = CTLS_HSHK_STATE_ERROR;
+        return result;
+    }
     //
     // // 6. parse ServerHello — next step
     // context->state = CTLS_STATE_WAIT_ENCRYPTED_EXTENSIONS;

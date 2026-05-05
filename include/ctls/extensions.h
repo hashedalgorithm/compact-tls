@@ -105,6 +105,10 @@ struct ctls_extn_client_hello {
     ctls_extn_key_share_t key_share_entity;
 };
 
+struct ctls_extn_server_hello {
+    ctls_extn_supported_version_t supported_versions;
+    ctls_extn_key_share_t key_share_entity;
+};
 
 ctls_op_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions,
@@ -125,7 +129,14 @@ ctls_op_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
 
 ctls_op_status_t ctls_extn_server_hello_create(ctls_hsmg_server_hello_t *server_hello,
                                                ctls_template_t const *template);
-ctls_op_status_t ctls_extn_server_hello_to_struct(void);
+ctls_op_status_t ctls_extn_server_hello_to_struct(
+    ctls_extn_server_hello_t *server_hello_extensions,
+    ctls_template_t const *template,
+    ctls_hshk_buffer_t *hshk_buffer,
+    ctls_hshk_data_t *hshk_data,
+    uint8_t *buffer,
+    ctls_size_t *offset,
+    ctls_size_t buffer_size);
 ctls_op_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
                                                 ctls_size_t *offset,
                                                 ctls_hsmg_server_hello_t *server_hello,

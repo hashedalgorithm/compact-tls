@@ -142,7 +142,55 @@ ctls_op_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
 ctls_op_status_t ctls_hsmg_server_hello_create() {
 }
 
-ctls_op_status_t ctls_hsmg_server_hello_to_struct() {
+ctls_op_status_t ctls_hsmg_server_hello_to_struct(ctls_handshake_message_t *hsmg,
+                                                  ctls_template_t const *template,
+                                                  ctls_hshk_buffer_t *hshk_buffer,
+                                                  ctls_hshk_data_t *hshk_data,
+                                                  uint8_t *buffer,
+                                                  ctls_size_t *offset,
+                                                  ctls_size_t buffer_size) {
+    CTLS_CHECK_NULL(hsmg);
+    CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(hshk_buffer);
+    CTLS_CHECK_NULL(hshk_data);
+    CTLS_CHECK_NULL(offset);
+
+
+    hsmg->message_type = ctls_read_u8(buffer, offset);
+
+    hsmg->handshake_message_body.server_hello.random.buffer = &hshk_buffer->buffer[
+        hshk_buffer->buffer_length];
+    ctls_read_bytes(hshk_buffer->buffer, template->random, buffer, offset);
+    hsmg->handshake_message_body.server_hello.random.buffer_length = template->random;
+
+    hshk_data->server_random.buffer = hsmg->handshake_message_body.server_hello.random.
+            buffer;
+    hshk_data->server_random.buffer_length = hsmg->handshake_message_body.server_hello.
+            random.buffer_length;
+
+
+    hsmg->handshake_message_body.server_hello.cipher_suite =
+            template->cipher_suite == CTLS_HSMG_CIPHER_SUITE_SENTINEL
+                ? template->cipher_suite
+                : ctls_read_u16(buffer, offset);
+
+
+    hsmg->handshake_message_body.server_hello.protocol_version = template->
+            protocol_version;
+    hsmg->handshake_message_body.server_hello.legacy_compression_method = 0;
+    hsmg->handshake_message_body.server_hello.legacy_session_id_echo = 0;
+
+    // extensions_length
+    offset += 2;
+    return ctls_extn_server_hello_to_struct(&hsmg->handshake_message_body.server_hello.
+                                            extensions,
+                                            template,
+                                            hshk_buffer,
+                                            hshk_data,
+                                            buffer,
+                                            offset,
+                                            buffer_size);
 }
 
 ctls_op_status_t ctls_hsmg_server_hello_to_wire() {

@@ -47,8 +47,10 @@ ctls_op_status_t ctls_record_serialize(ctls_template_t const *template,
                                        uint8_t *buffer,
                                        ctls_size_t buffer_size,
                                        ctls_size_t *buffer_length);
-ctls_op_status_t ctls_record_deserialize(ctls_template_t const *template,
-                                         ctls_record_t const *record,
+ctls_op_status_t ctls_record_deserialize(ctls_record_t *record,
+                                         ctls_template_t const *template,
+                                         ctls_hshk_buffer_t *hshk_buffer,
+                                         ctls_hshk_data_t *hshk_data,
                                          uint8_t *buffer,
                                          ctls_size_t buffer_length);
 
@@ -64,8 +66,14 @@ ctls_op_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
                                                 ctls_wire_format_t wire_format);
 
 ctls_op_status_t ctls_recd_server_hello_create(void);
-ctls_op_status_t ctls_recd_server_hello_to_struct(void);
-ctls_op_status_t ctls_recd_server_hello_to_wire(void);
+ctls_op_status_t ctls_recd_server_hello_to_struct(ctls_record_t *record,
+                                                  ctls_template_t const *template,
+                                                  ctls_hshk_buffer_t *hshk_buffer,
+                                                  ctls_hshk_data_t *hshk_data,
+                                                  uint8_t *buffer,
+                                                  ctls_size_t *offset,
+                                                  ctls_size_t buffer_size);
+ctls_op_status_t ctls_recd_server_hello_to_wire();
 
 ctls_op_status_t ctls_recd_encrypted_extensions_create(void);
 ctls_op_status_t ctls_recd_encrypted_extensions_to_struct(void);

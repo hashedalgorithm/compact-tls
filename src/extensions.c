@@ -156,7 +156,8 @@ ctls_op_status_t ctls_extn_client_hello_create(
                                                    key_share_entity.key_share.
                                                    buffer_length);
 
-        hshk_data->client_key_share.buffer = client_hello_extensions->key_share_entity.key_share.buffer;
+        hshk_data->client_key_share.buffer = client_hello_extensions->key_share_entity.
+                key_share.buffer;
         hshk_data->client_key_share.buffer_length = client_hello_extensions->
                 key_share_entity.key_share.buffer_length;
 
@@ -484,6 +485,12 @@ ctls_op_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
                              buffer_length,
                              client_hello_extensions->key_share_entity.key_share.buffer);
         }
+
+        return (ctls_op_status_t){
+            . source = CTLS_ERROR_SOURCE_INTERNAL,
+            . code = CTLS_OP_STATUS_SUCCESS,
+            . external_code = CTLS_OP_STATUS_SUCCESS,
+        };
     }
 
 
@@ -510,7 +517,37 @@ ctls_op_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
     };
 }
 
-ctls_op_status_t ctls_extn_server_hello_to_struct() {
+ctls_op_status_t ctls_extn_server_hello_to_struct(
+    ctls_extn_server_hello_t *server_hello_extensions,
+    ctls_template_t const *template,
+    ctls_hshk_buffer_t *hshk_buffer,
+    ctls_hshk_data_t *hshk_data,
+    uint8_t *buffer,
+    ctls_size_t *offset,
+    ctls_size_t buffer_size) {
+    server_hello_extensions->supported_versions.form = CTLS_DATA_FORM_PARSED;
+    server_hello_extensions->supported_versions.extension_type =
+            CTLS_EXTN_TYPE_SUPPORTED_VERSIONS;
+    server_hello_extensions->supported_versions.version = template->protocol_version;
+
+    server_hello_extensions->key_share_entity.form = CTLS_DATA_FORM_PARSED;
+    server_hello_extensions->key_share_entity.key_share.buffer_length = template->
+            dhe_group.key_share_length;
+
+    server_hello_extensions->key_share_entity.key_share.buffer = &hshk_buffer->buffer[
+        hshk_buffer->buffer_length];
+    ctls_read_bytes(&hshk_buffer->buffer[hshk_buffer->buffer_length],
+                    template->dhe_group.key_share_length,
+                    buffer,
+                    offset);
+    server_hello_extensions->key_share_entity.key_share.buffer_length = template->
+            dhe_group.key_share_length;
+
+    return (ctls_op_status_t){
+        . source = CTLS_ERROR_SOURCE_INTERNAL,
+        . code = CTLS_OP_STATUS_SUCCESS,
+        . external_code = CTLS_OP_STATUS_SUCCESS,
+    };
 }
 
 ctls_op_status_t ctls_extn_server_hello_create(ctls_hsmg_server_hello_t *server_hello,
