@@ -503,11 +503,42 @@ ctls_op_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
 
 ctls_op_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
                                                 ctls_size_t *offset,
-                                                ctls_hsmg_server_hello_t *server_hello,
-                                                ctls_wire_format_t const wire_format) {
+                                                ctls_extn_server_hello_t const *
+                                                server_hello_extensions,
+                                                ctls_template_t const *template,
+                                                ctls_wire_format_t wire_format) {
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
+        // supported versions
+        ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SUPPORTED_VERSIONS);
+        ctls_write_u16(buffer,
+                       offset,
+                       sizeof(server_hello_extensions->supported_versions.version));
+        ctls_write_u16(buffer,
+                       offset,
+                       server_hello_extensions->supported_versions.version);
+
+
+        // key share
+        if (server_hello_extensions->key_share_entity.form != CTLS_DATA_FORM_SENTINEL) {
+            ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_KEY_SHARE);
+            ctls_write_u16(buffer,
+                           offset,
+                           server_hello_extensions->key_share_entity.key_share.
+                           buffer_length);
+            ctls_write_bytes(buffer,
+                             offset,
+                             server_hello_extensions->key_share_entity.key_share.
+                             buffer_length,
+                             server_hello_extensions->key_share_entity.key_share.buffer);
+        }
+
+        return (ctls_op_status_t){
+            . source = CTLS_ERROR_SOURCE_INTERNAL,
+            . code = CTLS_OP_STATUS_SUCCESS,
+            . external_code = CTLS_OP_STATUS_SUCCESS,
+        };
     }
 
     return (ctls_op_status_t){

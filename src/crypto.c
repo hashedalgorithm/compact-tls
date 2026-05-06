@@ -101,7 +101,12 @@ ctls_op_status_t ctls_transcript_hash_update(ctls_record_t const *record,
             break;
         }
         case CTLS_HSMG_TYPE_SERVER_HELLO: {
-            ctls_recd_server_hello_to_wire();
+            ctls_recd_server_hello_to_wire(buffer,
+                                           &offset,
+                                           CTLS_WIRE_BUFFER_SIZE,
+                                           record,
+                                           template,
+                                           CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
             break;
         }
         case CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS: {

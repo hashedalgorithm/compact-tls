@@ -125,10 +125,15 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
         context->state = CTLS_HSHK_STATE_ERROR;
         return result;
     }
-    //
-    // // 6. parse ServerHello — next step
-    // context->state = CTLS_STATE_WAIT_ENCRYPTED_EXTENSIONS;
-    //
+
+    ctls_transcript_hash_update(&context->record,
+                                context->template,
+                                context->record.record_body.message_type,
+                                &context->transcript_hash.hash_operator);
+
+    // 6. parse ServerHello — next step
+    context->state = CTLS_HSHK_STATE_WAIT_ENCRYPTED_EXTENSIONS;
+
 
     return (ctls_op_status_t){
         .source = CTLS_ERROR_SOURCE_INTERNAL,

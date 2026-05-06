@@ -45,7 +45,20 @@ ctls_op_status_t ctls_hsmg_client_hello_create(ctls_handshake_message_t *hsmg,
 }
 
 
-ctls_op_status_t ctls_hsmg_client_hello_to_struct() {
+ctls_op_status_t ctls_hsmg_client_hello_to_struct(ctls_handshake_message_t *hsmg,
+                                                  ctls_template_t const *template,
+                                                  uint8_t *buffer,
+                                                  ctls_size_t *offset,
+                                                  ctls_size_t buffer_size) {
+    hsmg->message_type = ctls_read_u8(buffer, offset);
+
+    offset += 1; // handshake_body_length;
+
+    ctls_read_bytes(hsmg->handshake_message_body.client_hello.random.buffer,
+                    template->random,
+                    buffer,
+                    offset);
+    hsmg->handshake_message_body.client_hello.random.buffer = buffer;
 }
 
 ctls_op_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
@@ -193,7 +206,62 @@ ctls_op_status_t ctls_hsmg_server_hello_to_struct(ctls_handshake_message_t *hsmg
                                             buffer_size);
 }
 
-ctls_op_status_t ctls_hsmg_server_hello_to_wire() {
+ctls_op_status_t ctls_hsmg_server_hello_to_wire(uint8_t *buffer,
+                                                ctls_size_t *offset,
+                                                ctls_size_t const *buffer_size,
+                                                ctls_handshake_message_t const *hsmg,
+                                                ctls_template_t const *template,
+                                                ctls_wire_format_t wire_format) {
+    if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
+    }
+    if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
+        ctls_write_u8(buffer, offset, hsmg->message_type);
+        ctls_size_t hsmg_body_length_offset = *offset;
+
+        *offset += 3;
+
+        ctls_write_u16(buffer, offset, CTLS_HSMG_PROTOCOL_VERSION_1_2);
+        ctls_write_bytes(buffer,
+                         offset,
+                         hsmg->handshake_message_body.server_hello.random.buffer_length,
+                         hsmg->handshake_message_body.server_hello.random.buffer);
+        ctls_write_u8(buffer,
+                      offset,
+                      sizeof(hsmg->handshake_message_body.server_hello.
+                          legacy_session_id_echo));
+        ctls_write_u8(buffer,
+                      offset,
+                      hsmg->handshake_message_body.server_hello.legacy_session_id_echo);
+        ctls_write_u16(buffer,
+                       offset,
+                       hsmg->handshake_message_body.server_hello.cipher_suite);
+        ctls_write_u8(buffer,
+                      offset,
+                      sizeof(hsmg->handshake_message_body.server_hello.
+                          legacy_compression_method));
+        ctls_write_u8(buffer,
+                      offset,
+                      hsmg->handshake_message_body.server_hello.
+                      legacy_compression_method);
+
+        ctls_op_status_t result = ctls_extn_server_hello_to_wire(buffer,
+            offset,
+            &hsmg->handshake_message_body.server_hello.extensions,
+            template,
+            CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
+
+        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
+        ctls_write_u24(buffer,
+                       &hsmg_body_length_offset,
+                       *offset - hsmg_body_length_offset);
+    }
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_INVALID,
+        .external_code = CTLS_OP_STATUS_INVALID,
+    };
 }
 
 ctls_op_status_t ctls_hsmg_encrypted_extensions_create() {
