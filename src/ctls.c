@@ -45,22 +45,29 @@ ctls_op_status_t ctls_context_init(ctls_context_t *context,
     memset(&context->record, 0, sizeof(ctls_record_t));
     memset(&hshk_buffer, 0, sizeof(hshk_buffer));
 
-    ctls_crypto_init(&context->transcript_hash);
+    ctls_template_set(CTLS_PROFILE_ID, context);
     context->transport = *transport;
+
+    ctls_crypto_init(&context->crypto,
+                     context->template,
+                     &context->hshk_data,
+                     context->template->cipher_suite);
 
     context->state = CTLS_HSHK_STATE_START;
 
-    ctls_template_set(CTLS_PROFILE_ID, context);
     return ctls_validate_template(context->template);
 }
 
 
 ctls_op_status_t ctls_handshake(ctls_context_t *context) {
-    uint8_t buffer[256];
+    uint8_t buffer[CTLS_SIZE_WIRE_BUFFER];
     ctls_size_t buffer_length = 0;
 
-    ctls_op_status_t result = ctls_transcript_hash_init(&context->transcript_hash,
+    ctls_op_status_t result = ctls_transcript_hash_init(&context->crypto,
+                                                        context->hshk_data.
+                                                        transcript_hash,
                                                         context->template);
+
     if (result.code != CTLS_OP_STATUS_SUCCESS) {
         context->state = CTLS_HSHK_STATE_ERROR;
         return result;
@@ -69,7 +76,6 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
 
     // 1. build new ClientHello into context->record
     result = ctls_recd_client_hello_create(&context->record,
-                                           context->hshk_buffer,
                                            context->template,
                                            &context->hshk_data);
     if (result.code != CTLS_OP_STATUS_SUCCESS) {
@@ -101,8 +107,8 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
 
     ctls_transcript_hash_update(&context->record,
                                 context->template,
-                                context->record.record_body.message_type,
-                                &context->transcript_hash.hash_operator);
+                                &context->crypto.transcript_hash_operator,
+                                context->hshk_data.transcript_hash);
 
     context->state = CTLS_HSHK_STATE_WAIT_SERVER_HELLO;
     // 4. recv — blocks until server responds
@@ -128,10 +134,9 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
 
     ctls_transcript_hash_update(&context->record,
                                 context->template,
-                                context->record.record_body.message_type,
-                                &context->transcript_hash.hash_operator);
+                                &context->crypto.transcript_hash_operator,
+                                context->hshk_data.transcript_hash);
 
-    // 6. parse ServerHello — next step
     context->state = CTLS_HSHK_STATE_WAIT_ENCRYPTED_EXTENSIONS;
 
 

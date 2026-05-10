@@ -13,7 +13,6 @@ struct ctls_hshk_buffer_block {
     ctls_size_t buffer_length;
 };
 
-
 struct ctls_extn_server_name_item {
     ctls_extn_host_name_type_t name_type;
     ctls_hshk_buffer_block_t server_name;
@@ -22,7 +21,7 @@ struct ctls_extn_server_name {
     ctls_data_form_t form;
     ctls_extn_type_t extension_type;
     union {
-        ctls_extn_server_name_item_t parsed_list[CTLS_WIRE_SERVER_NAME_COUNT];
+        ctls_extn_server_name_item_t parsed_list[CTLS_COUNT_SERVER_NAME];
         ctls_hshk_buffer_block_t opaque;
     };
 };
@@ -50,7 +49,7 @@ struct ctls_extn_alpn {
     ctls_data_form_t form;
     ctls_extn_type_t extension_type;
     union {
-        ctls_hshk_buffer_block_t alpn_list[CTLS_WIRE_ALPN_COUNT];
+        ctls_hshk_buffer_block_t alpn_list[CTLS_COUNT_ALPN];
         ctls_hshk_buffer_block_t opaque;
     };
 };
@@ -112,13 +111,9 @@ struct ctls_extn_server_hello {
 
 ctls_op_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions,
-    ctls_hshk_buffer_t *hshk_buffer,
     ctls_template_t const *template,
     ctls_hshk_data_t *hshk_data);
-ctls_op_status_t ctls_extn_client_hello_to_struct(uint8_t *buffer,
-                                                  ctls_size_t *offset,
-                                                  ctls_hsmg_client_hello_t *client_hello,
-                                                  ctls_template_t const *template);
+ctls_op_status_t ctls_extn_client_hello_to_struct();
 ctls_op_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
                                                 ctls_size_t *offset,
                                                 ctls_extn_client_hello_t const *
@@ -132,7 +127,6 @@ ctls_op_status_t ctls_extn_server_hello_create(ctls_hsmg_server_hello_t *server_
 ctls_op_status_t ctls_extn_server_hello_to_struct(
     ctls_extn_server_hello_t *server_hello_extensions,
     ctls_template_t const *template,
-    ctls_hshk_buffer_t *hshk_buffer,
     ctls_hshk_data_t *hshk_data,
     uint8_t *buffer,
     ctls_size_t *offset,
@@ -141,7 +135,6 @@ ctls_op_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
                                                 ctls_size_t *offset,
                                                 ctls_extn_server_hello_t const *
                                                 server_hello_extensions,
-                                                ctls_template_t const *template,
                                                 ctls_wire_format_t wire_format);
 
 

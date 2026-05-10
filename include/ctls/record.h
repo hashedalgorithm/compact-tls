@@ -55,9 +55,12 @@ ctls_op_status_t ctls_record_deserialize(ctls_record_t *record,
                                          ctls_size_t buffer_length);
 
 ctls_op_status_t ctls_recd_client_hello_create(ctls_record_t *record,
-                                               ctls_hshk_buffer_t *hshk_buffer,
                                                ctls_template_t const *template,
                                                ctls_hshk_data_t *hshk_data);
+ctls_op_status_t ctls_recd_client_hello_to_struct(ctls_record_t *record,
+                                                  ctls_template_t const *template,
+                                                  uint8_t *buffer,
+                                                  ctls_size_t buffer_size);
 ctls_op_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
                                                 ctls_size_t *offset,
                                                 ctls_size_t buffer_size,
@@ -68,7 +71,6 @@ ctls_op_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
 ctls_op_status_t ctls_recd_server_hello_create(void);
 ctls_op_status_t ctls_recd_server_hello_to_struct(ctls_record_t *record,
                                                   ctls_template_t const *template,
-                                                  ctls_hshk_buffer_t *hshk_buffer,
                                                   ctls_hshk_data_t *hshk_data,
                                                   uint8_t *buffer,
                                                   ctls_size_t *offset,

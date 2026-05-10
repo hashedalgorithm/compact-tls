@@ -1,4 +1,3 @@
-//
 // Created by Sanjay Kumar Kumaravelan on 15/04/26.
 //
 
@@ -129,7 +128,7 @@ ctls_op_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
         ctls_write_u8(buffer, offset, record->content_type);
-        ctls_write_u16(buffer, offset, CTLS_HSMG_PROTOCOL_VERSION_1_2);
+        ctls_write_u16(buffer, offset, CTLS_HSMG_PROTOCOL_VERSION_1_3);
 
         ctls_size_t record_body_length = *offset;
         *offset += 2;
@@ -208,6 +207,8 @@ ctls_op_status_t ctls_record_deserialize(ctls_record_t *record,
     CTLS_CHECK_NULL(buffer);
     CTLS_CHECK_NULL(record);
     CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(hshk_buffer);
+    CTLS_CHECK_NULL(hshk_data);
 
     ctls_size_t offset = 0;
 
@@ -263,11 +264,11 @@ ctls_op_status_t ctls_recd_buffer_clear(ctls_record_t *record_buffer) {
 
 
 ctls_op_status_t ctls_recd_client_hello_create(ctls_record_t *record,
-                                               ctls_hshk_buffer_t *hshk_buffer,
                                                ctls_template_t const *template,
                                                ctls_hshk_data_t *hshk_data) {
     CTLS_CHECK_NULL(record);
     CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(hshk_data);
 
     ctls_op_status_t const result = ctls_recd_buffer_clear(record);
     if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
@@ -277,13 +278,33 @@ ctls_op_status_t ctls_recd_client_hello_create(ctls_record_t *record,
     record->record_body.message_type = CTLS_HSMG_TYPE_CLIENT_HELLO;
     record->record_body.sequence_number = 0;
 
-    return ctls_hsmg_client_hello_create(&record->record_body,
-                                         hshk_buffer,
-                                         template,
-                                         hshk_data);
+    return ctls_hsmg_client_hello_create(&record->record_body, template, hshk_data);
 }
 
-ctls_op_status_t ctls_recd_client_hello_to_struct() {
+ctls_op_status_t ctls_recd_client_hello_to_struct(ctls_record_t *record,
+                                                  ctls_template_t const *template,
+                                                  uint8_t *buffer,
+                                                  ctls_size_t buffer_size) {
+    CTLS_CHECK_NULL(record);
+    CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(buffer);
+
+    ctls_size_t offset = 0;
+    ctls_size_t length = 0;
+
+    record->content_type = ctls_read_u8(buffer, &offset);
+    record->type = CTLS_RECORD_TYPE_PLAINTEXT;
+
+    length = ctls_read_u8(buffer, &offset);
+
+    ctls_read_bytes(&record->profile_id, length, buffer, &offset);
+    record->length = ctls_read_u16(buffer, &offset);
+
+    return ctls_hsmg_client_hello_to_struct(&record->record_body,
+                                            template,
+                                            buffer,
+                                            &offset,
+                                            buffer_size);
 }
 
 
@@ -292,7 +313,6 @@ ctls_op_status_t ctls_recd_server_hello_create() {
 
 ctls_op_status_t ctls_recd_server_hello_to_struct(ctls_record_t *record,
                                                   ctls_template_t const *template,
-                                                  ctls_hshk_buffer_t *hshk_buffer,
                                                   ctls_hshk_data_t *hshk_data,
                                                   uint8_t *buffer,
                                                   ctls_size_t *offset,
@@ -300,7 +320,6 @@ ctls_op_status_t ctls_recd_server_hello_to_struct(ctls_record_t *record,
     CTLS_CHECK_NULL(record);
     CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL(buffer);
-    CTLS_CHECK_NULL(hshk_buffer);
     CTLS_CHECK_NULL(hshk_data);
     CTLS_CHECK_NULL(offset);
 
@@ -311,7 +330,6 @@ ctls_op_status_t ctls_recd_server_hello_to_struct(ctls_record_t *record,
 
     return ctls_hsmg_server_hello_to_struct(&record->record_body,
                                             template,
-                                            hshk_buffer,
                                             hshk_data,
                                             buffer,
                                             offset,

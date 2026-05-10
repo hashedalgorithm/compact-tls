@@ -12,7 +12,7 @@ const ctls_template_t ctls_template_1 = CTLS_TEMPLATE_1_INIT;
 
 ctls_op_status_t ctls_template_set(uint8_t const profile_id, ctls_context_t *context) {
     switch (profile_id) {
-        case 0x0A: {
+        case 0x01: {
             context->template = &ctls_template_1;
             return (ctls_op_status_t) (ctls_op_status_t){
                 .source = CTLS_ERROR_SOURCE_INTERNAL,

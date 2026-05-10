@@ -25,17 +25,12 @@
 /* ------------------------------------------------------------------ */
 /*  CONSTANTS                                                         */
 /* ------------------------------------------------------------------ */
-#define CTLS_HSHK_BUFFER_SIZE 512U
-#define CTLS_WIRE_BUFFER_SIZE 256U
 
-#define CTLS_WIRE_RANDOM 32U
-#define CTLS_WIRE_KEY_SHARE 32U
-#define CTLS_WIRE_SIGNATURE 64U
-#define CTLS_WIRE_VERIFY_DATA 32U
-#define CTLS_WIRE_ALPN_COUNT 3
-#define CTLS_WIRE_SERVER_NAME_COUNT 3
+#define CTLS_SIZE_WIRE_BUFFER 256U
 
-#define CTLS_SIZE_TRANSCRIPT_HASH 32U
+#define CTLS_PROFILE_ID_LENGTH 1U
+#define CTLS_COUNT_ALPN 3
+#define CTLS_COUNT_SERVER_NAME 3
 
 /* config_octet — RFC 9147 §4, used verbatim by cTLS-10 §2.2
  *
@@ -311,33 +306,25 @@ typedef enum {
     CTLS_MAX_FRAGMENT_LENGTH_14,
 } ctls_max_fragment_length_t;
 
-typedef uint16_t ctls_size_t;
-typedef struct ctls_hshk_buffer ctls_hshk_buffer_t;
-typedef struct ctls_hshk_buffer_block ctls_hshk_buffer_block_t;
-
-typedef uint8_t ctls_extn_post_handshake_auth_t;
 
 typedef struct ctls_extn_server_name_item ctls_extn_server_name_item_t;
 typedef struct ctls_extn_server_name ctls_extn_server_name_t;
-
 typedef struct ctls_extn_certificate_status_request_parsed
 ctls_extn_certificate_status_request_parsed_t;
 typedef struct ctls_extn_certificate_status_request
 ctls_extn_certificate_status_request_t;
 typedef struct ctls_extn_ocsp_status_request ctls_extn_ocsp_status_request_t;
-
 typedef struct ctls_extn_alpn ctls_extn_alpn_t;
-
-typedef struct ctls_extn_client_hello ctls_extn_client_hello_t;
 typedef struct ctls_extn_supported_groups ctls_extn_supported_groups_t;
 typedef struct ctls_extn_supported_version ctls_extn_supported_version_t;
 typedef struct ctls_extn_signature_algorithm ctls_extn_signature_algorithm_t;
 typedef struct ctls_extn_key_share ctls_extn_key_share_t;
-
+typedef uint8_t ctls_extn_post_handshake_auth_t;
+typedef struct ctls_extn_client_hello ctls_extn_client_hello_t;
 typedef struct ctls_hsmg_client_hello ctls_hsmg_client_hello_t;
 
-typedef struct ctls_hsmg_server_hello ctls_hsmg_server_hello_t;
 typedef struct ctls_extn_server_hello ctls_extn_server_hello_t;
+typedef struct ctls_hsmg_server_hello ctls_hsmg_server_hello_t;
 
 
 typedef struct ctls_hsmg_encrypted_extensions ctls_hsmg_encrypted_extensions_t;
@@ -372,9 +359,13 @@ typedef ctls_extn_type_t ctls_tmpl_self_delimiting_extensions_t[4];
 
 
 typedef struct ctls_context ctls_context_t;
+typedef struct ctls_crypto ctls_crypto_t;
 typedef struct ctls_transport ctls_transport_t;
-typedef struct ctls_transcript_hash ctls_transcript_hash_t;
 typedef struct ctls_hshk_data ctls_hshk_data_t;
+
+typedef uint16_t ctls_size_t;
+typedef struct ctls_hshk_buffer ctls_hshk_buffer_t;
+typedef struct ctls_hshk_buffer_block ctls_hshk_buffer_block_t;
 
 
 /* ------------------------------------------------------------------ */

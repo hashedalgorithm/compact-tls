@@ -11,14 +11,19 @@
 
 // default profile parameters — mandatory when CTLS_CLIENT is active
 
+// These sizes varies based on the hash type the template uses.
+#define CTLS_SIZE_RANDOM  32U
+#define CTLS_SIZE_HASH 32U
+#define CTLS_SIZE_AEAD_KEY 16U
+#define CTLS_SIZE_IV 12U
+#define CTLS_SIZE_KEY_SHARE  32U
+
+
 /* Using a wrong profile with wrong parameters results in connection
  * failure. Refer profile-registry.md for profile definitions. */
 
 #define CTLS_PROFILE_ID 0x01    // Refer profile-registry.md to get respective profileId
-#define CTLS_PROFILE_ID_LENGTH 1U
 #define CTLS_DEFAULT_CIPHER_SUITE  0x1301
-#define CTLS_DEFAULT_KEY_SHARE_LENGTH 32U
-#define CTLS_DEFAULT_RANDOM_LENGTH 32U
 #define CTLS_DEFAULT_SIGNATURE_LENGTH 32U
 #define CTLS_DEFAULT_FINISHED_LENGTH 64U
 #define CTLS_DEFAULT_SENTINEL 0xFFFF

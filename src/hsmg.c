@@ -11,23 +11,14 @@
 
 
 ctls_op_status_t ctls_hsmg_client_hello_create(ctls_handshake_message_t *hsmg,
-                                               ctls_hshk_buffer_t *hshk_buffer,
                                                ctls_template_t const *template,
                                                ctls_hshk_data_t *hshk_data) {
-    hsmg->handshake_message_body.client_hello.random.buffer = &hshk_buffer->buffer[
-        hshk_buffer->buffer_length];
-    ctls_op_status_t const result = ctls_random_generate(hshk_buffer->buffer,
-                                                         &hshk_buffer->buffer_length,
+    ctls_op_status_t const result = ctls_random_generate(hshk_data->client_random,
                                                          &hsmg->handshake_message_body.
                                                          client_hello.random.
                                                          buffer_length,
                                                          template->random);
-    hsmg->handshake_message_body.client_hello.random.buffer_length = template->random;
-
-    hshk_data->client_random.buffer = hsmg->handshake_message_body.client_hello.random.
-            buffer;
-    hshk_data->client_random.buffer_length = hsmg->handshake_message_body.client_hello.
-            random.buffer_length;
+    hsmg->handshake_message_body.client_hello.random.buffer = hshk_data->client_random;
 
     if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
@@ -39,7 +30,6 @@ ctls_op_status_t ctls_hsmg_client_hello_create(ctls_handshake_message_t *hsmg,
 
     return ctls_extn_client_hello_create(&hsmg->handshake_message_body.client_hello.
                                          extensions,
-                                         hshk_buffer,
                                          template,
                                          hshk_data);
 }
@@ -133,7 +123,7 @@ ctls_op_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
                       hsmg->handshake_message_body.client_hello.
                       legacy_compression_methods);
 
-        ctls_op_status_t result = ctls_extn_client_hello_to_wire(buffer,
+        ctls_op_status_t const result = ctls_extn_client_hello_to_wire(buffer,
             offset,
             &hsmg->handshake_message_body.client_hello.extensions,
             template,
@@ -157,7 +147,6 @@ ctls_op_status_t ctls_hsmg_server_hello_create() {
 
 ctls_op_status_t ctls_hsmg_server_hello_to_struct(ctls_handshake_message_t *hsmg,
                                                   ctls_template_t const *template,
-                                                  ctls_hshk_buffer_t *hshk_buffer,
                                                   ctls_hshk_data_t *hshk_data,
                                                   uint8_t *buffer,
                                                   ctls_size_t *offset,
@@ -165,28 +154,18 @@ ctls_op_status_t ctls_hsmg_server_hello_to_struct(ctls_handshake_message_t *hsmg
     CTLS_CHECK_NULL(hsmg);
     CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL(buffer);
-    CTLS_CHECK_NULL(hshk_buffer);
     CTLS_CHECK_NULL(hshk_data);
     CTLS_CHECK_NULL(offset);
 
 
     hsmg->message_type = ctls_read_u8(buffer, offset);
 
-    hsmg->handshake_message_body.server_hello.random.buffer = &hshk_buffer->buffer[
-        hshk_buffer->buffer_length];
-    ctls_read_bytes(hshk_buffer->buffer, template->random, buffer, offset);
+    ctls_read_bytes(hshk_data->server_random, template->random, buffer, offset);
+    hsmg->handshake_message_body.server_hello.random.buffer = hshk_data->server_random;
     hsmg->handshake_message_body.server_hello.random.buffer_length = template->random;
 
-    hshk_data->server_random.buffer = hsmg->handshake_message_body.server_hello.random.
-            buffer;
-    hshk_data->server_random.buffer_length = hsmg->handshake_message_body.server_hello.
-            random.buffer_length;
-
-
     hsmg->handshake_message_body.server_hello.cipher_suite =
-            template->cipher_suite == CTLS_HSMG_CIPHER_SUITE_SENTINEL
-                ? template->cipher_suite
-                : ctls_read_u16(buffer, offset);
+            ctls_read_u16(buffer, offset);
 
 
     hsmg->handshake_message_body.server_hello.protocol_version = template->
@@ -199,7 +178,6 @@ ctls_op_status_t ctls_hsmg_server_hello_to_struct(ctls_handshake_message_t *hsmg
     return ctls_extn_server_hello_to_struct(&hsmg->handshake_message_body.server_hello.
                                             extensions,
                                             template,
-                                            hshk_buffer,
                                             hshk_data,
                                             buffer,
                                             offset,
@@ -244,10 +222,9 @@ ctls_op_status_t ctls_hsmg_server_hello_to_wire(uint8_t *buffer,
                       hsmg->handshake_message_body.server_hello.
                       legacy_compression_method);
 
-        ctls_op_status_t result = ctls_extn_server_hello_to_wire(buffer,
+        ctls_op_status_t const result = ctls_extn_server_hello_to_wire(buffer,
             offset,
             &hsmg->handshake_message_body.server_hello.extensions,
-            template,
             CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
 
         if (result.code != CTLS_OP_STATUS_SUCCESS) return result;

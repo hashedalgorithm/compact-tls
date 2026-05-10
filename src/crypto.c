@@ -45,55 +45,85 @@ ctls_op_status_t ctls_psa_error_map(psa_status_t const status) {
     }
 }
 
-ctls_op_status_t ctls_crypto_init(ctls_transcript_hash_t *transcript_hash) {
+ctls_op_status_t ctls_crypto_init(ctls_crypto_t *crypto,
+                                  ctls_template_t const *template,
+                                  ctls_hshk_data_t *hshk_data,
+                                  ctls_hsmg_cipher_suite_type_t const cipher_suite) {
     psa_status_t result = psa_crypto_init();
     if (result != PSA_SUCCESS) return ctls_psa_error_map(result);
 
-    transcript_hash->hash_operator = (psa_hash_operation_t) PSA_HASH_OPERATION_INIT;
+    crypto->transcript_hash_operator = (psa_hash_operation_t) PSA_HASH_OPERATION_INIT;
 
-    result = psa_hash_setup(&transcript_hash->hash_operator, PSA_ALG_SHA_256);
-
-    return ctls_psa_error_map(result);
+    ctls_psa_hash_algorithm_set(crypto, cipher_suite);
+    ctls_transcript_hash_init(crypto, hshk_data->transcript_hash, template);
 }
 
-ctls_op_status_t ctls_transcript_hash_init(ctls_transcript_hash_t *transcript_hash,
+ctls_op_status_t ctls_psa_hash_algorithm_set(ctls_crypto_t *crypto,
+                                             ctls_hsmg_cipher_suite_type_t const
+                                             cipher_suite) {
+    switch (cipher_suite) {
+        case CTLS_HSMG_CIPHER_SUITE_AES_128_GCM_SHA256:
+        case CTLS_HSMG_CIPHER_SUITE_AES_128_CCM_8_SHA256:
+        case CTLS_HSMG_CIPHER_SUITE_CHACHA20_POLY1305_SHA256:
+        case CTLS_HSMG_CIPHER_SUITE_AES_128_CCM_SHA256:
+            crypto->algorithm = PSA_ALG_SHA_256;
+            break;
+        case CTLS_HSMG_CIPHER_SUITE_AES_256_GCM_SHA384:
+            crypto->algorithm = PSA_ALG_SHA_384;
+            break;
+        default: return ctls_psa_error_map(PSA_ERROR_INVALID_ARGUMENT);
+    }
+    return ctls_psa_error_map(PSA_SUCCESS);
+}
+
+ctls_op_status_t ctls_transcript_hash_init(ctls_crypto_t *crypto,
+                                           uint8_t *transcript_hash,
                                            ctls_template_t const *template) {
-    CTLS_CHECK_NULL(transcript_hash);
+    CTLS_CHECK_NULL(crypto);
+    CTLS_CHECK_NULL(template);
 
-    uint8_t buffer[256];
-    ctls_size_t offset = 0;
+    psa_status_t const result = psa_hash_setup(&crypto->transcript_hash_operator,
+                                               crypto->algorithm);
+    if (result != PSA_SUCCESS) return ctls_psa_error_map(result);
 
-    ctls_op_status_t const result = ctls_template_to_wire(buffer, template);
-    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
-    return ctls_transcript_hash_calculate(&transcript_hash->hash_operator,
-                                          buffer,
-                                          &offset);
+    ctls_op_status_t const res = ctls_template_to_wire(transcript_hash, template);
+    if (res.code != CTLS_OP_STATUS_SUCCESS) return res;
+
+    return ctls_transcript_hash_calculate(&crypto->transcript_hash_operator,
+                                          transcript_hash);
+}
+
 }
 
 ctls_op_status_t ctls_transcript_hash_calculate(psa_hash_operation_t *hash_operator,
-                                                uint8_t const *buffer,
-                                                ctls_size_t const *offset) {
-    psa_status_t const result = psa_hash_update(hash_operator, buffer, *offset);
+                                                uint8_t *transcript_hash) {
+    CTLS_CHECK_NULL(hash_operator);
+    CTLS_CHECK_NULL(transcript_hash);
+
+    psa_status_t const result = psa_hash_update(hash_operator,
+                                                transcript_hash,
+                                                CTLS_SIZE_TRANSCRIPT_HASH);
+
     return ctls_psa_error_map(result);
 }
 
 ctls_op_status_t ctls_transcript_hash_update(ctls_record_t const *record,
                                              ctls_template_t const *template,
-                                             ctls_hsmg_type_t const type,
-                                             psa_hash_operation_t *hash_operator) {
+                                             psa_hash_operation_t *hash_operator,
+                                             uint8_t *transcript_hash) {
     CTLS_CHECK_NULL(record);
     CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL(hash_operator);
 
-    uint8_t buffer[CTLS_WIRE_BUFFER_SIZE];
+    uint8_t buffer[CTLS_SIZE_WIRE_BUFFER];
     ctls_size_t offset = 0;
 
-    switch (type) {
+    switch (record->record_body.message_type) {
         case CTLS_HSMG_TYPE_CLIENT_HELLO: {
             ctls_recd_client_hello_to_wire(buffer,
                                            &offset,
-                                           CTLS_WIRE_BUFFER_SIZE,
+                                           CTLS_SIZE_WIRE_BUFFER,
                                            record,
                                            template,
                                            CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
@@ -103,7 +133,7 @@ ctls_op_status_t ctls_transcript_hash_update(ctls_record_t const *record,
         case CTLS_HSMG_TYPE_SERVER_HELLO: {
             ctls_recd_server_hello_to_wire(buffer,
                                            &offset,
-                                           CTLS_WIRE_BUFFER_SIZE,
+                                           CTLS_SIZE_WIRE_BUFFER,
                                            record,
                                            template,
                                            CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
@@ -131,17 +161,14 @@ ctls_op_status_t ctls_transcript_hash_update(ctls_record_t const *record,
         case CTLS_HSMG_TYPE_CERTIFICATE_REQUEST:
         case CTLS_HSMG_TYPE_KEY_UPDATE:
         case CTLS_HSMG_TYPE_MESSAGE_HASH:
-        case CTLS_HSMG_TYPE_SENTINEL:
-            break;
-
-        default: return (ctls_op_status_t){
+        case CTLS_HSMG_TYPE_SENTINEL: default: return (ctls_op_status_t){
                 .source = CTLS_ERROR_SOURCE_INTERNAL,
                 .code = CTLS_OP_STATUS_INVALID,
                 .external_code = CTLS_OP_STATUS_INVALID,
             };
     }
 
-    return ctls_transcript_hash_calculate(hash_operator, buffer, &offset);
+    return ctls_transcript_hash_calculate(hash_operator, transcript_hash);
 }
 
 ctls_op_status_t transcript_snapshot(psa_hash_operation_t const *hash_operator,
@@ -162,7 +189,6 @@ ctls_op_status_t transcript_snapshot(psa_hash_operation_t const *hash_operator,
 
 
 ctls_op_status_t ctls_ephemeral_public_key_generate(uint8_t *buffer,
-                                                    ctls_size_t *offset,
                                                     ctls_size_t *bytes_written) {
     size_t bytes_written_st = *bytes_written;
     psa_key_id_t key_id;
@@ -177,11 +203,10 @@ ctls_op_status_t ctls_ephemeral_public_key_generate(uint8_t *buffer,
 
 
     psa_status_t const result = psa_export_public_key(key_id,
-                                                      &buffer[*offset],
-                                                      CTLS_WIRE_KEY_SHARE,
+                                                      buffer,
+                                                      CTLS_SIZE_RANDOM,
                                                       &bytes_written_st);
 
-    *offset += (ctls_size_t) bytes_written_st;
     *bytes_written = (ctls_size_t) bytes_written_st;
 
     if (result != PSA_SUCCESS) return ctls_psa_error_map(result);
@@ -190,13 +215,11 @@ ctls_op_status_t ctls_ephemeral_public_key_generate(uint8_t *buffer,
 }
 
 ctls_op_status_t ctls_random_generate(uint8_t *buffer,
-                                      ctls_size_t *offset,
                                       ctls_size_t *bytes_written,
                                       const uint8_t random_size) {
-    psa_status_t const result = psa_generate_random(&buffer[*offset], random_size);
+    psa_status_t const result = psa_generate_random(buffer, random_size);
 
     *bytes_written = random_size;
-    *offset += random_size;
-
     return ctls_psa_error_map(result);
 }
+

@@ -39,15 +39,16 @@
 /* ------------------------------------------------------------------ */
 
 struct ctls_hshk_buffer {
-    uint8_t buffer[CTLS_HSHK_BUFFER_SIZE];
+    uint8_t buffer[CTLS_SIZE_WIRE_BUFFER];
     ctls_size_t buffer_length;
 };
 
 struct ctls_hshk_data {
-    ctls_hshk_buffer_block_t client_random;
-    ctls_hshk_buffer_block_t server_random;
-    ctls_hshk_buffer_block_t client_key_share;
-    ctls_hshk_buffer_block_t server_key_share;
+    uint8_t transcript_hash[CTLS_SIZE_TRANSCRIPT_HASH];
+    uint8_t client_random[CTLS_SIZE_RANDOM];
+    uint8_t client_public_ephemeral_key[CTLS_DEFAULT_SIGNATURE_LENGTH];
+    uint8_t server_random[CTLS_SIZE_RANDOM];
+    uint8_t server_public_ephemeral_key[CTLS_DEFAULT_SIGNATURE_LENGTH];
 };
 
 struct ctls_op_status {
@@ -63,22 +64,22 @@ struct ctls_transport {
 
 struct ctls_context {
     ctls_template_t const *template;
-    ctls_transcript_hash_t transcript_hash;
+    ctls_crypto_t crypto;
     ctls_hshk_state_t state;
+    ctls_hshk_buffer_t *hshk_buffer;
     ctls_hshk_data_t hshk_data;
     ctls_transport_t transport;
     uint64_t sequence_number;
     ctls_record_t record;
-    ctls_hshk_buffer_t *hshk_buffer;
 };
 
+ctls_op_status_t ctls_context_init(ctls_context_t *context,
+                                   ctls_transport_t const *transport);
 ctls_op_status_t ctls_handshake_state_update(ctls_hshk_state_t *location,
                                              ctls_hshk_state_t state);
 void ctls_wire_buffer_clear(uint8_t *buffer);
 ctls_op_status_t ctls_recd_buffer_clear(ctls_record_t *record_buffer);
 ctls_op_status_t ctls_validate_template(ctls_template_t const *template);
-ctls_op_status_t ctls_context_init(ctls_context_t *context,
-                                   ctls_transport_t const *transport);
 ctls_op_status_t ctls_connect(ctls_context_t *context);
 ctls_op_status_t ctls_read(ctls_context_t const *context,
                            uint8_t *buffer,

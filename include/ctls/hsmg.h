@@ -31,10 +31,8 @@ struct ctls_hsmg_encrypted_extensions {
 struct ctls_hsmg_certificate {
 };
 struct ctls_hsmg_certificate_verify {
-    uint8_t signature[CTLS_WIRE_SIGNATURE];
 };
 struct ctls_hsmg_finished {
-    int8_t verify_data[CTLS_WIRE_VERIFY_DATA];
 };
 struct ctls_hsmg_application_data {
     uint8_t *payload;
@@ -64,7 +62,6 @@ struct ctls_handshake_message {
 
 
 ctls_op_status_t ctls_hsmg_client_hello_create(ctls_handshake_message_t *hsmg,
-                                               ctls_hshk_buffer_t *hshk_buffer,
                                                ctls_template_t const *template,
                                                ctls_hshk_data_t *hshk_data);
 ctls_op_status_t ctls_hsmg_client_hello_to_struct(ctls_handshake_message_t *hsmg,
@@ -82,7 +79,6 @@ ctls_op_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
 ctls_op_status_t ctls_hsmg_server_hello_create(void);
 ctls_op_status_t ctls_hsmg_server_hello_to_struct(ctls_handshake_message_t *hsmg,
                                                   ctls_template_t const *template,
-                                                  ctls_hshk_buffer_t *hshk_buffer,
                                                   ctls_hshk_data_t *hshk_data,
                                                   uint8_t *buffer,
                                                   ctls_size_t *offset,
