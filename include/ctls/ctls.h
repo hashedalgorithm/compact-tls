@@ -50,6 +50,7 @@ struct ctls_hshk_data {
     uint8_t server_random[CTLS_SIZE_RANDOM];
     uint8_t server_public_ephemeral_key[CTLS_DEFAULT_SIGNATURE_LENGTH];
     uint8_t early_secret[CTLS_SIZE_HASH];
+    uint8_t derived_secret[CTLS_SIZE_HASH];
 };
 
 struct ctls_op_status {

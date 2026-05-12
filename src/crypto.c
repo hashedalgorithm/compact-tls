@@ -277,8 +277,12 @@ ctls_op_status_t ctls_key_schedule(ctls_crypto_t *crypto, ctls_hshk_data_t *hshk
     ctls_op_status_t result = ctls_early_secret_generate(crypto, hshk_data->early_secret);
     if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
+    result = ctls_derived_secret_generate(crypto, hshk_data);
+
     return result;
 }
+
+
 ctls_op_status_t ctls_early_secret_generate(ctls_crypto_t *crypto,
                                             uint8_t *early_secret) {
     static const uint8_t ZEROS[32] = {0};
@@ -323,4 +327,87 @@ cleanup:
     psa_reset_key_attributes(&attr);
     return ctls_psa_error_map(psa_st);
 }
+
+
+ctls_op_status_t ctls_derived_secret_generate(ctls_crypto_t *crypto,
+                                              ctls_hshk_data_t *hshk_data) {
+    CTLS_CHECK_NULL(crypto);
+    CTLS_CHECK_NULL(hshk_data);
+
+    /* derived_secret = HKDF-Expand-Label(early_secret, "derived", H(""), 32)
+     *
+     * H("") = SHA-256 of empty string (fixed constant)
+     * Label prefix: "Sctls " (cTLS draft-10 §6)
+     *
+     * HkdfLabel encoding:
+     *   uint16 length       = 32
+     *   uint8  label_len    = len("Sctls derived")
+     *   bytes  label        = "Sctls derived"
+     *   uint8  context_len  = 32
+     *   bytes  context      = H("")
+     */
+
+    /* Build HkdfLabel info block */
+    static const char LABEL[] = "Sctls derived";
+    static const uint8_t LABEL_LENGTH = sizeof(LABEL) - 1U;
+
+    uint8_t info[2U + 1U + sizeof(LABEL) - 1U + 1U + 32U];
+    ctls_size_t offset = 0U;
+
+    ctls_write_u16(info, &offset, 0x00);
+    ctls_write_u8(info, &offset, 0x20);
+    ctls_write_u8(info, &offset, LABEL_LENGTH);
+    ctls_write_bytes(info, &offset, LABEL_LENGTH, LABEL);
+    ctls_write_u8(info, &offset, 0x20);
+    ctls_write_bytes(info, &offset, 32U, hshk_data->transcript_hash);
+
+
+    psa_status_t psa_st = PSA_SUCCESS;
+    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+    psa_key_id_t prk_key = PSA_KEY_ID_NULL;
+
+    psa_set_key_type(&attr, PSA_KEY_TYPE_DERIVE);
+    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_DERIVE);
+    psa_set_key_algorithm(&attr, PSA_ALG_HKDF_EXPAND(crypto->hash_algorithm));
+    psa_set_key_bits(&attr, 256U);
+
+    psa_st = psa_import_key(&attr, hshk_data->early_secret, 32U, &prk_key);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    ctls_op_status_t result = ctls_psa_attribute_init(crypto);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) goto cleanup;
+
+    psa_st = psa_key_derivation_setup(&crypto->key_schedule_operator,
+                                      PSA_ALG_HKDF_EXPAND(crypto->hash_algorithm));
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+
+    psa_st = psa_key_derivation_input_key(&crypto->key_schedule_operator,
+                                          PSA_KEY_DERIVATION_INPUT_SECRET,
+                                          prk_key);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+
+    psa_st = psa_key_derivation_input_bytes(&crypto->key_schedule_operator,
+                                            PSA_KEY_DERIVATION_INPUT_INFO,
+                                            info,
+                                            offset);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+
+    psa_st = psa_key_derivation_output_bytes(&crypto->key_schedule_operator,
+                                             hshk_data->derived_secret,
+                                             32U);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    return ctls_psa_error_map(CTLS_OP_STATUS_SUCCESS);
+
+cleanup:
+    psa_key_derivation_abort(&crypto->key_schedule_operator);
+    if (prk_key != PSA_KEY_ID_NULL) { psa_destroy_key(prk_key); }
+    psa_reset_key_attributes(&attr);
+    return ctls_psa_error_map(psa_st);
+}
+
+
 }
