@@ -41,7 +41,7 @@ ctls_op_status_t transcript_snapshot(psa_hash_operation_t const *hash_operator,
 
 ctls_op_status_t ctls_hkdf_init(ctls_crypto_t *crypto,
                                 ctls_extn_dhe_group_type_t ecdhe_group_type);
-ctls_op_status_t ctls_psa_attribute_init(ctls_crypto_t *crypto);
+ctls_op_status_t ctls_key_schedule_operator_reset(ctls_crypto_t *crypto);
 ctls_op_status_t ctls_ephemeral_public_key_generate(uint8_t *buffer,
                                                     ctls_size_t *bytes_written,
                                                     ctls_crypto_t *crypto);

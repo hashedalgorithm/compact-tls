@@ -216,13 +216,13 @@ ctls_op_status_t ctls_hkdf_init(ctls_crypto_t *crypto,
                                 ctls_extn_dhe_group_type_t const ecdhe_group_type) {
     CTLS_CHECK_NULL(crypto);
 
-    ctls_op_status_t const result = ctls_psa_attribute_init(crypto);
+    ctls_op_status_t const result = ctls_key_schedule_operator_reset(crypto);
     if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
     return ctls_psa_ecc_family_set(crypto, ecdhe_group_type);
 }
 
-ctls_op_status_t ctls_psa_attribute_init(ctls_crypto_t *crypto) {
+ctls_op_status_t ctls_key_schedule_operator_reset(ctls_crypto_t *crypto) {
     CTLS_CHECK_NULL(crypto);
 
     crypto->key_schedule_operator = (psa_key_derivation_operation_t)
@@ -295,6 +295,9 @@ ctls_op_status_t ctls_early_secret_generate(ctls_crypto_t *crypto,
     static const uint8_t ZEROS[32] = {0};
 
     psa_status_t psa_st = PSA_ERROR_DOES_NOT_EXIST;
+
+    ctls_op_status_t const result = ctls_key_schedule_operator_reset(crypto);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
     psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
     psa_key_id_t ikm_key = PSA_KEY_ID_NULL;
@@ -381,7 +384,7 @@ ctls_op_status_t ctls_derived_secret_generate(ctls_crypto_t *crypto,
     psa_st = psa_import_key(&attr, hshk_data->early_secret, 32U, &prk_key);
     if (psa_st != PSA_SUCCESS) goto cleanup;
 
-    ctls_op_status_t result = ctls_psa_attribute_init(crypto);
+    ctls_op_status_t const result = ctls_key_schedule_operator_reset(crypto);
     if (result.code != CTLS_OP_STATUS_SUCCESS) goto cleanup;
 
     psa_st = psa_key_derivation_setup(&crypto->key_schedule_operator,
@@ -438,6 +441,9 @@ ctls_op_status_t ctls_handshake_secret_generate(ctls_crypto_t *crypto,
                                                 ctls_hshk_data_t *hshk_data) {
     CTLS_CHECK_NULL(crypto);
     CTLS_CHECK_NULL(hshk_data);
+
+    ctls_op_status_t const result = ctls_key_schedule_operator_reset(crypto);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
     psa_status_t psa_st = PSA_SUCCESS;
     psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
