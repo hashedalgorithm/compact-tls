@@ -56,5 +56,13 @@ ctls_op_status_t ctls_shared_ephemeral_secret_generate(ctls_crypto_t const *cryp
                                                        ctls_hshk_data_t *hshk_data);
 ctls_op_status_t ctls_handshake_secret_generate(ctls_crypto_t *crypto,
                                                 ctls_hshk_data_t *hshk_data);
+ctls_op_status_t ctls_handshake_traffic_secrets_generate(
+    ctls_crypto_t *crypto,
+    ctls_hshk_data_t *hshk_data);
+ctls_op_status_t ctls_client_handshake_traffic_secret_generate(
+    ctls_crypto_t *crypto,
+    ctls_hshk_data_t *hshk_data);
+ctls_op_status_t ctls_server_handshake_traffic_secret_generate(ctls_crypto_t *crypto,
+    ctls_hshk_data_t *hshk_data);
 
 #endif //CTLS_CRYPTO_H
