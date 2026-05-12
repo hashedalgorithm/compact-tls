@@ -224,23 +224,28 @@ ctls_op_status_t ctls_hkdf_init(ctls_crypto_t *crypto,
 
 
 ctls_op_status_t ctls_ephemeral_public_key_generate(uint8_t *buffer,
-                                                    ctls_size_t *bytes_written) {
+                                                    ctls_size_t *bytes_written,
+                                                    ctls_crypto_t *crypto) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(crypto);
+
     size_t bytes_written_st = *bytes_written;
-    psa_key_id_t key_id;
     psa_key_attributes_t key_attributes = PSA_KEY_ATTRIBUTES_INIT;
 
+
     psa_set_key_type(&key_attributes,
-                     PSA_KEY_TYPE_ECC_KEY_PAIR(PSA_ECC_FAMILY_MONTGOMERY));
+                     PSA_KEY_TYPE_ECC_KEY_PAIR(crypto->ecdhe_key_pair_type));
     psa_set_key_bits(&key_attributes, 255);
     psa_set_key_usage_flags(&key_attributes, PSA_KEY_USAGE_DERIVE);
     psa_set_key_algorithm(&key_attributes, PSA_ALG_ECDH);
-    psa_generate_key(&key_attributes, &key_id);
+    psa_generate_key(&key_attributes, &crypto->client_private_ephemeral_key_id);
 
 
-    psa_status_t const result = psa_export_public_key(key_id,
-                                                      buffer,
-                                                      CTLS_SIZE_RANDOM,
-                                                      &bytes_written_st);
+    psa_status_t const result =
+            psa_export_public_key(crypto->client_private_ephemeral_key_id,
+                                  buffer,
+                                  CTLS_SIZE_KEY_SHARE,
+                                  &bytes_written_st);
 
     *bytes_written = (ctls_size_t) bytes_written_st;
 

@@ -15,7 +15,8 @@ uint8_t ctls_expected_extensions_size_get(
 ctls_op_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions,
     ctls_template_t const *template,
-    ctls_hshk_data_t *hshk_data) {
+    ctls_hshk_data_t *hshk_data,
+    ctls_crypto_t const *crypto) {
     uint8_t const size_of_expected_extensions =
             ctls_expected_extensions_size_get(&template->client_hello_extension.
                                               expected_extensions);
@@ -154,7 +155,8 @@ ctls_op_status_t ctls_extn_client_hello_create(
                 ctls_ephemeral_public_key_generate(hshk_data->client_public_ephemeral_key,
                                                    &client_hello_extensions->
                                                    key_share_entity.key_share.
-                                                   buffer_length);
+                                                   buffer_length,
+                                                   crypto);
         client_hello_extensions->key_share_entity.key_share.buffer = hshk_data->
                 client_public_ephemeral_key;
 

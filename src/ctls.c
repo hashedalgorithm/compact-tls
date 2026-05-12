@@ -77,7 +77,8 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
     // 1. build new ClientHello into context->record
     result = ctls_recd_client_hello_create(&context->record,
                                            context->template,
-                                           &context->hshk_data);
+                                           &context->hshk_data,
+                                           &context->crypto);
     if (result.code != CTLS_OP_STATUS_SUCCESS) {
         context->state = CTLS_HSHK_STATE_ERROR;
         return result;

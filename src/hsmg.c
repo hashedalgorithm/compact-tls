@@ -12,7 +12,8 @@
 
 ctls_op_status_t ctls_hsmg_client_hello_create(ctls_handshake_message_t *hsmg,
                                                ctls_template_t const *template,
-                                               ctls_hshk_data_t *hshk_data) {
+                                               ctls_hshk_data_t *hshk_data,
+                                               ctls_crypto_t const *crypto) {
     ctls_op_status_t const result = ctls_random_generate(hshk_data->client_random,
                                                          &hsmg->handshake_message_body.
                                                          client_hello.random.
@@ -31,7 +32,7 @@ ctls_op_status_t ctls_hsmg_client_hello_create(ctls_handshake_message_t *hsmg,
     return ctls_extn_client_hello_create(&hsmg->handshake_message_body.client_hello.
                                          extensions,
                                          template,
-                                         hshk_data);
+                                         hshk_data, crypto);
 }
 
 

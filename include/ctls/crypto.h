@@ -14,6 +14,8 @@ struct ctls_crypto {
     psa_algorithm_t hash_algorithm;
     psa_hash_operation_t transcript_hash_operator;
     psa_ecc_family_t ecdhe_key_pair_type;
+    psa_key_id_t server_private_ephemeral_key_id;
+    psa_key_id_t client_private_ephemeral_key_id;
 };
 
 ctls_op_status_t ctls_psa_error_map(psa_status_t status);
@@ -39,7 +41,8 @@ ctls_op_status_t transcript_snapshot(psa_hash_operation_t const *hash_operator,
 ctls_op_status_t ctls_hkdf_init(ctls_crypto_t *crypto,
                                 ctls_extn_dhe_group_type_t ecdhe_group_type);
 ctls_op_status_t ctls_ephemeral_public_key_generate(uint8_t *buffer,
-                                                    ctls_size_t *bytes_written);
+                                                    ctls_size_t *bytes_written,
+                                                    ctls_crypto_t *crypto);
 ctls_op_status_t ctls_random_generate(uint8_t *buffer,
                                       ctls_size_t *bytes_written,
                                       uint8_t random_size);

@@ -112,7 +112,8 @@ struct ctls_extn_server_hello {
 ctls_op_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions,
     ctls_template_t const *template,
-    ctls_hshk_data_t *hshk_data);
+    ctls_hshk_data_t *hshk_data,
+    ctls_crypto_t const *crypto);
 ctls_op_status_t ctls_extn_client_hello_to_struct();
 ctls_op_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
                                                 ctls_size_t *offset,

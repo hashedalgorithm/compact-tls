@@ -56,7 +56,8 @@ ctls_op_status_t ctls_record_deserialize(ctls_record_t *record,
 
 ctls_op_status_t ctls_recd_client_hello_create(ctls_record_t *record,
                                                ctls_template_t const *template,
-                                               ctls_hshk_data_t *hshk_data);
+                                               ctls_hshk_data_t *hshk_data,
+                                               ctls_crypto_t const *crypto);
 ctls_op_status_t ctls_recd_client_hello_to_struct(ctls_record_t *record,
                                                   ctls_template_t const *template,
                                                   uint8_t *buffer,

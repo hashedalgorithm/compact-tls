@@ -63,7 +63,8 @@ struct ctls_handshake_message {
 
 ctls_op_status_t ctls_hsmg_client_hello_create(ctls_handshake_message_t *hsmg,
                                                ctls_template_t const *template,
-                                               ctls_hshk_data_t *hshk_data);
+                                               ctls_hshk_data_t *hshk_data,
+                                               ctls_crypto_t const *crypto);
 ctls_op_status_t ctls_hsmg_client_hello_to_struct(ctls_handshake_message_t *hsmg,
                                                   ctls_template_t const *template,
                                                   uint8_t *buffer,
