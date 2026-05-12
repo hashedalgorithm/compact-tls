@@ -222,6 +222,13 @@ ctls_op_status_t ctls_hkdf_init(ctls_crypto_t *crypto,
     return ctls_psa_ecc_family_set(crypto, ecdhe_group_type);
 }
 
+ctls_op_status_t ctls_psa_attribute_init(ctls_crypto_t *crypto) {
+    CTLS_CHECK_NULL(crypto);
+
+    crypto->key_schedule_operator = (psa_key_derivation_operation_t)
+            PSA_KEY_DERIVATION_OPERATION_INIT;
+    return ctls_psa_error_map(PSA_SUCCESS);
+}
 
 ctls_op_status_t ctls_ephemeral_public_key_generate(uint8_t *buffer,
                                                     ctls_size_t *bytes_written,
@@ -263,3 +270,11 @@ ctls_op_status_t ctls_random_generate(uint8_t *buffer,
     return ctls_psa_error_map(result);
 }
 
+ctls_op_status_t ctls_key_schedule(ctls_crypto_t *crypto, ctls_hshk_data_t *hshk_data) {
+    CTLS_CHECK_NULL(crypto);
+    CTLS_CHECK_NULL(hshk_data);
+
+}
+
+
+}

@@ -140,6 +140,9 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
 
     context->state = CTLS_HSHK_STATE_WAIT_ENCRYPTED_EXTENSIONS;
 
+    // 6. Key scheduling
+    result = ctls_key_schedule(&context->crypto, &context->hshk_data);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
     return (ctls_op_status_t){
         .source = CTLS_ERROR_SOURCE_INTERNAL,
