@@ -54,5 +54,7 @@ ctls_op_status_t ctls_derived_secret_generate(ctls_crypto_t *crypto,
                                               ctls_hshk_data_t *hshk_data);
 ctls_op_status_t ctls_shared_ephemeral_secret_generate(ctls_crypto_t const *crypto,
                                                        ctls_hshk_data_t *hshk_data);
+ctls_op_status_t ctls_handshake_secret_generate(ctls_crypto_t *crypto,
+                                                ctls_hshk_data_t *hshk_data);
 
 #endif //CTLS_CRYPTO_H

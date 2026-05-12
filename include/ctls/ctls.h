@@ -52,6 +52,7 @@ struct ctls_hshk_data {
     uint8_t shared_ephemeral_secret[CTLS_SIZE_KEY_SHARE];
     uint8_t early_secret[CTLS_SIZE_HASH];
     uint8_t derived_secret[CTLS_SIZE_HASH];
+    uint8_t handshake_secret[CTLS_SIZE_HASH];
 };
 
 struct ctls_op_status {

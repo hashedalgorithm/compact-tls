@@ -1,7 +1,7 @@
 #include "ctls/types.h"
 #include "ctls/ctls.h"
 #include "psa/crypto.h"
-
+#include "ctls/bytes.h"
 #include "ctls/templates.h"
 
 
@@ -427,4 +427,60 @@ ctls_op_status_t ctls_shared_ephemeral_secret_generate(ctls_crypto_t const *cryp
     return ctls_psa_error_map(psa_st);
 }
 
+ctls_op_status_t ctls_handshake_secret_generate(ctls_crypto_t *crypto,
+                                                ctls_hshk_data_t *hshk_data) {
+    CTLS_CHECK_NULL(crypto);
+    CTLS_CHECK_NULL(hshk_data);
+
+    psa_status_t psa_st = PSA_SUCCESS;
+    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+    psa_key_id_t ikm_key = PSA_KEY_ID_NULL;
+    psa_key_derivation_operation_t op = PSA_KEY_DERIVATION_OPERATION_INIT;
+
+    /* Import Z as IKM into PSA key storage */
+    psa_set_key_type(&attr, PSA_KEY_TYPE_DERIVE);
+    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_DERIVE);
+    psa_set_key_algorithm(&attr, PSA_ALG_HKDF_EXTRACT(crypto->hash_algorithm));
+    psa_set_key_bits(&attr, CTLS_SIZE_KEY_SHARE * 8U);
+
+    psa_st = psa_import_key(&attr,
+                            hshk_data->shared_ephemeral_secret,
+                            CTLS_SIZE_KEY_SHARE,
+                            &ikm_key);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+
+    psa_st = psa_key_derivation_setup(&crypto->key_schedule_operator,
+                                      PSA_ALG_HKDF_EXTRACT(crypto->hash_algorithm));
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+
+    /* Salt = derived_secret from previous step */
+    psa_st = psa_key_derivation_input_bytes(&crypto->key_schedule_operator,
+                                            PSA_KEY_DERIVATION_INPUT_SALT,
+                                            hshk_data->derived_secret,
+                                            32U);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+
+    /* IKM = Z */
+    psa_st = psa_key_derivation_input_key(&crypto->key_schedule_operator,
+                                          PSA_KEY_DERIVATION_INPUT_SECRET,
+                                          ikm_key);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+
+    psa_st = psa_key_derivation_output_bytes(&crypto->key_schedule_operator,
+                                             hshk_data->handshake_secret,
+                                             32U);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+
+    return ctls_psa_error_map(psa_st);
+
+cleanup:
+    psa_key_derivation_abort(&crypto->key_schedule_operator);
+    if (ikm_key != PSA_KEY_ID_NULL) { psa_destroy_key(ikm_key); }
+    psa_reset_key_attributes(&attr);
+    return ctls_psa_error_map(psa_st);
 }
