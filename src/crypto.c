@@ -47,15 +47,17 @@ ctls_op_status_t ctls_psa_error_map(psa_status_t const status) {
 
 ctls_op_status_t ctls_crypto_init(ctls_crypto_t *crypto,
                                   ctls_template_t const *template,
-                                  ctls_hshk_data_t *hshk_data,
-                                  ctls_hsmg_cipher_suite_type_t const cipher_suite) {
-    psa_status_t result = psa_crypto_init();
-    if (result != PSA_SUCCESS) return ctls_psa_error_map(result);
+                                  ctls_hshk_data_t *hshk_data) {
+    psa_status_t psa_result = psa_crypto_init();
+    if (psa_result != PSA_SUCCESS) return ctls_psa_error_map(psa_result);
 
-    crypto->transcript_hash_operator = (psa_hash_operation_t) PSA_HASH_OPERATION_INIT;
+    ctls_op_status_t result = ctls_psa_hash_algorithm_set(crypto, template->cipher_suite);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
-    ctls_psa_hash_algorithm_set(crypto, cipher_suite);
-    ctls_transcript_hash_init(crypto, hshk_data->transcript_hash, template);
+    result = ctls_transcript_hash_init(crypto, hshk_data->transcript_hash, template);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
+    return ctls_hkdf_init(crypto, template->dhe_group.dhe_group);
 }
 
 ctls_op_status_t ctls_psa_hash_algorithm_set(ctls_crypto_t *crypto,
@@ -76,6 +78,23 @@ ctls_op_status_t ctls_psa_hash_algorithm_set(ctls_crypto_t *crypto,
     return ctls_psa_error_map(PSA_SUCCESS);
 }
 
+ctls_op_status_t ctls_psa_ecc_family_set(ctls_crypto_t *crypto,
+                                         ctls_extn_dhe_group_type_t const
+                                         dhe_group_type) {
+    switch (dhe_group_type) {
+        case CTLS_EXTN_DHE_GROUP_FFDHE2048:
+        case CTLS_EXTN_DHE_GROUP_FFDHE4096:
+        case CTLS_EXTN_DHE_GROUP_FFDHE3072:
+            crypto->ecdhe_key_pair_type = PSA_DH_FAMILY_RFC7919;
+            break;
+        case CTLS_EXTN_DHE_GROUP_SECP256R1:
+        case CTLS_EXTN_DHE_GROUP_SECP384R1:
+        case CTLS_EXTN_DHE_GROUP_SECP521R1:
+            crypto->ecdhe_key_pair_type = PSA_ECC_FAMILY_SECP_R1;
+            break;
+        case CTLS_EXTN_DHE_GROUP_X448:
+        case CTLS_EXTN_DHE_GROUP_X25519:
+            crypto->ecdhe_key_pair_type = PSA_ECC_FAMILY_MONTGOMERY;
             break;
         default: return ctls_psa_error_map(PSA_ERROR_INVALID_ARGUMENT);
     }
@@ -88,8 +107,10 @@ ctls_op_status_t ctls_transcript_hash_init(ctls_crypto_t *crypto,
     CTLS_CHECK_NULL(crypto);
     CTLS_CHECK_NULL(template);
 
+    crypto->transcript_hash_operator = (psa_hash_operation_t) PSA_HASH_OPERATION_INIT;
+
     psa_status_t const result = psa_hash_setup(&crypto->transcript_hash_operator,
-                                               crypto->algorithm);
+                                               crypto->hash_algorithm);
     if (result != PSA_SUCCESS) return ctls_psa_error_map(result);
 
 
@@ -98,8 +119,6 @@ ctls_op_status_t ctls_transcript_hash_init(ctls_crypto_t *crypto,
 
     return ctls_transcript_hash_calculate(&crypto->transcript_hash_operator,
                                           transcript_hash);
-}
-
 }
 
 ctls_op_status_t ctls_transcript_hash_calculate(psa_hash_operation_t *hash_operator,
@@ -191,6 +210,16 @@ ctls_op_status_t transcript_snapshot(psa_hash_operation_t const *hash_operator,
     // op is still alive and accepting updates
     result = psa_hash_finish(&clone, buffer, CTLS_SIZE_TRANSCRIPT_HASH, &out_len);
     return ctls_psa_error_map(result);
+}
+
+ctls_op_status_t ctls_hkdf_init(ctls_crypto_t *crypto,
+                                ctls_extn_dhe_group_type_t const ecdhe_group_type) {
+    CTLS_CHECK_NULL(crypto);
+
+    ctls_op_status_t const result = ctls_psa_attribute_init(crypto);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
+    return ctls_psa_ecc_family_set(crypto, ecdhe_group_type);
 }
 
 
