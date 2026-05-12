@@ -410,4 +410,21 @@ cleanup:
 }
 
 
+ctls_op_status_t ctls_shared_ephemeral_secret_generate(ctls_crypto_t const *crypto,
+                                                       ctls_hshk_data_t *hshk_data) {
+    psa_status_t psa_st = PSA_SUCCESS;
+
+    size_t shared_ephemeral_secret_length = 0;
+
+    psa_st = psa_raw_key_agreement(PSA_ALG_ECDH,
+                                   crypto->client_private_ephemeral_key_id,
+                                   hshk_data->server_public_ephemeral_key,
+                                   CTLS_SIZE_KEY_SHARE,
+                                   hshk_data->shared_ephemeral_secret,
+                                   CTLS_SIZE_KEY_SHARE,
+                                   &shared_ephemeral_secret_length);
+
+    return ctls_psa_error_map(psa_st);
+}
+
 }
