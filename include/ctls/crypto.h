@@ -49,5 +49,6 @@ ctls_op_status_t ctls_random_generate(uint8_t *buffer,
                                       ctls_size_t *bytes_written,
                                       uint8_t random_size);
 ctls_op_status_t ctls_key_schedule(ctls_crypto_t *crypto, ctls_hshk_data_t *hshk_data);
+ctls_op_status_t ctls_early_secret_generate(ctls_crypto_t *crypto, uint8_t *early_secret);
 
 #endif //CTLS_CRYPTO_H

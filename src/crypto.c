@@ -274,7 +274,53 @@ ctls_op_status_t ctls_key_schedule(ctls_crypto_t *crypto, ctls_hshk_data_t *hshk
     CTLS_CHECK_NULL(crypto);
     CTLS_CHECK_NULL(hshk_data);
 
+    ctls_op_status_t result = ctls_early_secret_generate(crypto, hshk_data->early_secret);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
+    return result;
 }
+ctls_op_status_t ctls_early_secret_generate(ctls_crypto_t *crypto,
+                                            uint8_t *early_secret) {
+    static const uint8_t ZEROS[32] = {0};
 
+    psa_status_t psa_st = PSA_ERROR_DOES_NOT_EXIST;
 
+    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+    psa_key_id_t ikm_key = PSA_KEY_ID_NULL;
+
+    psa_set_key_type(&attr, PSA_KEY_TYPE_DERIVE);
+    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_DERIVE);
+    psa_set_key_algorithm(&attr, PSA_ALG_HKDF_EXTRACT(crypto->hash_algorithm));
+    psa_set_key_bits(&attr, 256U);
+
+    psa_st = psa_import_key(&attr, ZEROS, CTLS_SIZE_HASH, &ikm_key);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    psa_st = psa_key_derivation_setup(&crypto->key_schedule_operator,
+                                      PSA_ALG_HKDF_EXTRACT(crypto->hash_algorithm));
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    psa_st = psa_key_derivation_input_bytes(&crypto->key_schedule_operator,
+                                            PSA_KEY_DERIVATION_INPUT_SALT,
+                                            ZEROS,
+                                            CTLS_SIZE_HASH);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    psa_st = psa_key_derivation_input_key(&crypto->key_schedule_operator,
+                                          PSA_KEY_DERIVATION_INPUT_SECRET,
+                                          ikm_key);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    psa_st = psa_key_derivation_output_bytes(&crypto->key_schedule_operator,
+                                             early_secret,
+                                             CTLS_SIZE_HASH);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    return ctls_psa_error_map(psa_st);
+cleanup:
+    psa_key_derivation_abort(&crypto->key_schedule_operator);
+    if (ikm_key != PSA_KEY_ID_NULL) { psa_destroy_key(ikm_key); }
+    psa_reset_key_attributes(&attr);
+    return ctls_psa_error_map(psa_st);
+}
 }
