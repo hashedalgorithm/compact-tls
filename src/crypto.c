@@ -66,10 +66,16 @@ ctls_op_status_t ctls_psa_hash_algorithm_set(ctls_crypto_t *crypto,
         case CTLS_HSMG_CIPHER_SUITE_AES_128_CCM_8_SHA256:
         case CTLS_HSMG_CIPHER_SUITE_CHACHA20_POLY1305_SHA256:
         case CTLS_HSMG_CIPHER_SUITE_AES_128_CCM_SHA256:
-            crypto->algorithm = PSA_ALG_SHA_256;
+            crypto->hash_algorithm = PSA_ALG_SHA_256;
             break;
         case CTLS_HSMG_CIPHER_SUITE_AES_256_GCM_SHA384:
-            crypto->algorithm = PSA_ALG_SHA_384;
+            crypto->hash_algorithm = PSA_ALG_SHA_384;
+            break;
+        default: return ctls_psa_error_map(PSA_ERROR_INVALID_ARGUMENT);
+    }
+    return ctls_psa_error_map(PSA_SUCCESS);
+}
+
             break;
         default: return ctls_psa_error_map(PSA_ERROR_INVALID_ARGUMENT);
     }

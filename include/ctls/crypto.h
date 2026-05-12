@@ -11,8 +11,7 @@
 #define CTLS_SIZE_TRANSCRIPT_HASH 32U
 
 struct ctls_crypto {
-    psa_algorithm_t algorithm;
-    psa_key_attributes_t psa_key_attribute;
+    psa_algorithm_t hash_algorithm;
     psa_hash_operation_t transcript_hash_operator;
     psa_hash_operation_t key_schedule_operator;
 };
