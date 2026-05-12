@@ -64,5 +64,29 @@ ctls_op_status_t ctls_client_handshake_traffic_secret_generate(
     ctls_hshk_data_t *hshk_data);
 ctls_op_status_t ctls_server_handshake_traffic_secret_generate(ctls_crypto_t *crypto,
     ctls_hshk_data_t *hshk_data);
+ctls_op_status_t ctls_handshake_keys_generate(ctls_crypto_t *crypto,
+                                              ctls_hshk_data_t *hshk_data);
+ctls_op_status_t ctls_client_handshake_key_generate(ctls_crypto_t *crypto,
+                                                    ctls_hshk_data_t *hshk_data,
+                                                    uint8_t const *handshake_key_info,
+                                                    ctls_size_t const *
+                                                    handshake_key_info_offset);
+ctls_op_status_t ctls_server_handshake_key_generate(ctls_crypto_t *crypto,
+                                                    ctls_hshk_data_t *hshk_data,
+                                                    uint8_t const *handshake_key_info,
+                                                    ctls_size_t const *
+                                                    handshake_key_info_offset);
+ctls_op_status_t ctls_handshake_iv_keys_generate(ctls_crypto_t *crypto,
+                                                 ctls_hshk_data_t *hshk_data);
+ctls_op_status_t ctls_client_handshake_iv_key_generate(ctls_crypto_t *crypto,
+                                                       ctls_hshk_data_t *hshk_data,
+                                                       uint8_t const *iv_key_info,
+                                                       ctls_size_t const *
+                                                       iv_key_info_offset);
+ctls_op_status_t ctls_server_handshake_iv_key_generate(ctls_crypto_t *crypto,
+                                                       ctls_hshk_data_t *hshk_data,
+                                                       uint8_t const *iv_key_info,
+                                                       ctls_size_t const *
+                                                       iv_key_info_offset);
 
 #endif //CTLS_CRYPTO_H

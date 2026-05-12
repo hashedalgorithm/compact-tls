@@ -289,7 +289,10 @@ ctls_op_status_t ctls_key_schedule(ctls_crypto_t *crypto, ctls_hshk_data_t *hshk
     result = ctls_handshake_traffic_secrets_generate(crypto, hshk_data);
     if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
-    return result;
+    result = ctls_handshake_keys_generate(crypto, hshk_data);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
+    return ctls_handshake_iv_keys_generate(crypto, hshk_data);
 }
 
 
@@ -540,7 +543,7 @@ ctls_op_status_t ctls_client_handshake_traffic_secret_generate(
 
     psa_set_key_type(&attr, PSA_KEY_TYPE_DERIVE);
     psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_DERIVE);
-    psa_set_key_algorithm(&attr, PSA_ALG_HKDF_EXPAND(PSA_ALG_SHA_256));
+    psa_set_key_algorithm(&attr, PSA_ALG_HKDF_EXPAND(crypto->hash_algorithm));
     psa_set_key_bits(&attr, 256U);
 
     psa_st = psa_import_key(&attr, hshk_data->handshake_secret, 32U, &prk_key);
@@ -549,7 +552,7 @@ ctls_op_status_t ctls_client_handshake_traffic_secret_generate(
     static const char CLIENT_LABEL[] = "Sctls c hs traffic";
     static const uint8_t CLIENT_LABEL_LEN = sizeof(CLIENT_LABEL) - 1U;
 
-    uint8_t client_info[2U + 1U + 1U + 1U + 32U];
+    uint8_t client_info[2U + 1U + 1U + 1U + CTLS_SIZE_TRANSCRIPT_HASH];
     ctls_size_t client_info_offset = 0U;
 
     ctls_write_u16(client_info, &client_info_offset, 0x00);
@@ -611,7 +614,7 @@ ctls_op_status_t ctls_server_handshake_traffic_secret_generate(ctls_crypto_t *cr
     static const uint8_t SERVER_LABEL[] = "Sctls s hs traffic";
     static const uint8_t SERVER_LABEL_LENGTH = sizeof(SERVER_LABEL) - 1U;
 
-    uint8_t server_info[2U + 1U + 1U + 1U + 32U];
+    uint8_t server_info[2U + 1U + 1U + 1U + CTLS_SIZE_TRANSCRIPT_HASH];
     ctls_size_t server_info_offset = 0U;
 
     ctls_write_u16(server_info, &server_info_offset, 0x00);
@@ -625,7 +628,7 @@ ctls_op_status_t ctls_server_handshake_traffic_secret_generate(ctls_crypto_t *cr
                      hshk_data->transcript_hash);
 
     psa_st = psa_key_derivation_setup(&crypto->key_schedule_operator,
-                                      PSA_ALG_HKDF_EXPAND(PSA_ALG_SHA_256));
+                                      PSA_ALG_HKDF_EXPAND(crypto->hash_algorithm));
     if (psa_st != PSA_SUCCESS) goto cleanup;
 
     psa_st = psa_key_derivation_input_key(&crypto->key_schedule_operator,
@@ -645,6 +648,293 @@ ctls_op_status_t ctls_server_handshake_traffic_secret_generate(ctls_crypto_t *cr
     if (psa_st != PSA_SUCCESS) goto cleanup;
 
     return ctls_psa_error_map(psa_st);
+cleanup:
+    psa_key_derivation_abort(&crypto->key_schedule_operator);
+    psa_reset_key_attributes(&attr);
+    return ctls_psa_error_map(psa_st);
+}
+
+
+ctls_op_status_t ctls_handshake_key_generate(ctls_crypto_t *crypto,
+                                             ctls_hshk_data_t *hshk_data) {
+    CTLS_CHECK_NULL(crypto);
+    CTLS_CHECK_NULL(hshk_data);
+
+    /*  Handshake_key = HKDF-Expand-Label(traffic_secret, "key", "", 16)
+    *   HkdfLabel for key:
+    *   uint16 length      = 16
+    *   uint8  label_len   = len("Sctls key")
+    *   bytes  label       = "Sctls key"
+    *   uint8  context_len = 0    (empty context)
+    */
+    static const uint8_t HANDSHAKE_KEY_LABEL[] = "Sctls key";
+    static const uint8_t HANDSHAKE_KEY_LABEL_LENGTH = sizeof(HANDSHAKE_KEY_LABEL) - 1U;
+
+    uint8_t handshake_key_info[2U + 1U + 1U + 1U];
+    ctls_size_t handshake_key_info_offset = 0U;
+
+    ctls_write_u16(handshake_key_info, &handshake_key_info_offset, 0x00);
+    ctls_write_u8(handshake_key_info, &handshake_key_info_offset, 0x10); /* length = 16 */
+    ctls_write_u8(handshake_key_info,
+                  &handshake_key_info_offset,
+                  sizeof(HANDSHAKE_KEY_LABEL) - 1U);
+    ctls_write_bytes(handshake_key_info,
+                     &handshake_key_info_offset,
+                     HANDSHAKE_KEY_LABEL_LENGTH,
+                     HANDSHAKE_KEY_LABEL);
+    /* context_len = 0 */
+    ctls_write_u8(handshake_key_info, &handshake_key_info_offset, 0x00);
+
+    ctls_op_status_t const result = ctls_client_handshake_key_generate(crypto,
+        hshk_data,
+        handshake_key_info,
+        &handshake_key_info_offset);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+    return ctls_server_handshake_key_generate(crypto,
+                                              hshk_data,
+                                              handshake_key_info,
+                                              &handshake_key_info_offset);
+}
+
+ctls_op_status_t ctls_client_handshake_key_generate(ctls_crypto_t *crypto,
+                                                    ctls_hshk_data_t *hshk_data,
+                                                    uint8_t const *handshake_key_info,
+                                                    ctls_size_t const *
+                                                    handshake_key_info_offset) {
+    CTLS_CHECK_NULL(crypto);
+    CTLS_CHECK_NULL(hshk_data);
+
+
+    psa_status_t psa_st = PSA_SUCCESS;
+    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+    psa_key_id_t prk_key = PSA_KEY_ID_NULL;
+    size_t const handshake_key_info_offset_s = *handshake_key_info_offset;
+
+    ctls_op_status_t const result = ctls_key_schedule_operator_reset(crypto);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
+    psa_set_key_type(&attr, PSA_KEY_TYPE_DERIVE);
+    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_DERIVE);
+    psa_set_key_algorithm(&attr, PSA_ALG_HKDF_EXPAND(PSA_ALG_SHA_256));
+    psa_set_key_bits(&attr, 256U);
+
+    psa_st = psa_import_key(&attr,
+                            hshk_data->client_handshake_traffic_secret,
+                            32U,
+                            &prk_key);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    /* client write key */
+    psa_st = psa_key_derivation_setup(&crypto->key_schedule_operator,
+                                      PSA_ALG_HKDF_EXPAND(crypto->hash_algorithm));
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    psa_st = psa_key_derivation_input_key(&crypto->key_schedule_operator,
+                                          PSA_KEY_DERIVATION_INPUT_SECRET,
+                                          prk_key);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    psa_st = psa_key_derivation_input_bytes(&crypto->key_schedule_operator,
+                                            PSA_KEY_DERIVATION_INPUT_INFO,
+                                            handshake_key_info,
+                                            handshake_key_info_offset_s);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    psa_st = psa_key_derivation_output_bytes(&crypto->key_schedule_operator,
+                                             hshk_data->client_handshake_key,
+                                             16U);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+    return ctls_psa_error_map(psa_st);
+
+cleanup:
+    psa_key_derivation_abort(&crypto->key_schedule_operator);
+    if (prk_key != PSA_KEY_ID_NULL) { psa_destroy_key(prk_key); }
+    psa_reset_key_attributes(&attr);
+    return ctls_psa_error_map(psa_st);
+}
+
+ctls_op_status_t ctls_server_handshake_key_generate(ctls_crypto_t *crypto,
+                                                    ctls_hshk_data_t *hshk_data,
+                                                    uint8_t const *handshake_key_info,
+                                                    ctls_size_t const *
+                                                    handshake_key_info_offset) {
+    CTLS_CHECK_NULL(crypto);
+    CTLS_CHECK_NULL(hshk_data);
+
+    psa_status_t psa_st = PSA_SUCCESS;
+    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+    psa_key_id_t prk_key = PSA_KEY_ID_NULL;
+    size_t const handshake_key_info_offset_s = *handshake_key_info_offset;
+    ctls_op_status_t const result = ctls_key_schedule_operator_reset(crypto);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
+
+    psa_st = psa_import_key(&attr,
+                            hshk_data->server_handshake_traffic_secret,
+                            32U,
+                            &prk_key);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    /* server write key */
+    psa_st = psa_key_derivation_setup(&crypto->key_schedule_operator,
+                                      PSA_ALG_HKDF_EXPAND(PSA_ALG_SHA_256));
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    psa_st = psa_key_derivation_input_key(&crypto->key_schedule_operator,
+                                          PSA_KEY_DERIVATION_INPUT_SECRET,
+                                          prk_key);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    psa_st = psa_key_derivation_input_bytes(&crypto->key_schedule_operator,
+                                            PSA_KEY_DERIVATION_INPUT_INFO,
+                                            handshake_key_info,
+                                            handshake_key_info_offset_s);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    psa_st = psa_key_derivation_output_bytes(&crypto->key_schedule_operator,
+                                             hshk_data->server_handshake_key,
+                                             16U);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+    return ctls_psa_error_map(psa_st);
+
+cleanup:
+    psa_key_derivation_abort(&crypto->key_schedule_operator);
+    if (prk_key != PSA_KEY_ID_NULL) { psa_destroy_key(prk_key); }
+    psa_reset_key_attributes(&attr);
+    return ctls_psa_error_map(psa_st);
+}
+
+ctls_op_status_t ctls_handshake_iv_keys_generate(ctls_crypto_t *crypto,
+                                                 ctls_hshk_data_t *hshk_data) {
+    CTLS_CHECK_NULL(crypto);
+    CTLS_CHECK_NULL(hshk_data);
+
+    /* write_iv  = HKDF-Expand-Label(traffic_secret, "iv",  "", 12)
+    * HkdfLabel for iv:
+    *   uint16 length      = 12
+    *   uint8  label_len   = len("Sctls iv")
+    *   bytes  label       = "Sctls iv"
+    *   uint8  context_len = 0    (empty context)
+    */
+
+    static const uint8_t IV_KEY_LABEL[] = "Sctls iv";
+    static const uint8_t IV_KEY_LABEL_LENGTH = sizeof(IV_KEY_LABEL) - 1U;
+
+    uint8_t iv_key_info[2U + 1U + 1U + 1U];
+    ctls_size_t iv_key_info_offset = 0U;
+
+    ctls_write_u16(iv_key_info, &iv_key_info_offset, 0x00);
+    ctls_write_u8(iv_key_info, &iv_key_info_offset, 0x0C); /* length = 16 */
+    ctls_write_u8(iv_key_info, &iv_key_info_offset, sizeof(IV_KEY_LABEL) - 1U);
+    ctls_write_bytes(iv_key_info, &iv_key_info_offset, IV_KEY_LABEL_LENGTH, IV_KEY_LABEL);
+    /* context_len = 0 */
+    ctls_write_u8(iv_key_info, &iv_key_info_offset, 0x00);
+
+    ctls_op_status_t const result = ctls_client_handshake_iv_key_generate(crypto,
+        hshk_data,
+        iv_key_info,
+        &iv_key_info_offset);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+    return ctls_server_handshake_iv_key_generate(crypto,
+                                                 hshk_data,
+                                                 iv_key_info,
+                                                 &iv_key_info_offset);
+}
+
+ctls_op_status_t ctls_client_handshake_iv_key_generate(ctls_crypto_t *crypto,
+                                                       ctls_hshk_data_t *hshk_data,
+                                                       uint8_t const *iv_key_info,
+                                                       ctls_size_t const *
+                                                       iv_key_info_offset) {
+    CTLS_CHECK_NULL(crypto);
+    CTLS_CHECK_NULL(hshk_data);
+    /* write_iv  = HKDF-Expand-Label(traffic_secret, "iv",  "", 12)
+    * HkdfLabel for iv:
+    *   uint16 length      = 12
+    *   uint8  label_len   = len("Sctls iv")
+    *   bytes  label       = "Sctls iv"
+    *   uint8  context_len = 0    (empty context)
+    */
+    psa_status_t psa_st = PSA_SUCCESS;
+    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+    psa_key_id_t prk_key = PSA_KEY_ID_NULL;
+    size_t const iv_key_info_offset_s = *iv_key_info_offset;
+    ctls_op_status_t const result = ctls_key_schedule_operator_reset(crypto);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
+
+    /* client write iv */
+    psa_st = psa_key_derivation_setup(&crypto->key_schedule_operator,
+                                      PSA_ALG_HKDF_EXPAND(crypto->hash_algorithm));
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    psa_st = psa_key_derivation_input_key(&crypto->key_schedule_operator,
+                                          PSA_KEY_DERIVATION_INPUT_SECRET,
+                                          prk_key);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    psa_st = psa_key_derivation_input_bytes(&crypto->key_schedule_operator,
+                                            PSA_KEY_DERIVATION_INPUT_INFO,
+                                            iv_key_info,
+                                            iv_key_info_offset_s);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    psa_st = psa_key_derivation_output_bytes(&crypto->key_schedule_operator,
+                                             hshk_data->client_handshake_iv_key,
+                                             CTLS_SIZE_IV);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+    return ctls_psa_error_map(psa_st);
+
+cleanup:
+    psa_key_derivation_abort(&crypto->key_schedule_operator);
+    psa_reset_key_attributes(&attr);
+    return ctls_psa_error_map(psa_st);
+}
+
+ctls_op_status_t ctls_server_handshake_iv_key_generate(ctls_crypto_t *crypto,
+                                                       ctls_hshk_data_t *hshk_data,
+                                                       uint8_t const *iv_key_info,
+                                                       ctls_size_t const *
+                                                       iv_key_info_offset) {
+    CTLS_CHECK_NULL(crypto);
+    CTLS_CHECK_NULL(hshk_data);
+
+    /* write_iv  = HKDF-Expand-Label(traffic_secret, "iv",  "", 12)
+    * HkdfLabel for iv:
+    *   uint16 length      = 12
+    *   uint8  label_len   = len("Sctls iv")
+    *   bytes  label       = "Sctls iv"
+    *   uint8  context_len = 0    (empty context)
+    */
+    psa_status_t psa_st = PSA_SUCCESS;
+    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+    psa_key_id_t prk_key = PSA_KEY_ID_NULL;
+    size_t const iv_key_info_offset_s = *iv_key_info_offset;
+    ctls_op_status_t const result = ctls_key_schedule_operator_reset(crypto);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
+    /* server write iv */
+    psa_st = psa_key_derivation_setup(&crypto->key_schedule_operator,
+                                      PSA_ALG_HKDF_EXPAND(crypto->hash_algorithm));
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    psa_st = psa_key_derivation_input_key(&crypto->key_schedule_operator,
+                                          PSA_KEY_DERIVATION_INPUT_SECRET,
+                                          prk_key);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    psa_st = psa_key_derivation_input_bytes(&crypto->key_schedule_operator,
+                                            PSA_KEY_DERIVATION_INPUT_INFO,
+                                            iv_key_info,
+                                            iv_key_info_offset_s);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    psa_st = psa_key_derivation_output_bytes(&crypto->key_schedule_operator,
+                                             hshk_data->server_handshake_iv_key,
+                                             CTLS_SIZE_IV);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+    return ctls_psa_error_map(psa_st);
+
 cleanup:
     psa_key_derivation_abort(&crypto->key_schedule_operator);
     psa_reset_key_attributes(&attr);
