@@ -278,6 +278,13 @@ ctls_op_status_t ctls_key_schedule(ctls_crypto_t *crypto, ctls_hshk_data_t *hshk
     if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
     result = ctls_derived_secret_generate(crypto, hshk_data);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
+    result = ctls_shared_ephemeral_secret_generate(crypto, hshk_data);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
+    result = ctls_handshake_secret_generate(crypto, hshk_data);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
     return result;
 }
