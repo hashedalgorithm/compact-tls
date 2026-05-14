@@ -33,11 +33,11 @@
     .ctls_version         = CTLS_VERSION,                                               \
     .protocol_version     = 0x0304,                                                     \
     .cipher_suite         = CTLS_DEFAULT_CIPHER_SUITE,                                  \
-    .dhe_group            = { .key_share_length = CTLS_DEFAULT_KEY_SHARE_LENGTH,        \
+    .dhe_group            = { .key_share_length = CTLS_SIZE_KEY_SHARE,                  \
                               .dhe_group = 0x001D },                                    \
     .signature_algorithm  = { .signature_algorithm_type = 0x0807,                       \
                               .signature_length = CTLS_DEFAULT_SIGNATURE_LENGTH },      \
-    .random               = CTLS_DEFAULT_RANDOM_LENGTH,                                 \
+    .random               = CTLS_SIZE_RANDOM,                                           \
     .mutual_auth          = CTLS_DEFAULT_SENTINEL,                                      \
     .handshake_framing    = CTLS_DEFAULT_SENTINEL,                                      \
     .client_hello_extension = { .allow_additional = 0,                                  \
