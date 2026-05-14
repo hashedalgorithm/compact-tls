@@ -83,4 +83,23 @@ static inline void ctls_read_bytes(uint8_t *destination_buffer,
     *source_buffer_offset += write_size;
 }
 
+static inline uint8_t ctls_epoch_compress(uint64_t const *full_epoch) {
+    return (uint8_t) (*full_epoch & 0x03);
+}
+
+static inline void ctls_epoch_expand(uint8_t ee_bits, uint64_t *current_epoch) {
+    /* Mask to 2 bits — caller may pass raw config octet */
+    ee_bits &= 0x03;
+
+    /* Base candidate: replace low 2 bits of current epoch with ee_bits */
+    uint64_t candidate = (*current_epoch & ~(uint64_t) 0x03) | ee_bits;
+
+    if (candidate < *current_epoch) {
+        /* ee_bits wrapped — epoch has advanced one full cycle */
+        candidate += 4;
+    }
+
+    *current_epoch = candidate;
+}
+
 #endif //CTLS_BYTES_H

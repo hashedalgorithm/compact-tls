@@ -336,6 +336,7 @@ typedef struct ctls_hsmg_alert ctls_hsmg_alert_t;
 
 
 typedef struct ctls_record ctls_record_t;
+typedef struct ctls_unified_header ctls_unified_header_t;
 typedef struct ctls_recd_config_octet ctls_recd_config_octet_t;
 typedef struct ctls_handshake_message ctls_handshake_message_t;
 

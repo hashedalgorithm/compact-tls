@@ -8,61 +8,130 @@
 #include "ctls/record.h"
 #include "ctls/templates.h"
 
-ctls_op_status_t ctls_build_unified_header(const ctls_recd_config_octet_t *config,
-                                           uint16_t sequence_number,
-                                           uint16_t length,
-                                           uint8_t *buffer,
-                                           ctls_size_t *buffer_length) {
-    CTLS_CHECK_NULL(config);
+
+ctls_op_status_t ctls_unified_header_build(ctls_unified_header_t *unified_header,
+                                           uint16_t const sequence_number,
+                                           uint16_t const length,
+                                           uint64_t const *epoch) {
+    CTLS_CHECK_NULL(unified_header);
+
+    unified_header->config_octet.c_bit = 0;
+    unified_header->config_octet.s_bit = (sequence_number > 0xFFu) ? 1u : 0u;
+    unified_header->config_octet.l_bit = (length > 0u) ? 1u : 0u;
+    unified_header->config_octet.epoch = ctls_epoch_compress(epoch);
+
+    unified_header->sequence_number = sequence_number;
+    unified_header->length = length;
+    unified_header->epoch = *epoch;
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS,
+    };
+}
+
+ctls_op_status_t ctls_unified_header_serialize(
+    ctls_unified_header_t const *unified_header,
+    uint8_t *buffer,
+    ctls_size_t *offset) {
+    CTLS_CHECK_NULL(unified_header);
     CTLS_CHECK_NULL(buffer);
-    CTLS_CHECK_NULL(buffer_length);
+    CTLS_CHECK_NULL(offset);
 
-    ctls_size_t offset = 0;
+    if (unified_header->config_octet.c_bit != 0)
+        return (ctls_op_status_t){
+            .source = CTLS_ERROR_SOURCE_INTERNAL,
+            .code = CTLS_OP_STATUS_INVALID,
+            .external_code = CTLS_OP_STATUS_INVALID,
+        };
 
-    /* ---- config octet ---- */
-    /* fixed bits 7-5 = 0b001, per RFC 9147 §4 */
+    if (unified_header->config_octet.s_bit != 0 && unified_header->config_octet.s_bit !=
+        1)
+        return (ctls_op_status_t){
+            .source = CTLS_ERROR_SOURCE_INTERNAL,
+            .code = CTLS_OP_STATUS_INVALID,
+            .external_code = CTLS_OP_STATUS_INVALID,
+        };
+
     uint8_t octet = CTLS_RECD_CONFIG_OCTET_FIXED_VALUE;
+    if (unified_header->config_octet.c_bit) octet |= CTLS_RECD_CONFIG_OCTET_C_MASK;
+    if (unified_header->config_octet.s_bit) octet |= CTLS_RECD_CONFIG_OCTET_S_MASK;
+    if (unified_header->config_octet.l_bit) octet |= CTLS_RECD_CONFIG_OCTET_L_MASK;
+    octet |= ctls_epoch_compress(&unified_header->epoch) &
+            CTLS_RECD_CONFIG_OCTET_EPOCH_MASK;
 
-    /* C bit (4): CID present */
-    if (config->c_bit) octet |= CTLS_RECD_CONFIG_OCTET_C_MASK;
+    buffer[(*offset)++] = octet;
 
-    /* S bit (3): sequence number length — 0=8bit, 1=16bit */
-    if (config->s_bit) octet |= CTLS_RECD_CONFIG_OCTET_S_MASK;
+    /* C bit is 0 — CID field omitted. Write CID bytes here when supported. */
+    if (unified_header->config_octet.s_bit != 0 && unified_header->config_octet.s_bit !=
+        1)
+        return (ctls_op_status_t){
+            .source = CTLS_ERROR_SOURCE_INTERNAL,
+            .code = CTLS_OP_STATUS_INVALID,
+            .external_code = CTLS_OP_STATUS_INVALID,
+        };
 
-    /* L bit (2): length field present */
-    if (config->l_bit) octet |= CTLS_RECD_CONFIG_OCTET_L_MASK;
-
-    /* E bits (1-0): low 2 bits of epoch */
-    octet |= (config->epoch & CTLS_RECD_CONFIG_OCTET_EPOCH_MASK);
-
-    buffer[offset++] = octet;
-
-    /* ---- connection ID ---- */
-    /* C bit is 0 in your LoRaWAN setup — CID field omitted entirely.
-     * When CID support is added, write CID bytes here.             */
-
-    /* ---- sequence number ---- */
-    /* cTLS-10 §2.2: on reliable ordered transport (LoRaWAN),
-     * S bit MUST be cleared and sequence number MUST be omitted.
-     * Written here only when S=1 (unreliable transport).           */
-    if (config->s_bit) {
-        if (octet & CTLS_RECD_CONFIG_OCTET_S_MASK) {
-            /* S=1: 16-bit sequence number */
-            ctls_write_u16(buffer, &offset, sequence_number);
-        } else {
-            /* S=0: 8-bit sequence number */
-            buffer[offset++] = sequence_number & 0xFF;
-        }
+    if (unified_header->config_octet.s_bit == 0) {
+        ctls_write_u8(buffer, offset, (uint8_t) unified_header->sequence_number);
+    } else {
+        ctls_write_u16(buffer, offset, unified_header->sequence_number);
     }
 
-    /* ---- length ---- */
-    /* cTLS-10 §2.2: on stream transport, L MUST be 1.
-     * On datagram transport L may be 0 (length inferred from UDP). */
-    if (config->l_bit) {
-        ctls_write_u16(buffer, &offset, length);
+    if (unified_header->config_octet.l_bit == 1) {
+        ctls_write_u16(buffer, offset, unified_header->length);
     }
 
-    *buffer_length = offset;
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS,
+    };
+}
+
+
+ctls_op_status_t ctls_unified_header_deserialize(ctls_unified_header_t *unified_header,
+                                                 uint8_t const *buffer,
+                                                 ctls_size_t *offset,
+                                                 ctls_size_t buffer_size) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(offset);
+    CTLS_CHECK_NULL(unified_header);
+    CTLS_CHECK_BOUNDS(*offset, 2, buffer_size);
+
+    uint8_t const first_part = buffer[(*offset)++];
+    uint8_t const second_part = buffer[(*offset)++];
+
+    unified_header->config_octet.c_bit =
+            (first_part & CTLS_RECD_CONFIG_OCTET_C_MASK) != 0;
+    unified_header->config_octet.s_bit = second_part;
+    unified_header->config_octet.l_bit =
+            (first_part & CTLS_RECD_CONFIG_OCTET_L_MASK) != 0;
+    unified_header->config_octet.epoch = first_part & CTLS_RECD_CONFIG_OCTET_EPOCH_MASK;
+
+    if (unified_header->config_octet.c_bit == 1) {
+        return (ctls_op_status_t){
+            .source = CTLS_ERROR_SOURCE_INTERNAL,
+            .code = CTLS_OP_STATUS_INVALID,
+            .external_code = CTLS_OP_STATUS_INVALID,
+        };
+    }
+    if (unified_header->config_octet.s_bit > 1 || unified_header->config_octet.s_bit < 0)
+        return (ctls_op_status_t){
+            .source = CTLS_ERROR_SOURCE_INTERNAL,
+            .code = CTLS_OP_STATUS_INVALID,
+            .external_code = CTLS_OP_STATUS_INVALID,
+        };
+    if (unified_header->config_octet.s_bit == 0) {
+        unified_header->sequence_number = ctls_read_u8(buffer, offset);
+    } else {
+        unified_header->sequence_number = ctls_read_u16(buffer, offset);
+    }
+    if (unified_header->config_octet.l_bit == 1) {
+        unified_header->length = ctls_read_u16(buffer, offset);
+    }
+
+    ctls_epoch_expand(unified_header->config_octet.epoch, &unified_header->epoch);
 
     return (ctls_op_status_t){
         .source = CTLS_ERROR_SOURCE_INTERNAL,
@@ -298,7 +367,7 @@ ctls_op_status_t ctls_recd_client_hello_to_struct(ctls_record_t *record,
     length = ctls_read_u8(buffer, &offset);
 
     ctls_read_bytes(&record->profile_id, length, buffer, &offset);
-    record->length = ctls_read_u16(buffer, &offset);
+    record->unified_header.length = ctls_read_u16(buffer, &offset);
 
     return ctls_hsmg_client_hello_to_struct(&record->record_body,
                                             template,
@@ -325,8 +394,8 @@ ctls_op_status_t ctls_recd_server_hello_to_struct(ctls_record_t *record,
 
     record->content_type = ctls_read_u8(buffer, offset);
     record->type = CTLS_RECORD_TYPE_PLAINTEXT;
-    record->sequence_number = 0;
-    record->length = ctls_read_u16(buffer, offset);
+    record->unified_header.sequence_number = 0;
+    record->unified_header.length = ctls_read_u16(buffer, offset);
 
     return ctls_hsmg_server_hello_to_struct(&record->record_body,
                                             template,

@@ -13,14 +13,8 @@ struct ctls_recd_config_octet {
     uint8_t l_bit; // length
     uint8_t epoch;
 };
-struct ctls_record {
-    /* For Client Hello and Server Hello */
-    uint8_t content_type;
-    uint8_t profile_id;
-    /* Except for Client Hello and Server Hello */
 
-    ctls_record_type_t type; // For internal reference
-
+struct ctls_unified_header {
     /* Except for Client Hello and Server Hello */
     ctls_recd_config_octet_t config_octet;
     // To implement later when there is a scenario where UDP source address change
@@ -28,15 +22,30 @@ struct ctls_record {
     uint16_t sequence_number;
     uint16_t length;
     /* Except for Client Hello and Server Hello */
+    uint64_t epoch;
+};
 
+struct ctls_record {
+    uint8_t content_type; // Used only in CH, SH
+    uint8_t profile_id; // Used only in CH, SH
+    ctls_record_type_t type; // For internal reference
+    ctls_unified_header_t unified_header;
     ctls_handshake_message_t record_body;
 };
 
-ctls_op_status_t ctls_build_unified_header(const ctls_recd_config_octet_t *config,
+
+ctls_op_status_t ctls_unified_header_build(ctls_unified_header_t *unified_header,
                                            uint16_t sequence_number,
                                            uint16_t length,
-                                           uint8_t *buffer,
-                                           ctls_size_t *buffer_length);
+                                           uint64_t const *epoch);
+ctls_op_status_t ctls_unified_header_serialize(
+    ctls_unified_header_t const *unified_header,
+    uint8_t *buffer,
+    ctls_size_t *offset);
+ctls_op_status_t ctls_unified_header_deserialize(ctls_unified_header_t *unified_header,
+                                                 uint8_t const *buffer,
+                                                 ctls_size_t *offset,
+                                                 ctls_size_t buffer_size);
 
 ctls_op_status_t ctls_write_body_length(uint8_t *buffer,
                                         ctls_size_t *offset,
