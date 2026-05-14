@@ -58,8 +58,8 @@ ctls_op_status_t ctls_record_serialize(ctls_template_t const *template,
                                        ctls_size_t *buffer_length);
 ctls_op_status_t ctls_record_deserialize(ctls_record_t *record,
                                          ctls_template_t const *template,
-                                         ctls_hshk_buffer_t *hshk_buffer,
                                          ctls_hshk_data_t *hshk_data,
+                                         ctls_hsmg_type_t hsmg_type,
                                          uint8_t *buffer,
                                          ctls_size_t buffer_length);
 

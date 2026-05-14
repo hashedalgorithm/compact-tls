@@ -121,8 +121,8 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
     ctls_recd_buffer_clear(&context->record);
     result = ctls_record_deserialize(&context->record,
                                      context->template,
-                                     context->hshk_buffer,
                                      &context->hshk_data,
+                                     CTLS_HSMG_TYPE_SERVER_HELLO,
                                      buffer,
                                      recv_len);
     if (result.code != CTLS_OP_STATUS_SUCCESS) {
