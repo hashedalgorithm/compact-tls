@@ -48,10 +48,7 @@ ctls_op_status_t ctls_context_init(ctls_context_t *context,
     ctls_template_set(CTLS_PROFILE_ID, context);
     context->transport = *transport;
 
-    ctls_crypto_init(&context->crypto,
-                     context->template,
-                     &context->hshk_data,
-                     context->template->cipher_suite);
+    ctls_crypto_init(&context->crypto, context->template, &context->hshk_data);
 
     context->state = CTLS_HSHK_STATE_START;
 
