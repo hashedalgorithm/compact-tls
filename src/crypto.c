@@ -139,6 +139,7 @@ ctls_op_status_t ctls_transcript_hash_update(ctls_record_t const *record,
                                              uint8_t *transcript_hash) {
     CTLS_CHECK_NULL(record);
     CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(transcript_hash);
     CTLS_CHECK_NULL(hash_operator);
 
     uint8_t buffer[CTLS_SIZE_WIRE_BUFFER];
@@ -165,7 +166,11 @@ ctls_op_status_t ctls_transcript_hash_update(ctls_record_t const *record,
             break;
         }
         case CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS: {
-            ctls_recd_encrypted_extensions_to_wire();
+            ctls_recd_encrypted_extensions_to_wire(buffer,
+                                                   &offset,
+                                                   record,
+                                                   template,
+                                                   CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
             break;
         }
         case CTLS_HSMG_TYPE_CERTIFICATE: {
@@ -937,6 +942,80 @@ ctls_op_status_t ctls_server_handshake_iv_key_generate(ctls_crypto_t *crypto,
 
 cleanup:
     psa_key_derivation_abort(&crypto->key_schedule_operator);
+    psa_reset_key_attributes(&attr);
+    return ctls_psa_error_map(psa_st);
+}
+
+ctls_op_status_t ctls_nonce_generate(uint8_t *buffer,
+                                     uint16_t const *sequence_number,
+                                     uint8_t const *iv_key) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(iv_key);
+    CTLS_CHECK_NULL(sequence_number);
+
+    ctls_write_bytes(buffer, 0, CTLS_SIZE_NONCE, iv_key);
+    for (int i = 0; i < 8; i++) {
+        buffer[11 - i] ^= (uint8_t) (*sequence_number >> (i * 8U));
+    }
+}
+
+ctls_op_status_t ctls_decrypt(uint8_t const *handshake_key,
+                              /* 16 bytes — server write key */
+                              uint8_t const *iv_key,
+                              /* 12 bytes — server write iv  */
+                              uint16_t const *sequence_number,
+                              /* sequence number, starts at 0, increments per record */
+                              uint8_t const *aad,
+                              /* additional authenticated data (record header bytes) */
+                              size_t aad_len,
+                              const uint8_t *ciphertext,
+                              /* encrypted bytes */
+                              size_t ciphertext_len,
+                              uint8_t *buffer,
+                              /* caller-allocated, at least ciphertext_len - 16 bytes */
+                              size_t *bytes_written) {
+    CTLS_CHECK_NULL(handshake_key);
+    CTLS_CHECK_NULL(sequence_number);
+    CTLS_CHECK_NULL(iv_key);
+    CTLS_CHECK_NULL(aad);
+    CTLS_CHECK_NULL(ciphertext);
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(bytes_written);
+
+    psa_status_t psa_st = PSA_SUCCESS;
+    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+    psa_key_id_t key_id = PSA_KEY_ID_NULL;
+
+    /* Build per-record nonce */
+    uint8_t nonce[CTLS_SIZE_NONCE];
+    ctls_op_status_t result = ctls_nonce_generate(nonce, sequence_number, iv_key);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) goto cleanup;
+
+    psa_set_key_type(&attr, PSA_KEY_TYPE_AES);
+    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_DECRYPT);
+    psa_set_key_algorithm(&attr, PSA_ALG_GCM);
+    psa_set_key_bits(&attr, 128U);
+
+    psa_st = psa_import_key(&attr, handshake_key, 16U, &key_id);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    psa_st = psa_aead_decrypt(key_id,
+                              PSA_ALG_GCM,
+                              nonce,
+                              CTLS_SIZE_NONCE,
+                              aad,
+                              aad_len,
+                              ciphertext,
+                              ciphertext_len,
+                              buffer,
+                              ciphertext_len - 16U,
+                              bytes_written);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+    return ctls_psa_error_map(psa_st);
+
+
+cleanup:
+    if (key_id != PSA_KEY_ID_NULL) { psa_destroy_key(key_id); }
     psa_reset_key_attributes(&attr);
     return ctls_psa_error_map(psa_st);
 }

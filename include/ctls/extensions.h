@@ -109,6 +109,16 @@ struct ctls_extn_server_hello {
     ctls_extn_key_share_t key_share_entity;
 };
 
+struct ctls_extn_encrypted_extensions {
+    ctls_extn_server_name_t server_name;
+    ctls_max_fragment_length_t maximum_fragment_length;
+    ctls_extn_supported_groups_t supported_groups;
+    ctls_extn_heartbeat_mode_t heartbeat_mode;
+    ctls_extn_alpn_t alpn;
+    ctls_extn_certificate_type_t client_certificate_type;
+    ctls_extn_certificate_type_t server_certificate_type;
+};
+
 ctls_op_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions,
     ctls_template_t const *template,
@@ -142,13 +152,15 @@ ctls_op_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
 ctls_op_status_t ctls_extn_encrypted_extensions_create(
     ctls_hsmg_encrypted_extensions_t *encrypted_extensions,
     ctls_template_t const *template);
-ctls_op_status_t ctls_extn_encrypted_extensions_to_struct(void);
+ctls_op_status_t ctls_extn_encrypted_extensions_to_struct(
+    ctls_extn_encrypted_extensions_t *encrypted_extensions,
+    ctls_template_t const *template,
+    ctls_size_t *offset);
 ctls_op_status_t ctls_extn_encrypted_extensions_to_wire(uint8_t *buffer,
                                                         ctls_size_t *offset,
-                                                        ctls_hsmg_encrypted_extensions_t *
-                                                        encrypted_extensions,
-                                                        ctls_wire_format_t const
-                                                        wire_format);
+                                                        ctls_extn_encrypted_extensions_t
+                                                        const *encrypted_extensions,
+                                                        ctls_wire_format_t wire_format);
 
 
 #endif

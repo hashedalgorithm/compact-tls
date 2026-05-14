@@ -326,7 +326,7 @@ typedef struct ctls_hsmg_client_hello ctls_hsmg_client_hello_t;
 typedef struct ctls_extn_server_hello ctls_extn_server_hello_t;
 typedef struct ctls_hsmg_server_hello ctls_hsmg_server_hello_t;
 
-
+typedef struct ctls_extn_encrypted_extensions ctls_extn_encrypted_extensions_t;
 typedef struct ctls_hsmg_encrypted_extensions ctls_hsmg_encrypted_extensions_t;
 typedef struct ctls_hsmg_certificate ctls_hsmg_certificate_t;
 typedef struct ctls_hsmg_certificate_verify ctls_hsmg_certificate_verify_t;

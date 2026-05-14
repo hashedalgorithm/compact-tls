@@ -26,7 +26,7 @@ struct ctls_hsmg_server_hello {
     ctls_extn_server_hello_t extensions;
 };
 struct ctls_hsmg_encrypted_extensions {
-    uint8_t extensions[];
+    ctls_extn_encrypted_extensions_t extensions;
 };
 struct ctls_hsmg_certificate {
 };
@@ -92,8 +92,16 @@ ctls_op_status_t ctls_hsmg_server_hello_to_wire(uint8_t *buffer,
                                                 ctls_wire_format_t wire_format);
 
 ctls_op_status_t ctls_hsmg_encrypted_extensions_create(void);
-ctls_op_status_t ctls_hsmg_encrypted_extensions_to_struct(void);
-ctls_op_status_t ctls_hsmg_encrypted_extensions_to_wire(void);
+ctls_op_status_t ctls_hsmg_encrypted_extensions_to_struct(ctls_handshake_message_t *hsmg,
+                                                          ctls_template_t const *template,
+                                                          ctls_hshk_data_t *hshk_data,
+                                                          uint8_t *buffer);
+ctls_op_status_t ctls_hsmg_encrypted_extensions_to_wire(uint8_t *buffer,
+                                                        ctls_size_t *offset,
+                                                        ctls_handshake_message_t const *
+                                                        hsmg,
+                                                        ctls_template_t const *template,
+                                                        ctls_wire_format_t wire_format);
 
 ctls_op_status_t ctls_hsmg_certificate_create(void);
 ctls_op_status_t ctls_hsmg_certificate_to_struct(void);

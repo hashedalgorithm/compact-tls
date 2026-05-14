@@ -417,6 +417,10 @@ ctls_op_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
     };
 }
 
+ctls_op_status_t ctls_extn_server_hello_create(ctls_hsmg_server_hello_t *server_hello,
+                                               ctls_template_t const *template) {
+}
+
 ctls_op_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
                                                 ctls_size_t *offset,
                                                 ctls_extn_server_hello_t const *
@@ -493,18 +497,204 @@ ctls_op_status_t ctls_extn_server_hello_to_struct(
     };
 }
 
-ctls_op_status_t ctls_extn_server_hello_create(ctls_hsmg_server_hello_t *server_hello,
-                                               ctls_template_t const *template) {
+ctls_op_status_t ctls_extn_encrypted_extensions_create(
+    ctls_hsmg_encrypted_extensions_t *encrypted_extensions,
+    ctls_template_t const *template) {
 }
+
+ctls_op_status_t ctls_extn_encrypted_extensions_to_struct(
+    ctls_extn_encrypted_extensions_t *encrypted_extensions,
+    ctls_template_t const *template,
+    ctls_size_t *offset) {
+    CTLS_CHECK_NULL(encrypted_extensions);
+    CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(offset);
+
+    if (template->encrypted_extension.allow_additional) {
+        *offset += 2;
+    }
+
+    // server_name
+    if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(template->encrypted_extension.
+                                           predefined_extensions.server_name. data,
+                                           template->encrypted_extension.
+                                           predefined_extensions.server_name. length)) {
+        encrypted_extensions->server_name.form = CTLS_DATA_FORM_OPAQUE;
+        encrypted_extensions->server_name.extension_type = CTLS_EXTN_TYPE_SERVER_NAME;
+        encrypted_extensions->server_name.opaque.buffer_length = template->
+                encrypted_extension.predefined_extensions.server_name.length;
+        encrypted_extensions->server_name.opaque.buffer = template->encrypted_extension.
+                predefined_extensions.server_name.data;
+    }
+
+    // max_fragment_length
+    if (template->encrypted_extension.predefined_extensions.maximum_fragment_length ==
+        0) {
+        encrypted_extensions->maximum_fragment_length = template->encrypted_extension.
+                predefined_extensions.maximum_fragment_length;
+    }
+
+
+    // supported_groups
+    if (template->dhe_group.dhe_group != CTLS_EXTN_DHE_GROUP_SENTINEL) {
+        encrypted_extensions->supported_groups.form = CTLS_DATA_FORM_PARSED;
+        encrypted_extensions->supported_groups.extension_type =
+                CTLS_EXTN_TYPE_SUPPORTED_GROUPS;
+        encrypted_extensions->supported_groups.supported_group = template->dhe_group.
+                dhe_group;
+    }
+
+    // heartbeat
+    if (template->encrypted_extension.predefined_extensions.heartbeat_mode != 0) {
+        encrypted_extensions->heartbeat_mode = template->encrypted_extension.
+                predefined_extensions.heartbeat_mode;
+    }
+
+    // alpn
+    if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(template->encrypted_extension.
+                                           predefined_extensions.alpn.data,
+                                           template->encrypted_extension.
+                                           predefined_extensions.alpn. length)) {
+        encrypted_extensions->alpn.form = CTLS_DATA_FORM_OPAQUE;
+        encrypted_extensions->alpn.extension_type =
+                CTLS_EXTN_TYPE_APPLICATION_LAYER_PROTOCOL_NEGOTIATION;
+        encrypted_extensions->alpn.opaque.buffer = template->encrypted_extension.
+                predefined_extensions.alpn.data;
+        encrypted_extensions->alpn.opaque.buffer_length = template->encrypted_extension.
+                predefined_extensions.alpn.length;
+    }
+
+    // client_certificate_type
+    if (template->encrypted_extension.predefined_extensions.client_certificate_type !=
+        0) {
+        encrypted_extensions->client_certificate_type = template->encrypted_extension.
+                predefined_extensions.client_certificate_type;
+    }
+
+    // server_certificate_type
+    if (template->encrypted_extension.predefined_extensions.server_certificate_type !=
+        0) {
+        encrypted_extensions->server_certificate_type = template->encrypted_extension.
+                predefined_extensions.server_certificate_type;
+    }
+
+
+    // no valid extensions in encrypted_extensions fit expected_extensions
+    uint16_t size_of_expected_extensions =
+            ctls_expected_extensions_size_get(&template->encrypted_extension.
+                                              expected_extensions);
+
+    if (size_of_expected_extensions != 0)
+        return (ctls_op_status_t){
+            . source = CTLS_ERROR_SOURCE_INTERNAL,
+            . code = CTLS_OP_STATUS_INVALID,
+            . external_code = CTLS_OP_STATUS_INVALID,
+        };
+
+
+    return (ctls_op_status_t){
+        . source = CTLS_ERROR_SOURCE_INTERNAL,
+        . code = CTLS_OP_STATUS_SUCCESS,
+        . external_code = CTLS_OP_STATUS_SUCCESS,
+    };
+}
+
 
 ctls_op_status_t ctls_extn_encrypted_extensions_to_wire(
     uint8_t *buffer,
     ctls_size_t *offset,
-    ctls_hsmg_encrypted_extensions_t *encrypted_extensions,
-    ctls_wire_format_t const wire_format) {
+    ctls_extn_encrypted_extensions_t const *encrypted_extensions,
+    ctls_wire_format_t wire_format) {
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
+        ctls_size_t extensions_length_offset = *offset;
+
+        // server_name
+        if (encrypted_extensions->server_name.form == CTLS_DATA_FORM_OPAQUE) {
+            ctls_write_u16(buffer,
+                           offset,
+                           encrypted_extensions->server_name.extension_type);
+
+
+            ctls_write_u16(buffer,
+                           offset,
+                           encrypted_extensions->server_name.opaque.buffer_length);
+            ctls_write_bytes(buffer,
+                             offset,
+                             encrypted_extensions->server_name.opaque.buffer_length,
+                             encrypted_extensions->server_name.opaque.buffer);
+        }
+
+        // max fragment length
+        if (encrypted_extensions->maximum_fragment_length != 0) {
+            ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_MAX_FRAGMENT_LENGTH);
+            ctls_write_u16(buffer,
+                           offset,
+                           sizeof(encrypted_extensions->maximum_fragment_length));
+            ctls_write_u16(buffer, offset, encrypted_extensions->maximum_fragment_length);
+        }
+
+
+        // supported groups
+        ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SUPPORTED_GROUPS);
+        ctls_write_u16(buffer,
+                       offset,
+                       sizeof(encrypted_extensions->supported_groups.supported_group));
+        ctls_write_u16(buffer,
+                       offset,
+                       encrypted_extensions->supported_groups.supported_group);
+
+        // heartbeat
+        if (encrypted_extensions->heartbeat_mode != CTLS_EXTN_HEARTBEAT_MODE_SENTINEL) {
+            ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_HEARTBEAT);
+            ctls_write_u8(buffer, offset, sizeof(encrypted_extensions->heartbeat_mode));
+            ctls_write_u8(buffer, offset, encrypted_extensions->heartbeat_mode);
+        }
+
+        // alpn
+        if (encrypted_extensions->alpn.form == CTLS_DATA_FORM_OPAQUE) {
+            ctls_write_u16(buffer,
+                           offset,
+                           CTLS_EXTN_TYPE_APPLICATION_LAYER_PROTOCOL_NEGOTIATION);
+
+
+            ctls_write_u16(buffer,
+                           offset,
+                           encrypted_extensions->alpn.opaque.buffer_length);
+            ctls_write_bytes(buffer,
+                             offset,
+                             encrypted_extensions->alpn.opaque.buffer_length,
+                             encrypted_extensions->alpn.opaque.buffer);
+        }
+
+        // client certificate type
+        if (encrypted_extensions->client_certificate_type ==
+            CTLS_EXTN_CERTIFICATE_TYPE_SENTINEL) {
+            ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_CLIENT_CERTIFICATE_TYPE);
+            ctls_write_u16(buffer,
+                           offset,
+                           sizeof(encrypted_extensions->client_certificate_type));
+            ctls_write_u16(buffer, offset, encrypted_extensions->client_certificate_type);
+        }
+
+
+        // server certificate type
+        if (encrypted_extensions->server_certificate_type ==
+            CTLS_EXTN_CERTIFICATE_TYPE_SENTINEL) {
+            ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SERVER_CERTIFICATE_TYPE);
+            ctls_write_u16(buffer,
+                           offset,
+                           sizeof(encrypted_extensions->server_certificate_type));
+            ctls_write_u16(buffer, offset, encrypted_extensions->server_certificate_type);
+        }
+
+
+        return (ctls_op_status_t){
+            . source = CTLS_ERROR_SOURCE_INTERNAL,
+            . code = CTLS_OP_STATUS_SUCCESS,
+            . external_code = CTLS_OP_STATUS_SUCCESS,
+        };
     }
 
 
@@ -514,14 +704,4 @@ ctls_op_status_t ctls_extn_encrypted_extensions_to_wire(
         . external_code = CTLS_OP_STATUS_INVALID,
     };
 }
-
-ctls_op_status_t ctls_extn_encrypted_extensions_to_struct() {
-}
-
-ctls_op_status_t ctls_extn_encrypted_extensions_create(
-    ctls_hsmg_encrypted_extensions_t *encrypted_extensions,
-    ctls_template_t const *template) {
-}
-
-
 

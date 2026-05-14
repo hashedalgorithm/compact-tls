@@ -32,7 +32,8 @@ ctls_op_status_t ctls_hsmg_client_hello_create(ctls_handshake_message_t *hsmg,
     return ctls_extn_client_hello_create(&hsmg->handshake_message_body.client_hello.
                                          extensions,
                                          template,
-                                         hshk_data, crypto);
+                                         hshk_data,
+                                         crypto);
 }
 
 
@@ -245,10 +246,51 @@ ctls_op_status_t ctls_hsmg_server_hello_to_wire(uint8_t *buffer,
 ctls_op_status_t ctls_hsmg_encrypted_extensions_create() {
 }
 
-ctls_op_status_t ctls_hsmg_encrypted_extensions_to_struct() {
+ctls_op_status_t ctls_hsmg_encrypted_extensions_to_struct(ctls_handshake_message_t *hsmg,
+                                                          ctls_template_t const *template,
+                                                          ctls_hshk_data_t *hshk_data,
+                                                          uint8_t *buffer) {
+    CTLS_CHECK_NULL(hsmg);
+    CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(buffer);
+
+    ctls_size_t offset = 0;
+
+    hsmg->message_type = ctls_read_u8(buffer, &offset);
+
+    return ctls_extn_encrypted_extensions_to_struct(&hsmg->handshake_message_body.
+                                                    encrypted_extensions.extensions,
+                                                    template,
+                                                    &offset);
 }
 
-ctls_op_status_t ctls_hsmg_encrypted_extensions_to_wire() {
+ctls_op_status_t ctls_hsmg_encrypted_extensions_to_wire(uint8_t *buffer,
+                                                        ctls_size_t *offset,
+                                                        ctls_handshake_message_t const *
+                                                        hsmg,
+                                                        ctls_template_t const *template,
+                                                        ctls_wire_format_t wire_format) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(offset);
+    CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(offset);
+
+    if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
+    }
+    if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
+        return ctls_extn_encrypted_extensions_to_wire(buffer,
+                                                      offset,
+                                                      &hsmg->handshake_message_body.
+                                                      encrypted_extensions.extensions,
+                                                      CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
+    }
+
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_INVALID,
+        .external_code = CTLS_OP_STATUS_INVALID
+    };
 }
 
 ctls_op_status_t ctls_hsmg_certificate_create() {

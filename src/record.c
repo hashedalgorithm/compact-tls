@@ -269,56 +269,53 @@ ctls_op_status_t ctls_record_serialize(ctls_template_t const *template,
 
 ctls_op_status_t ctls_record_deserialize(ctls_record_t *record,
                                          ctls_template_t const *template,
-                                         ctls_hshk_buffer_t *hshk_buffer,
                                          ctls_hshk_data_t *hshk_data,
+                                         ctls_hsmg_type_t hsmg_type,
                                          uint8_t *buffer,
                                          ctls_size_t buffer_length) {
     CTLS_CHECK_NULL(buffer);
     CTLS_CHECK_NULL(record);
     CTLS_CHECK_NULL(template);
-    CTLS_CHECK_NULL(hshk_buffer);
     CTLS_CHECK_NULL(hshk_data);
 
+    ctls_op_status_t result = {};
     ctls_size_t offset = 0;
 
-    if (record->type == CTLS_RECORD_TYPE_PLAINTEXT) {
-        switch (record->record_body.message_type) {
-            case CTLS_HSMG_TYPE_CLIENT_HELLO: {
-                // ctls_recd_client_hello_to_struct();
-            }
-            break;
-            case CTLS_HSMG_TYPE_SERVER_HELLO: {
-                ctls_recd_server_hello_to_struct(record,
-                                                 template,
-                                                 hshk_buffer,
-                                                 hshk_data,
-                                                 buffer,
-                                                 &offset,
-                                                 buffer_length);
-            }
-            break;
-            default:
-                return (ctls_op_status_t){
-                    .source = CTLS_ERROR_SOURCE_INTERNAL,
-                    .code = CTLS_OP_STATUS_INVALID,
-                    .external_code = CTLS_OP_STATUS_INVALID,
-                };
+
+    switch (hsmg_type) {
+        case CTLS_HSMG_TYPE_CLIENT_HELLO: {
+            // ctls_recd_client_hello_to_struct();
+            // todo
+            // server side logic
         }
+        break;
+        case CTLS_HSMG_TYPE_SERVER_HELLO: {
+            result = ctls_recd_server_hello_to_struct(record,
+                                                      template,
+                                                      hshk_data,
+                                                      buffer,
+                                                      &offset,
+                                                      buffer_length);
+        }
+        break;
+
+        case CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS: {
+            result = ctls_recd_encrypted_extensions_to_struct(record,
+                template,
+                hshk_data,
+                buffer,
+                buffer_length);
+        }
+        break;
+        default:
+            result = (ctls_op_status_t){
+                .source = CTLS_ERROR_SOURCE_INTERNAL,
+                .code = CTLS_OP_STATUS_INVALID,
+                .external_code = CTLS_OP_STATUS_INVALID,
+            };
     }
 
-    if (record->type == CTLS_RECORD_TYPE_ENCRYPTED) {
-        switch (record->record_body.message_type) {
-            case CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS: {
-            }
-            break;
-        }
-    }
-
-    return (ctls_op_status_t){
-        .source = CTLS_ERROR_SOURCE_INTERNAL,
-        .code = CTLS_OP_STATUS_SUCCESS,
-        .external_code = CTLS_OP_STATUS_SUCCESS,
-    };
+    return result;
 }
 
 ctls_op_status_t ctls_recd_buffer_clear(ctls_record_t *record_buffer) {
@@ -334,7 +331,8 @@ ctls_op_status_t ctls_recd_buffer_clear(ctls_record_t *record_buffer) {
 
 ctls_op_status_t ctls_recd_client_hello_create(ctls_record_t *record,
                                                ctls_template_t const *template,
-                                               ctls_hshk_data_t *hshk_data, ctls_crypto_t const *crypto) {
+                                               ctls_hshk_data_t *hshk_data,
+                                               ctls_crypto_t const *crypto) {
     CTLS_CHECK_NULL(record);
     CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL(hshk_data);
@@ -347,7 +345,10 @@ ctls_op_status_t ctls_recd_client_hello_create(ctls_record_t *record,
     record->record_body.message_type = CTLS_HSMG_TYPE_CLIENT_HELLO;
     record->record_body.sequence_number = 0;
 
-    return ctls_hsmg_client_hello_create(&record->record_body, template, hshk_data, crypto);
+    return ctls_hsmg_client_hello_create(&record->record_body,
+                                         template,
+                                         hshk_data,
+                                         crypto);
 }
 
 ctls_op_status_t ctls_recd_client_hello_to_struct(ctls_record_t *record,
@@ -447,10 +448,74 @@ ctls_op_status_t ctls_recd_server_hello_to_wire(uint8_t *buffer,
 ctls_op_status_t ctls_recd_encrypted_extensions_create() {
 }
 
-ctls_op_status_t ctls_recd_encrypted_extensions_to_struct() {
+ctls_op_status_t ctls_recd_encrypted_extensions_to_struct(ctls_record_t *record,
+                                                          ctls_template_t const *template,
+                                                          ctls_hshk_data_t *hshk_data,
+                                                          uint8_t *buffer,
+                                                          ctls_size_t buffer_size) {
+    CTLS_CHECK_NULL(record);
+    CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(hshk_data);
+
+    uint8_t plaintext[CTLS_SIZE_WIRE_BUFFER];
+    size_t plaintext_offset = 0;
+    ctls_size_t offset = 0;
+
+    record->type = CTLS_RECORD_TYPE_ENCRYPTED;
+    ctls_op_status_t result = ctls_unified_header_deserialize(&record->unified_header,
+        buffer,
+        &offset,
+        buffer_size);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
+
+    result = ctls_decrypt(hshk_data->server_handshake_key,
+                          hshk_data->server_handshake_iv_key,
+                          &record->unified_header.sequence_number,
+                          buffer,
+                          offset,
+                          plaintext,
+                          plaintext_offset,
+                          plaintext,
+                          &plaintext_offset);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
+
+    return ctls_hsmg_encrypted_extensions_to_struct(&record->record_body,
+                                                    template,
+                                                    hshk_data,
+                                                    plaintext);
 }
 
-ctls_op_status_t ctls_recd_encrypted_extensions_to_wire() {
+ctls_op_status_t ctls_recd_encrypted_extensions_to_wire(uint8_t *buffer,
+                                                        ctls_size_t *offset,
+                                                        ctls_record_t const *record,
+                                                        ctls_template_t const *template,
+                                                        ctls_wire_format_t wire_format) {
+    CTLS_CHECK_NULL(record);
+    CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(offset);
+
+    if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
+    };
+    if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
+        ctls_unified_header_serialize(&record->unified_header, buffer, offset);
+
+        ctls_op_status_t const result = ctls_hsmg_encrypted_extensions_to_wire(buffer,
+            offset,
+            &record->record_body,
+            template,
+            CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
+        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+    }
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_INVALID,
+        .external_code = CTLS_OP_STATUS_INVALID,
+    };
 }
 
 ctls_op_status_t ctls_recd_certificate_create() {

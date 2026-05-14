@@ -1,6 +1,4 @@
-//
 // Created by Sanjay Kumar Kumaravelan on 19/04/26.
-//
 
 #ifndef CTLS_CRYPTO_H
 #define CTLS_CRYPTO_H
@@ -8,6 +6,7 @@
 #include <psa/crypto.h>
 #include "types.h"
 
+#define CTLS_SIZE_NONCE 12U
 #define CTLS_SIZE_TRANSCRIPT_HASH 32U
 
 struct ctls_crypto {
@@ -89,4 +88,16 @@ ctls_op_status_t ctls_server_handshake_iv_key_generate(ctls_crypto_t *crypto,
                                                        ctls_size_t const *
                                                        iv_key_info_offset);
 
+ctls_op_status_t ctls_nonce_generate(uint8_t *buffer,
+                                     uint16_t const *sequence_number,
+                                     uint8_t const *iv_key);
+ctls_op_status_t ctls_decrypt(uint8_t const *handshake_key,
+                              uint8_t const *iv,
+                              uint16_t const *seq_num,
+                              uint8_t const *aad,
+                              size_t aad_len,
+                              const uint8_t *ciphertext,
+                              size_t ciphertext_len,
+                              uint8_t *buffer,
+                              size_t *bytes_written);
 #endif //CTLS_CRYPTO_H
