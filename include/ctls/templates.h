@@ -53,7 +53,7 @@ struct ctls_tmpl_known_certificate {
 };
 
 struct ctls_tmpl_known_certificates {
-    ctls_tmpl_known_certificate_t certificates[CTLS_COUNT_KNOWN_CERTIFICATES];
+    ctls_tmpl_known_certificate_t entries[CTLS_COUNT_KNOWN_CERTIFICATES];
 };
 
 struct ctls_template {

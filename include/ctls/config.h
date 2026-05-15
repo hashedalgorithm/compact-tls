@@ -48,9 +48,16 @@
                                 .expected_extensions = { 0x0033 } },                    \
     .encrypted_extension  = { .allow_additional = 0 },                                  \
     .certificate_request_extension = { .allow_additional = 0 },                         \
-    .known_certificate = {                                                              \
-        "01" : client_cert_der                                                          \
-    }                                                                                   \
+    .known_certificates = {                                                             \
+        .entries = {                                                                    \
+            [0] = { .certificate_id = 0x01,                                             \
+                    .certificate = server_cert_der,                                     \
+                    .certificate_length = (uint16_t) sizeof(server_cert_der) },         \
+            [1] = { .certificate_id = 0x02,                                             \
+                    .certificate = client_cert_der,                                     \
+                    .certificate_length = (uint16_t) sizeof(client_cert_der) },         \
+        }                                                                               \
+    },                                                                                  \
     .finished_size        = CTLS_DEFAULT_FINISHED_LENGTH,                               \
 }
 
