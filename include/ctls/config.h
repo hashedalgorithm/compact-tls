@@ -5,6 +5,8 @@
 #ifndef CTLS_CONFIG_H
 #define CTLS_CONFIG_H
 
+#include "certs/ctls_certs.h"
+
 #define CTLS_VERSION 0x0A
 #define CTLS_CLIENT  1
 #define CTLS_SERVER  0
@@ -45,6 +47,10 @@
     .server_hello_extension = { .allow_additional = 0,                                  \
                                 .expected_extensions = { 0x0033 } },                    \
     .encrypted_extension  = { .allow_additional = 0 },                                  \
+    .certificate_request_extension = { .allow_additional = 0 },                         \
+    .known_certificate = {                                                              \
+        "01" : client_cert_der                                                          \
+    }                                                                                   \
     .finished_size        = CTLS_DEFAULT_FINISHED_LENGTH,                               \
 }
 

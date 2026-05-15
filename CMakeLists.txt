@@ -15,6 +15,7 @@ include_directories(examples)
 add_executable(compact_tls
         examples/main.c
         examples/client.c
+        include/certs/ctls_certs.h
         include/ctls/bytes.h
         include/ctls/config.h
         include/ctls/crypto.h

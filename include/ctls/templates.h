@@ -9,6 +9,8 @@
 #include "config.h"
 #include "extensions.h"
 
+#define CTLS_COUNT_KNOWN_CERTIFICATES  3
+
 #define CTLS_IS_TEMPLATE_BYTES_INITIALIZED(buffer, length)          \
     ((buffer) != NULL && length != 0)
 
@@ -44,6 +46,16 @@ struct ctls_tmpl_extension {
     uint16_t allow_additional;
 };
 
+struct ctls_tmpl_known_certificate {
+    uint8_t certificate_id;
+    uint8_t const *certificate;
+    uint16_t certificate_length;
+};
+
+struct ctls_tmpl_known_certificates {
+    ctls_tmpl_known_certificate_t certificates[CTLS_COUNT_KNOWN_CERTIFICATES];
+};
+
 struct ctls_template {
     uint8_t profile_id;
     uint16_t ctls_version;
@@ -58,6 +70,7 @@ struct ctls_template {
     ctls_tmpl_extension_t server_hello_extension;
     ctls_tmpl_extension_t encrypted_extension;
     ctls_tmpl_extension_t certificate_request_extension;
+    ctls_tmpl_known_certificates_t known_certificates;
     uint8_t finished_size;
 };
 

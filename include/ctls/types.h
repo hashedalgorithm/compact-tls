@@ -350,6 +350,8 @@ typedef struct ctls_tmpl_predefined_extensions ctls_tmpl_predefined_extensions_t
 typedef struct ctls_tmpl_extension ctls_tmpl_extension_t;
 typedef ctls_extn_type_t ctls_tmpl_expected_extensions_t[4];
 typedef ctls_extn_type_t ctls_tmpl_self_delimiting_extensions_t[4];
+typedef struct ctls_tmpl_known_certificate ctls_tmpl_known_certificate_t;
+typedef struct ctls_tmpl_known_certificates ctls_tmpl_known_certificates_t;
 
 
 #if CTLS_CLIENT
