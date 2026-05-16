@@ -136,13 +136,15 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
                                 &context->crypto.transcript_hash_operator,
                                 context->hshk_data.transcript_hash);
 
-    context->state = CTLS_HSHK_STATE_WAIT_ENCRYPTED_EXTENSIONS;
+    context->state = CTLS_HSHK_STATE_KEY_SCHEDULED;
 
     // 6. Key scheduling
     result = ctls_key_schedule(&context->crypto, &context->hshk_data);
     if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
 
+    context->state = CTLS_HSHK_STATE_WAIT_ENCRYPTED_EXTENSIONS;
+    // 7. Receive encrypted extensions
     recv_len = 0;
     memset(buffer, 0, CTLS_SIZE_WIRE_BUFFER);
     result = context->transport.recd_receive(buffer, &recv_len, sizeof(buffer));
@@ -151,6 +153,7 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
         return result;
     }
 
+    context->state = CTLS_HSHK_STATE_WAIT_CERTIFICATE;
     ctls_recd_buffer_clear(&context->record);
     result = ctls_record_deserialize(&context->record,
                                      context->template,
