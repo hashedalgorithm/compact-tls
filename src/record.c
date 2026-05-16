@@ -211,6 +211,12 @@ ctls_op_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
         if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
         ctls_write_u16(buffer, &record_body_length, *offset - record_body_length);
+
+        return (ctls_op_status_t){
+            .source = CTLS_ERROR_SOURCE_INTERNAL,
+            .code = CTLS_OP_STATUS_SUCCESS,
+            .external_code = CTLS_OP_STATUS_SUCCESS,
+        };
     }
     return (ctls_op_status_t){
         .source = CTLS_ERROR_SOURCE_INTERNAL,
@@ -307,6 +313,13 @@ ctls_op_status_t ctls_record_deserialize(ctls_record_t *record,
                 buffer_length);
         }
         break;
+        case CTLS_HSMG_TYPE_CERTIFICATE: {
+            result = ctls_recd_certificate_request_to_struct(record,
+                template,
+                hshk_data,
+                buffer);
+        }
+        break;
         default:
             result = (ctls_op_status_t){
                 .source = CTLS_ERROR_SOURCE_INTERNAL,
@@ -319,6 +332,8 @@ ctls_op_status_t ctls_record_deserialize(ctls_record_t *record,
 }
 
 ctls_op_status_t ctls_recd_buffer_clear(ctls_record_t *record_buffer) {
+    CTLS_CHECK_NULL(record_buffer);
+
     memset(record_buffer, 0, sizeof(ctls_record_t));
 
     return (ctls_op_status_t){
@@ -436,6 +451,12 @@ ctls_op_status_t ctls_recd_server_hello_to_wire(uint8_t *buffer,
         if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
         ctls_write_u16(buffer, &record_body_length, *offset - record_body_length);
+
+        return (ctls_op_status_t){
+            .source = CTLS_ERROR_SOURCE_INTERNAL,
+            .code = CTLS_OP_STATUS_SUCCESS,
+            .external_code = CTLS_OP_STATUS_SUCCESS,
+        };
     }
 
     return (ctls_op_status_t){
