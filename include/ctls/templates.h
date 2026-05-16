@@ -36,6 +36,7 @@ struct ctls_tmpl_predefined_extensions {
     ctls_extn_certificate_type_t client_certificate_type;
     ctls_extn_certificate_type_t server_certificate_type;
     ctls_extn_psk_key_exchange_mode_t psk_key_exchange_modes;
+    ctls_template_bytes_t certificate_authorities;
     ctls_extn_post_handshake_auth_t post_handshake_auth;
     ctls_extn_signature_algorithm_type_t signature_algorithm_cert;
 };

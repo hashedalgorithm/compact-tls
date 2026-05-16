@@ -518,13 +518,87 @@ ctls_op_status_t ctls_recd_encrypted_extensions_to_wire(uint8_t *buffer,
     };
 }
 
-ctls_op_status_t ctls_recd_certificate_create() {
+ctls_op_status_t ctls_recd_certificate_request_create() {
 }
 
-ctls_op_status_t ctls_recd_certificate_to_struct() {
+ctls_op_status_t ctls_recd_certificate_request_to_struct(ctls_record_t *record,
+                                                         ctls_template_t const *template,
+                                                         ctls_hshk_data_t *hshk_data,
+                                                         uint8_t const *buffer) {
+    CTLS_CHECK_NULL(record);
+    CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(hshk_data);
+
+    if (template->mutual_auth == 0)
+        return (ctls_op_status_t){
+            .source = CTLS_ERROR_SOURCE_INTERNAL,
+            .code = CTLS_OP_STATUS_INVALID,
+            .external_code = CTLS_OP_STATUS_INVALID
+        };
+
+    uint8_t plaintext[CTLS_SIZE_WIRE_BUFFER];
+    size_t plaintext_offset = 0;
+    ctls_size_t offset = 0;
+
+    record->type = CTLS_RECORD_TYPE_ENCRYPTED;
+    ctls_op_status_t result = ctls_unified_header_deserialize(&record->unified_header,
+        buffer,
+        &offset,
+        CTLS_SIZE_WIRE_BUFFER);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
+    result = ctls_decrypt(hshk_data->server_handshake_key,
+                          hshk_data->server_handshake_iv_key,
+                          &record->unified_header.sequence_number,
+                          buffer,
+                          offset,
+                          plaintext,
+                          plaintext_offset,
+                          plaintext,
+                          &plaintext_offset);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
+    return ctls_hsmg_certificate_request_to_struct(&record->record_body,
+                                                   template,
+                                                   hshk_data,
+                                                   plaintext);
 }
 
-ctls_op_status_t ctls_recd_certificate_to_wire() {
+ctls_op_status_t ctls_recd_certificate_request_to_wire(uint8_t *buffer,
+                                                       ctls_size_t *offset,
+                                                       ctls_record_t const *record,
+                                                       ctls_template_t const *template,
+                                                       ctls_wire_format_t wire_format) {
+    CTLS_CHECK_NULL(record);
+    CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(offset);
+
+    if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
+    };
+    if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
+        ctls_unified_header_serialize(&record->unified_header, buffer, offset);
+
+        ctls_op_status_t const result = ctls_hsmg_certificate_request_to_wire(buffer,
+            offset,
+            &record->record_body,
+            template,
+            CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
+        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
+        return (ctls_op_status_t){
+            .source = CTLS_ERROR_SOURCE_INTERNAL,
+            .code = CTLS_OP_STATUS_SUCCESS,
+            .external_code = CTLS_OP_STATUS_SUCCESS,
+        };
+    }
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_INVALID,
+        .external_code = CTLS_OP_STATUS_INVALID,
+    };
 }
 
 ctls_op_status_t ctls_recd_certificate_verify_create() {

@@ -320,6 +320,7 @@ typedef struct ctls_extn_supported_version ctls_extn_supported_version_t;
 typedef struct ctls_extn_signature_algorithm ctls_extn_signature_algorithm_t;
 typedef struct ctls_extn_key_share ctls_extn_key_share_t;
 typedef uint8_t ctls_extn_post_handshake_auth_t;
+typedef struct ctls_extn_certificate_authorities ctls_extn_certificate_authorities_t;
 typedef struct ctls_extn_client_hello ctls_extn_client_hello_t;
 typedef struct ctls_hsmg_client_hello ctls_hsmg_client_hello_t;
 
@@ -328,7 +329,10 @@ typedef struct ctls_hsmg_server_hello ctls_hsmg_server_hello_t;
 
 typedef struct ctls_extn_encrypted_extensions ctls_extn_encrypted_extensions_t;
 typedef struct ctls_hsmg_encrypted_extensions ctls_hsmg_encrypted_extensions_t;
-typedef struct ctls_hsmg_certificate ctls_hsmg_certificate_t;
+
+typedef struct ctls_extn_certificate_request ctls_extn_certificate_request_t;
+typedef struct ctls_hsmg_certificate_request ctls_hsmg_certificate_request_t;
+
 typedef struct ctls_hsmg_certificate_verify ctls_hsmg_certificate_verify_t;
 typedef struct ctls_hsmg_finished ctls_hsmg_finished_t;
 typedef struct ctls_hsmg_application_data ctls_hsmg_application_data_t;

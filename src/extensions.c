@@ -1,3 +1,4 @@
+
 //
 // Created by Sanjay Kumar Kumaravelan on 18/04/26.
 //
@@ -128,6 +129,23 @@ ctls_op_status_t ctls_extn_client_hello_create(
                 .predefined_extensions.psk_key_exchange_modes;
     }
 
+    // certificate_authorities
+    if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(template->client_hello_extension.
+                                           predefined_extensions.certificate_authorities.
+                                           data,
+                                           template->client_hello_extension.
+                                           predefined_extensions.certificate_authorities.
+                                           length)) {
+        client_hello_extensions->certificate_authorities.form = CTLS_DATA_FORM_OPAQUE;
+        client_hello_extensions->certificate_authorities.extension_type =
+                CTLS_EXTN_TYPE_CERTIFICATE_AUTHORITIES;
+        client_hello_extensions->certificate_authorities.opaque.buffer = template->
+                client_hello_extension.predefined_extensions.certificate_authorities.data;
+        client_hello_extensions->certificate_authorities.opaque.buffer_length = template->
+                client_hello_extension.predefined_extensions.certificate_authorities.
+                length;
+    }
+
     // post_handshake_auth
     if (template->client_hello_extension.predefined_extensions.post_handshake_auth != 0) {
         client_hello_extensions->post_handshake_auth = template->client_hello_extension.
@@ -138,7 +156,10 @@ ctls_op_status_t ctls_extn_client_hello_create(
     // signature_algorithm_cert
     if (template->client_hello_extension.predefined_extensions.signature_algorithm_cert !=
         0) {
-        client_hello_extensions->signature_algorithm_cert = template->
+        client_hello_extensions->signature_algorithm_cert.form = CTLS_DATA_FORM_PARSED;
+        client_hello_extensions->signature_algorithm_cert.extension_type =
+                CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS;
+        client_hello_extensions->signature_algorithm_cert.signature_algorithm = template->
                 client_hello_extension.predefined_extensions.signature_algorithm_cert;
     }
 
@@ -372,15 +393,16 @@ ctls_op_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
         }
 
         // signature algorithm cert
-        if (client_hello_extensions->signature_algorithm_cert !=
-            CTLS_EXTN_SIGNATURE_ALGORITHM_SENTINEL) {
+        if (client_hello_extensions->signature_algorithm_cert.form ==
+            CTLS_DATA_FORM_OPAQUE) {
             ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS_CERT);
             ctls_write_u16(buffer,
                            offset,
                            sizeof(client_hello_extensions->signature_algorithm_cert));
             ctls_write_u16(buffer,
                            offset,
-                           client_hello_extensions->signature_algorithm_cert);
+                           client_hello_extensions->signature_algorithm_cert.
+                           signature_algorithm);
         }
 
         // key share
@@ -506,6 +528,7 @@ ctls_op_status_t ctls_extn_encrypted_extensions_to_struct(
     ctls_extn_encrypted_extensions_t *encrypted_extensions,
     ctls_template_t const *template,
     ctls_size_t *offset) {
+
     CTLS_CHECK_NULL(encrypted_extensions);
     CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL(offset);
@@ -608,7 +631,6 @@ ctls_op_status_t ctls_extn_encrypted_extensions_to_wire(
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
-        ctls_size_t extensions_length_offset = *offset;
 
         // server_name
         if (encrypted_extensions->server_name.form == CTLS_DATA_FORM_OPAQUE) {
@@ -705,3 +727,79 @@ ctls_op_status_t ctls_extn_encrypted_extensions_to_wire(
     };
 }
 
+ctls_op_status_t ctls_extn_certificate_request_create(void) {
+}
+
+ctls_op_status_t ctls_extn_certificate_request_to_struct(
+    ctls_extn_certificate_request_t *certificate_request_extensions,
+    ctls_template_t const *template,
+    ctls_size_t *offset) {
+    CTLS_CHECK_NULL(certificate_request_extensions);
+    CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(offset);
+
+
+    // certificate_status_request
+    if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(template->certificate_request_extension.
+                                           predefined_extensions.
+                                           certificate_status_request.data,
+                                           template->certificate_request_extension.
+                                           predefined_extensions.
+                                           certificate_status_request.length)) {
+        certificate_request_extensions->certificate_status_request.form =
+                CTLS_DATA_FORM_OPAQUE;
+        certificate_request_extensions->certificate_status_request.extension_type =
+                CTLS_EXTN_TYPE_STATUS_REQUEST;
+        certificate_request_extensions->certificate_status_request.opaque.buffer_length =
+                template->certificate_request_extension.predefined_extensions.
+                certificate_status_request.length;
+        certificate_request_extensions->certificate_status_request.opaque.buffer =
+                template->certificate_request_extension.predefined_extensions.
+                certificate_status_request.data;
+    }
+
+    // signature_algorithms
+    if (template->signature_algorithm.signature_algorithm_type !=
+        CTLS_EXTN_SIGNATURE_ALGORITHM_SENTINEL) {
+        certificate_request_extensions->signature_algorithm.form = CTLS_DATA_FORM_PARSED;
+        certificate_request_extensions->signature_algorithm.extension_type =
+                CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS;
+        certificate_request_extensions->signature_algorithm.signature_algorithm = template
+                ->signature_algorithm.signature_algorithm_type;
+    }
+
+    // certificate_authorities
+    if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(template->certificate_request_extension.
+                                           predefined_extensions.certificate_authorities.
+                                           data,
+                                           template->certificate_request_extension.
+                                           predefined_extensions.certificate_authorities.
+                                           length)) {
+        certificate_request_extensions->certificate_authorities.form =
+                CTLS_DATA_FORM_OPAQUE;
+        certificate_request_extensions->certificate_authorities.extension_type =
+                CTLS_EXTN_TYPE_CERTIFICATE_AUTHORITIES;
+        certificate_request_extensions->certificate_authorities.opaque.buffer = template->
+                certificate_request_extension.predefined_extensions.
+                certificate_authorities.data;
+        certificate_request_extensions->certificate_authorities.opaque.buffer_length =
+                template->certificate_request_extension.predefined_extensions.
+                certificate_authorities.length;
+    }
+
+    // signature_algorithm_cert
+    if (template->certificate_request_extension.predefined_extensions.
+        signature_algorithm_cert != 0) {
+        certificate_request_extensions->signature_algorithm_cert = template->
+                client_hello_extension.predefined_extensions.signature_algorithm_cert;
+    }
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS,
+    };
+}
+
+ctls_op_status_t ctls_extn_certificate_request_to_wire(void) {
+}

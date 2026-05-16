@@ -59,6 +59,7 @@ struct ctls_hshk_data {
     uint8_t server_handshake_traffic_secret[CTLS_SIZE_HASH];
     uint8_t server_handshake_key[CTLS_SIZE_AEAD_KEY];
     uint8_t server_handshake_iv_key[CTLS_SIZE_IV];
+    uint8_t certificate_request_context[CTLS_SIZE_CERTIFICATE_REQUEST_CONTEXT];
 };
 
 struct ctls_op_status {

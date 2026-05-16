@@ -87,6 +87,15 @@ struct ctls_extn_key_share {
     };
 };
 
+struct ctls_extn_certificate_authorities {
+    ctls_data_form_t form;
+    ctls_extn_type_t extension_type;
+    union {
+        ctls_hshk_buffer_block_t opaque;
+        ctls_hshk_buffer_block_t distinguished_name;
+    };
+};
+
 struct ctls_extn_client_hello {
     ctls_extn_server_name_t server_name;
     ctls_max_fragment_length_t maximum_fragment_length;
@@ -99,8 +108,9 @@ struct ctls_extn_client_hello {
     ctls_extn_certificate_type_t server_certificate_type;
     ctls_extn_supported_version_t supported_versions;
     ctls_extn_psk_key_exchange_mode_t psk_key_exchange_modes;
+    ctls_extn_certificate_authorities_t certificate_authorities;
     ctls_extn_post_handshake_auth_t post_handshake_auth;
-    ctls_extn_signature_algorithm_type_t signature_algorithm_cert;
+    ctls_extn_signature_algorithm_t signature_algorithm_cert;
     ctls_extn_key_share_t key_share_entity;
 };
 
@@ -117,6 +127,13 @@ struct ctls_extn_encrypted_extensions {
     ctls_extn_alpn_t alpn;
     ctls_extn_certificate_type_t client_certificate_type;
     ctls_extn_certificate_type_t server_certificate_type;
+};
+
+struct ctls_extn_certificate_request {
+    ctls_extn_certificate_status_request_t certificate_status_request;
+    ctls_extn_signature_algorithm_t signature_algorithm;
+    ctls_extn_certificate_authorities_t certificate_authorities;
+    ctls_extn_signature_algorithm_type_t signature_algorithm_cert;
 };
 
 ctls_op_status_t ctls_extn_client_hello_create(
@@ -161,6 +178,13 @@ ctls_op_status_t ctls_extn_encrypted_extensions_to_wire(uint8_t *buffer,
                                                         ctls_extn_encrypted_extensions_t
                                                         const *encrypted_extensions,
                                                         ctls_wire_format_t wire_format);
+
+ctls_op_status_t ctls_extn_certificate_request_create(void);
+ctls_op_status_t ctls_extn_certificate_request_to_struct(
+    ctls_extn_certificate_request_t *certificate_request_extensions,
+    ctls_template_t const *template,
+    ctls_size_t *offset);
+ctls_op_status_t ctls_extn_certificate_request_to_wire(void);
 
 
 #endif

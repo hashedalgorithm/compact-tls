@@ -136,6 +136,12 @@ ctls_op_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
         ctls_write_u24(buffer,
                        &hsmg_body_length_offset,
                        *offset - hsmg_body_length_offset);
+
+        return (ctls_op_status_t){
+            .source = CTLS_ERROR_SOURCE_INTERNAL,
+            .code = CTLS_OP_STATUS_SUCCESS,
+            .external_code = CTLS_OP_STATUS_SUCCESS,
+        };
     }
     return (ctls_op_status_t){
         .source = CTLS_ERROR_SOURCE_INTERNAL,
@@ -234,6 +240,12 @@ ctls_op_status_t ctls_hsmg_server_hello_to_wire(uint8_t *buffer,
         ctls_write_u24(buffer,
                        &hsmg_body_length_offset,
                        *offset - hsmg_body_length_offset);
+
+        return (ctls_op_status_t){
+            .source = CTLS_ERROR_SOURCE_INTERNAL,
+            .code = CTLS_OP_STATUS_SUCCESS,
+            .external_code = CTLS_OP_STATUS_SUCCESS,
+        };
     }
 
     return (ctls_op_status_t){
@@ -278,11 +290,23 @@ ctls_op_status_t ctls_hsmg_encrypted_extensions_to_wire(uint8_t *buffer,
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
-        return ctls_extn_encrypted_extensions_to_wire(buffer,
-                                                      offset,
-                                                      &hsmg->handshake_message_body.
-                                                      encrypted_extensions.extensions,
-                                                      CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
+        ctls_size_t extensions_length_offset = *offset;
+
+        ctls_op_status_t const result = ctls_extn_encrypted_extensions_to_wire(buffer,
+            offset,
+            &hsmg->handshake_message_body.encrypted_extensions.extensions,
+            CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
+
+        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
+        ctls_write_u16(buffer,
+                       &extensions_length_offset,
+                       *offset - extensions_length_offset);
+        return (ctls_op_status_t){
+            .source = CTLS_ERROR_SOURCE_INTERNAL,
+            .code = CTLS_OP_STATUS_SUCCESS,
+            .external_code = CTLS_OP_STATUS_SUCCESS,
+        };
     }
 
 
@@ -293,13 +317,91 @@ ctls_op_status_t ctls_hsmg_encrypted_extensions_to_wire(uint8_t *buffer,
     };
 }
 
-ctls_op_status_t ctls_hsmg_certificate_create() {
+ctls_op_status_t ctls_hsmg_certificate_request_create() {
 }
 
-ctls_op_status_t ctls_hsmg_certificate_to_struct() {
+ctls_op_status_t ctls_hsmg_certificate_request_to_struct(ctls_handshake_message_t *hsmg,
+                                                         ctls_template_t const *template,
+                                                         ctls_hshk_data_t *hshk_data,
+                                                         uint8_t *buffer) {
+    CTLS_CHECK_NULL(hsmg);
+    CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(hshk_data);
+
+    ctls_size_t offset = 0;
+
+    hsmg->message_type = ctls_read_u8(buffer, &offset);
+
+    ctls_size_t const certificate_request_context_length = ctls_read_u8(buffer, &offset);
+    if (certificate_request_context_length > 0) {
+        ctls_read_bytes(hshk_data->certificate_request_context,
+                        certificate_request_context_length,
+                        buffer,
+                        &offset);
+    }
+
+    return ctls_extn_encrypted_extensions_to_struct(&hsmg->handshake_message_body.
+                                                    encrypted_extensions.extensions,
+                                                    template,
+                                                    &offset);
 }
 
-ctls_op_status_t ctls_hsmg_certificate_to_wire() {
+ctls_op_status_t ctls_hsmg_certificate_request_to_wire(uint8_t *buffer,
+                                                       ctls_size_t *offset,
+                                                       ctls_handshake_message_t const *
+                                                       hsmg,
+                                                       ctls_template_t const *template,
+                                                       ctls_wire_format_t wire_format) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(offset);
+    CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(offset);
+
+    if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
+    }
+    if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
+        ctls_write_u8(buffer, offset, hsmg->message_type);
+        ctls_write_u8(buffer,
+                      offset,
+                      hsmg->handshake_message_body.certificate_request.
+                      certificate_request_context.buffer_length);
+
+        if (hsmg->handshake_message_body.certificate_request.certificate_request_context.
+            buffer_length > 0) {
+            ctls_write_bytes(buffer,
+                             offset,
+                             hsmg->handshake_message_body.certificate_request.
+                             certificate_request_context.buffer_length,
+                             hsmg->handshake_message_body.certificate_request.
+                             certificate_request_context.buffer);
+        }
+
+        ctls_size_t extensions_length_offset = *offset;
+        ctls_op_status_t const result = ctls_extn_encrypted_extensions_to_wire(buffer,
+            offset,
+            &hsmg->handshake_message_body.encrypted_extensions.extensions,
+            CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
+
+        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
+        ctls_write_u16(buffer,
+                       &extensions_length_offset,
+                       *offset - extensions_length_offset);
+
+        return (ctls_op_status_t){
+            .source = CTLS_ERROR_SOURCE_INTERNAL,
+            .code = CTLS_OP_STATUS_SUCCESS,
+            .external_code = CTLS_OP_STATUS_SUCCESS,
+        };
+    }
+
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_INVALID,
+        .external_code = CTLS_OP_STATUS_INVALID
+    };
 }
 
 ctls_op_status_t ctls_hsmg_certificate_verify_create() {

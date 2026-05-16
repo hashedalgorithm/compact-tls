@@ -296,10 +296,24 @@ ctls_op_status_t ctls_template_element_to_wire(uint8_t *buffer,
         }
         break;
         case CTLS_TMPL_TYPE_CERTIFICATE_REQUEST_EXTENSIONS: {
-            // todo
+            ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_CERTIFICATE_REQUEST_EXTENSIONS);
+            ctls_tmpl_extension_to_wire(buffer,
+                                        offset,
+                                        &template->certificate_request_extension);
         }
         break;
-        case CTLS_TMPL_TYPE_KNOWN_CERTIFICATES: break;
+        case CTLS_TMPL_TYPE_KNOWN_CERTIFICATES: {
+            for (int i = 0; i < sizeof(template->known_certificates); i++) {
+                ctls_write_u8(buffer,
+                              offset,
+                              template->known_certificates.entries[i].certificate_id);
+                ctls_write_bytes(buffer,
+                                 offset,
+                                 template->known_certificates.entries[i].
+                                 certificate_length,
+                                 template->known_certificates.entries[i].certificate);
+            }
+        }
         case CTLS_TMPL_TYPE_FINISHED_SIZE: {
             ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_FINISHED_SIZE);
             ctls_write_u32(buffer, offset, sizeof(template->finished_size));

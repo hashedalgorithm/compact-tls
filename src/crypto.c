@@ -174,7 +174,11 @@ ctls_op_status_t ctls_transcript_hash_update(ctls_record_t const *record,
             break;
         }
         case CTLS_HSMG_TYPE_CERTIFICATE: {
-            ctls_recd_certificate_to_wire();
+            ctls_recd_certificate_request_to_wire(buffer,
+                                                  &offset,
+                                                  record,
+                                                  template,
+                                                  CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
             break;
         }
         case CTLS_HSMG_TYPE_CERTIFICATE_VERIFY: {
