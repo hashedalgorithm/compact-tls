@@ -528,7 +528,6 @@ ctls_op_status_t ctls_extn_encrypted_extensions_to_struct(
     ctls_extn_encrypted_extensions_t *encrypted_extensions,
     ctls_template_t const *template,
     ctls_size_t *offset) {
-
     CTLS_CHECK_NULL(encrypted_extensions);
     CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL(offset);
@@ -631,7 +630,6 @@ ctls_op_status_t ctls_extn_encrypted_extensions_to_wire(
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
-
         // server_name
         if (encrypted_extensions->server_name.form == CTLS_DATA_FORM_OPAQUE) {
             ctls_write_u16(buffer,

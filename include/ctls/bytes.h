@@ -1,6 +1,6 @@
 //
-// Created by Sanjay Kumar Kumaravelan on 05/04/26.
 //
+// Created by Sanjay Kumar Kumaravelan on 05/04/26.
 
 #ifndef CTLS_BYTES_H
 #define CTLS_BYTES_H
@@ -100,6 +100,14 @@ static inline void ctls_epoch_expand(uint8_t ee_bits, uint64_t *current_epoch) {
     }
 
     *current_epoch = candidate;
+}
+
+static inline void ctls_write_hshk_buffer_block(uint8_t *hshk_buffer,
+                                                ctls_size_t *offset,
+                                                uint8_t *source_buffer,
+                                                ctls_size_t const *write_size) {
+    memcpy(&hshk_buffer[*offset], source_buffer, *write_size);
+    *offset += *write_size;
 }
 
 #endif //CTLS_BYTES_H
