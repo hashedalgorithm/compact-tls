@@ -341,10 +341,10 @@ ctls_op_status_t ctls_hsmg_certificate_request_to_struct(ctls_handshake_message_
                         &offset);
     }
 
-    return ctls_extn_encrypted_extensions_to_struct(&hsmg->handshake_message_body.
-                                                    encrypted_extensions.extensions,
-                                                    template,
-                                                    &offset);
+    return ctls_extn_certificate_request_to_struct(&hsmg->handshake_message_body.
+                                                   certificate_request.extensions,
+                                                   template,
+                                                   &offset);
 }
 
 ctls_op_status_t ctls_hsmg_certificate_request_to_wire(uint8_t *buffer,
@@ -378,9 +378,9 @@ ctls_op_status_t ctls_hsmg_certificate_request_to_wire(uint8_t *buffer,
         }
 
         ctls_size_t extensions_length_offset = *offset;
-        ctls_op_status_t const result = ctls_extn_encrypted_extensions_to_wire(buffer,
+        ctls_op_status_t const result = ctls_extn_certificate_request_to_wire(buffer,
             offset,
-            &hsmg->handshake_message_body.encrypted_extensions.extensions,
+            &hsmg->handshake_message_body.certificate_request.extensions,
             CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
 
         if (result.code != CTLS_OP_STATUS_SUCCESS) return result;

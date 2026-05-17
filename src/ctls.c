@@ -172,7 +172,7 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
                                 context->hshk_data.transcript_hash);
 
     if (context->template->mutual_auth == 1) {
-        // 8. Receive Certificate
+        // 8. Receive Certificate Request
         recv_len = 0;
         memset(buffer, 0, CTLS_SIZE_WIRE_BUFFER);
         result = context->transport.recd_receive(buffer, &recv_len, sizeof(buffer));
@@ -187,7 +187,7 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
         result = ctls_record_deserialize(&context->record,
                                          context->template,
                                          &context->hshk_data,
-                                         CTLS_HSMG_TYPE_CERTIFICATE,
+                                         CTLS_HSMG_TYPE_CERTIFICATE_REQUEST,
                                          buffer,
                                          recv_len);
         if (result.code != CTLS_OP_STATUS_SUCCESS) {
@@ -195,6 +195,7 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
             return result;
         }
 
+        context->state = CTLS_HSHK_STATE_WAIT_CERTIFICATE;
         ctls_transcript_hash_update(&context->record,
                                     context->template,
                                     &context->crypto.transcript_hash_operator,

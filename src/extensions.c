@@ -265,8 +265,6 @@ ctls_op_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
         };
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
-        ctls_size_t extensions_length_offset = *offset;
-
         // server_name
         if (client_hello_extensions->server_name.form == CTLS_DATA_FORM_OPAQUE) {
             ctls_write_u16(buffer,
@@ -835,5 +833,86 @@ ctls_op_status_t ctls_extn_certificate_request_to_struct(
     };
 }
 
-ctls_op_status_t ctls_extn_certificate_request_to_wire(void) {
+ctls_op_status_t ctls_extn_certificate_request_to_wire(uint8_t *buffer,
+                                                       ctls_size_t *offset,
+                                                       ctls_extn_certificate_request_t
+                                                       const *certificate_request,
+                                                       ctls_wire_format_t wire_format) {
+    if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
+    }
+    if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
+        // certificate status request
+        if (certificate_request->certificate_status_request.form ==
+            CTLS_DATA_FORM_OPAQUE) {
+            ctls_write_u16(buffer,
+                           offset,
+                           certificate_request->certificate_status_request.
+                           extension_type);
+
+
+            ctls_write_u16(buffer,
+                           offset,
+                           certificate_request->certificate_status_request.opaque.
+                           buffer_length);
+            ctls_write_bytes(buffer,
+                             offset,
+                             certificate_request->certificate_status_request.opaque.
+                             buffer_length,
+                             certificate_request->certificate_status_request.opaque.
+                             buffer);
+        }
+
+
+        // signature algorithms
+        ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS);
+        ctls_write_u16(buffer,
+                       offset,
+                       sizeof(certificate_request->signature_algorithm.
+                           signature_algorithm));
+        ctls_write_u16(buffer,
+                       offset,
+                       certificate_request->signature_algorithm.signature_algorithm);
+
+        // signed_certificate_timestamp
+        if (certificate_request->signed_certificate_timestamp.form ==
+            CTLS_DATA_FORM_OPAQUE) {
+            ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP);
+            ctls_write_u16(buffer,
+                           offset,
+                           certificate_request->signed_certificate_timestamp.opaque.
+                           buffer_length);
+            ctls_write_bytes(buffer,
+                             offset,
+                             certificate_request->signed_certificate_timestamp.opaque.
+                             buffer_length,
+                             certificate_request->signed_certificate_timestamp.opaque.
+                             buffer);
+        }
+
+        // certificate_authorities
+        if (certificate_request->certificate_authorities.form == CTLS_DATA_FORM_OPAQUE) {
+            ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_CERTIFICATE_AUTHORITIES);
+            ctls_write_u16(buffer,
+                           offset,
+                           certificate_request->certificate_authorities.opaque.
+                           buffer_length);
+            ctls_write_bytes(buffer,
+                             offset,
+                             certificate_request->certificate_authorities.opaque.
+                             buffer_length,
+                             certificate_request->certificate_authorities.opaque.buffer);
+        }
+
+        return (ctls_op_status_t){
+            .source = CTLS_ERROR_SOURCE_INTERNAL,
+            .code = CTLS_OP_STATUS_SUCCESS,
+            .external_code = CTLS_OP_STATUS_SUCCESS,
+        };
+    }
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_INVALID,
+        .external_code = CTLS_OP_STATUS_INVALID,
+    };
 }

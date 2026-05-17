@@ -211,7 +211,11 @@ ctls_op_status_t ctls_extn_certificate_request_to_struct(
     ctls_extn_certificate_request_t *certificate_request_extensions,
     ctls_template_t const *template,
     ctls_size_t *offset);
-ctls_op_status_t ctls_extn_certificate_request_to_wire(void);
+ctls_op_status_t ctls_extn_certificate_request_to_wire(uint8_t *buffer,
+                                                       ctls_size_t *offset,
+                                                       ctls_extn_certificate_request_t
+                                                       const *certificate_request,
+                                                       ctls_wire_format_t wire_format);
 
 
 #endif
