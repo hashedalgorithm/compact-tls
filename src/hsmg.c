@@ -42,15 +42,6 @@ ctls_op_status_t ctls_hsmg_client_hello_to_struct(ctls_handshake_message_t *hsmg
                                                   uint8_t *buffer,
                                                   ctls_size_t *offset,
                                                   ctls_size_t buffer_size) {
-    hsmg->message_type = ctls_read_u8(buffer, offset);
-
-    offset += 1; // handshake_body_length;
-
-    ctls_read_bytes(hsmg->handshake_message_body.client_hello.random.buffer,
-                    template->random,
-                    buffer,
-                    offset);
-    hsmg->handshake_message_body.client_hello.random.buffer = buffer;
 }
 
 ctls_op_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
