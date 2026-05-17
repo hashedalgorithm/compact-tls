@@ -33,6 +33,7 @@ struct ctls_tmpl_predefined_extensions {
     ctls_template_bytes_t certificate_status_request;
     ctls_extn_heartbeat_mode_t heartbeat_mode;
     ctls_template_bytes_t alpn;
+    ctls_template_bytes_t signed_certificate_timestamp;
     ctls_extn_certificate_type_t client_certificate_type;
     ctls_extn_certificate_type_t server_certificate_type;
     ctls_extn_psk_key_exchange_mode_t psk_key_exchange_modes;

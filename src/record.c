@@ -313,12 +313,13 @@ ctls_op_status_t ctls_record_deserialize(ctls_record_t *record,
                 buffer_length);
         }
         break;
-        case CTLS_HSMG_TYPE_CERTIFICATE: {
+        case CTLS_HSMG_TYPE_CERTIFICATE_REQUEST: {
             result = ctls_recd_certificate_request_to_struct(record,
                 template,
                 hshk_data,
                 buffer);
         }
+        break;
         break;
         default:
             result = (ctls_op_status_t){

@@ -306,6 +306,20 @@ typedef enum {
     CTLS_MAX_FRAGMENT_LENGTH_14,
 } ctls_max_fragment_length_t;
 
+typedef enum {
+    CTLS_EXTN_SCT_VERSION_V1 = 0x00, // only defined version
+} ctls_extn_sct_version_t;
+
+typedef enum {
+    CTLS_EXTN_SCT_SIG_TYPE_CERTIFICATE_TIMESTAMP = 0,
+    CTLS_EXTN_SCT_SIG_TYPE_TREE_HASH = 1,
+} ctls_extn_sct_signature_type_t;
+
+typedef enum {
+    CTLS_EXTN_SCT_ENTRY_TYPE_X509 = 0, // final certificate
+    CTLS_EXTN_SCT_ENTRY_TYPE_PRECERT = 1, // pre-certificate
+} ctls_extn_sct_entry_type_t;
+
 
 typedef struct ctls_extn_server_name_item ctls_extn_server_name_item_t;
 typedef struct ctls_extn_server_name ctls_extn_server_name_t;
@@ -321,6 +335,11 @@ typedef struct ctls_extn_signature_algorithm ctls_extn_signature_algorithm_t;
 typedef struct ctls_extn_key_share ctls_extn_key_share_t;
 typedef uint8_t ctls_extn_post_handshake_auth_t;
 typedef struct ctls_extn_certificate_authorities ctls_extn_certificate_authorities_t;
+typedef struct ctls_extn_signed_certificate_timestamp_parsed
+ctls_extn_signed_certificate_timestamp_parsed_t;
+typedef struct ctls_extn_signed_certificate_timestamp
+ctls_extn_signed_certificate_timestamp_t;
+
 typedef struct ctls_extn_client_hello ctls_extn_client_hello_t;
 typedef struct ctls_hsmg_client_hello ctls_hsmg_client_hello_t;
 
@@ -332,6 +351,7 @@ typedef struct ctls_hsmg_encrypted_extensions ctls_hsmg_encrypted_extensions_t;
 
 typedef struct ctls_extn_certificate_request ctls_extn_certificate_request_t;
 typedef struct ctls_hsmg_certificate_request ctls_hsmg_certificate_request_t;
+
 
 typedef struct ctls_hsmg_certificate_verify ctls_hsmg_certificate_verify_t;
 typedef struct ctls_hsmg_finished ctls_hsmg_finished_t;

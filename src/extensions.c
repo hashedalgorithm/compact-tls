@@ -99,6 +99,24 @@ ctls_op_status_t ctls_extn_client_hello_create(
                 client_hello_extension.predefined_extensions.alpn.length;
     }
 
+    // signed_certificate_timestamp
+    if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(template->client_hello_extension.
+                                           predefined_extensions.
+                                           signed_certificate_timestamp.data,
+                                           template->client_hello_extension.
+                                           predefined_extensions.
+                                           signed_certificate_timestamp. length)) {
+        client_hello_extensions->signed_certificate_timestamp.form =
+                CTLS_DATA_FORM_OPAQUE;
+        client_hello_extensions->signed_certificate_timestamp.extension_type =
+                CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP;
+        client_hello_extensions->signed_certificate_timestamp.opaque.buffer = template->
+                client_hello_extension.predefined_extensions.signed_certificate_timestamp.
+                data;
+        client_hello_extensions->signed_certificate_timestamp.opaque.buffer_length =
+                template->client_hello_extension.predefined_extensions.alpn.length;
+    }
+
     // client_certificate_type
     if (template->client_hello_extension.predefined_extensions.client_certificate_type !=
         0) {
@@ -764,6 +782,24 @@ ctls_op_status_t ctls_extn_certificate_request_to_struct(
                 CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS;
         certificate_request_extensions->signature_algorithm.signature_algorithm = template
                 ->signature_algorithm.signature_algorithm_type;
+    }
+
+    // signed_certificate_timestamp
+    if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(template->certificate_request_extension.
+                                           predefined_extensions.
+                                           signed_certificate_timestamp.data,
+                                           template->certificate_request_extension.
+                                           predefined_extensions.
+                                           signed_certificate_timestamp. length)) {
+        certificate_request_extensions->signed_certificate_timestamp.form =
+                CTLS_DATA_FORM_OPAQUE;
+        certificate_request_extensions->signed_certificate_timestamp.extension_type =
+                CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP;
+        certificate_request_extensions->signed_certificate_timestamp.opaque.buffer =
+                template->client_hello_extension.predefined_extensions.
+                signed_certificate_timestamp.data;
+        certificate_request_extensions->signed_certificate_timestamp.opaque.buffer_length
+                = template->client_hello_extension.predefined_extensions.alpn.length;
     }
 
     // certificate_authorities

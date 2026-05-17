@@ -96,6 +96,26 @@ struct ctls_extn_certificate_authorities {
     };
 };
 
+struct ctls_extn_signed_certificate_timestamp_parsed {
+    ctls_extn_signature_algorithm_type_t signature_algorithm;
+    ctls_extn_sct_version_t sct_version;
+    uint8_t log_id[CTLS_SIZE_SCT_LOG_ID];
+    uint64_t timestamp;
+    ctls_extn_sct_entry_type_t entry_type;
+    uint8_t *certificate;
+    uint8_t extensions;
+    uint8_t *signed_bytes;
+    ctls_size_t signed_bytes_length;
+};
+struct ctls_extn_signed_certificate_timestamp {
+    ctls_data_form_t form;
+    ctls_extn_type_t extension_type;
+    union {
+        ctls_hshk_buffer_block_t opaque;
+        ctls_extn_signed_certificate_timestamp_parsed_t signed_certificate_timestamp;
+    };
+};
+
 struct ctls_extn_client_hello {
     ctls_extn_server_name_t server_name;
     ctls_max_fragment_length_t maximum_fragment_length;
@@ -104,6 +124,7 @@ struct ctls_extn_client_hello {
     ctls_extn_signature_algorithm_t signature_algorithm;
     ctls_extn_heartbeat_mode_t heartbeat_mode;
     ctls_extn_alpn_t alpn;
+    ctls_extn_signed_certificate_timestamp_t signed_certificate_timestamp;
     ctls_extn_certificate_type_t client_certificate_type;
     ctls_extn_certificate_type_t server_certificate_type;
     ctls_extn_supported_version_t supported_versions;
@@ -132,8 +153,14 @@ struct ctls_extn_encrypted_extensions {
 struct ctls_extn_certificate_request {
     ctls_extn_certificate_status_request_t certificate_status_request;
     ctls_extn_signature_algorithm_t signature_algorithm;
+    ctls_extn_signed_certificate_timestamp_t signed_certificate_timestamp;
     ctls_extn_certificate_authorities_t certificate_authorities;
     ctls_extn_signature_algorithm_type_t signature_algorithm_cert;
+};
+
+struct ctls_extn_certificate {
+    ctls_extn_certificate_status_request_t certificate_status_request;
+    ctls_extn_signed_certificate_timestamp_t signed_certificate_timestamp;
 };
 
 ctls_op_status_t ctls_extn_client_hello_create(
