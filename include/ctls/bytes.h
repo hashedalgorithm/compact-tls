@@ -25,10 +25,10 @@ static inline void ctls_write_u16(uint8_t *buffer,
 
 static inline void ctls_write_u24(uint8_t *buffer,
                                   ctls_size_t *offset,
-                                  uint16_t const value) {
+                                  uint32_t const value) {
     buffer[(*offset)++] = (value >> 16) & 0xFF;
     buffer[(*offset)++] = (value >> 8) & 0xFF;
-    buffer[(*offset)] = value & 0xFF;
+    buffer[(*offset)++] = value & 0xFF;
 }
 
 static inline void ctls_write_u32(uint8_t *buffer,
