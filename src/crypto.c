@@ -586,7 +586,7 @@ ctls_op_status_t ctls_client_handshake_traffic_secret_generate(
 
 
     psa_st = psa_key_derivation_setup(&crypto->key_schedule_operator,
-                                      PSA_ALG_HKDF_EXPAND(PSA_ALG_SHA_256));
+                                      PSA_ALG_HKDF_EXPAND(crypto->hash_algorithm));
     if (psa_st != PSA_SUCCESS) goto cleanup;
 
     psa_st = psa_key_derivation_input_key(&crypto->key_schedule_operator,
@@ -611,6 +611,7 @@ cleanup:
     psa_key_derivation_abort(&crypto->key_schedule_operator);
     if (prk_key != PSA_KEY_ID_NULL) { psa_destroy_key(prk_key); }
     psa_reset_key_attributes(&attr);
+    return ctls_psa_error_map(psa_st);
 }
 
 ctls_op_status_t ctls_server_handshake_traffic_secret_generate(ctls_crypto_t *crypto,
@@ -627,7 +628,7 @@ ctls_op_status_t ctls_server_handshake_traffic_secret_generate(ctls_crypto_t *cr
 
     psa_set_key_type(&attr, PSA_KEY_TYPE_DERIVE);
     psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_DERIVE);
-    psa_set_key_algorithm(&attr, PSA_ALG_HKDF_EXPAND(PSA_ALG_SHA_256));
+    psa_set_key_algorithm(&attr, PSA_ALG_HKDF_EXPAND(crypto->hash_algorithm));
     psa_set_key_bits(&attr, 256U);
 
     static const uint8_t SERVER_LABEL[] = "Sctls s hs traffic";
@@ -734,7 +735,7 @@ ctls_op_status_t ctls_client_handshake_key_generate(ctls_crypto_t *crypto,
 
     psa_set_key_type(&attr, PSA_KEY_TYPE_DERIVE);
     psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_DERIVE);
-    psa_set_key_algorithm(&attr, PSA_ALG_HKDF_EXPAND(PSA_ALG_SHA_256));
+    psa_set_key_algorithm(&attr, PSA_ALG_HKDF_EXPAND(crypto->hash_algorithm));
     psa_set_key_bits(&attr, 256U);
 
     psa_st = psa_import_key(&attr,
@@ -796,7 +797,7 @@ ctls_op_status_t ctls_server_handshake_key_generate(ctls_crypto_t *crypto,
 
     /* server write key */
     psa_st = psa_key_derivation_setup(&crypto->key_schedule_operator,
-                                      PSA_ALG_HKDF_EXPAND(PSA_ALG_SHA_256));
+                                      PSA_ALG_HKDF_EXPAND(crypto->hash_algorithm));
     if (psa_st != PSA_SUCCESS) goto cleanup;
 
     psa_st = psa_key_derivation_input_key(&crypto->key_schedule_operator,
