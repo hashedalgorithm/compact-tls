@@ -368,6 +368,21 @@ ctls_op_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
                              client_hello_extensions->alpn.opaque.buffer);
         }
 
+        if (client_hello_extensions->signed_certificate_timestamp.form ==
+            CTLS_DATA_FORM_OPAQUE) {
+            ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP);
+            ctls_write_u16(buffer,
+                           offset,
+                           client_hello_extensions->signed_certificate_timestamp.opaque.
+                           buffer_length);
+            ctls_write_bytes(buffer,
+                             offset,
+                             client_hello_extensions->signed_certificate_timestamp.opaque.
+                             buffer_length,
+                             client_hello_extensions->signed_certificate_timestamp.opaque.
+                             buffer);
+        }
+
         // client certificate type
         if (client_hello_extensions->client_certificate_type ==
             CTLS_EXTN_CERTIFICATE_TYPE_SENTINEL) {
@@ -402,6 +417,21 @@ ctls_op_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
                        offset,
                        client_hello_extensions->supported_versions.version);
 
+        // certificate_authorities
+        if (client_hello_extensions->certificate_authorities.form ==
+            CTLS_DATA_FORM_OPAQUE) {
+            ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_CERTIFICATE_AUTHORITIES);
+            ctls_write_u16(buffer,
+                           offset,
+                           client_hello_extensions->certificate_authorities.opaque.
+                           buffer_length);
+            ctls_write_bytes(buffer,
+                             offset,
+                             client_hello_extensions->certificate_authorities.opaque.
+                             buffer_length,
+                             client_hello_extensions->certificate_authorities.opaque.
+                             buffer);
+        }
 
         // psk key exchange modes
         if (client_hello_extensions->psk_key_exchange_modes !=
