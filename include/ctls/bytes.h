@@ -67,6 +67,14 @@ static inline uint16_t ctls_read_u16(uint8_t const *buffer, ctls_size_t *offset)
     return value;
 }
 
+static inline uint32_t ctls_read_u24(uint8_t const *buffer, ctls_size_t *offset) {
+    const uint32_t value = ((uint32_t) buffer[*offset] << 16) | (
+                               (uint32_t) buffer[*offset + 1] << 8) | (uint32_t) buffer[
+                               *offset + 2];
+    *offset += 3;
+    return value;
+}
+
 static inline uint64_t ctls_read_u64(uint8_t const *buffer, ctls_size_t *offset) {
     uint64_t value = 0;
     for (int i = 0; i < 8; i++) {
