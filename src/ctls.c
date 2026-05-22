@@ -27,7 +27,8 @@ ctls_op_status_t ctls_handshake_state_update(ctls_hshk_state_t *location,
     };
 }
 
-ctls_op_status_t ctls_validate_template(ctls_template_t const *template) {
+ctls_op_status_t ctls_validate_template() {
+    ctls_template_t const *template = g_template;
     CTLS_CHECK_NULL(template);
 
     if (template->cipher_suite == 0 || template->dhe_group.dhe_group == 0 || template->
@@ -152,8 +153,6 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
     context->state = CTLS_HSHK_STATE_WAIT_CERTIFICATE;
     ctls_recd_buffer_clear(&context->record);
     result = ctls_record_deserialize(&context->record,
-                                     context->template,
-                                     &context->hshk_data,
                                      CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS,
                                      buffer,
                                      recv_len);
