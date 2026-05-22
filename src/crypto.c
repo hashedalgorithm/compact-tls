@@ -972,6 +972,12 @@ ctls_op_status_t ctls_nonce_generate(uint8_t *buffer,
     for (int i = 0; i < 8; i++) {
         buffer[11 - i] ^= (uint8_t) (*sequence_number >> (i * 8U));
     }
+
+    return (ctls_op_status_t){
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .external_code = CTLS_OP_STATUS_SUCCESS
+    };
 }
 
 ctls_op_status_t ctls_decrypt(uint16_t const *sequence_number,
