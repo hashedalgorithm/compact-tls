@@ -10,10 +10,15 @@
 #include "ctls/templates.h"
 
 
-ctls_op_status_t ctls_hsmg_client_hello_create(ctls_handshake_message_t *hsmg,
-                                               ctls_template_t const *template,
-                                               ctls_hshk_data_t *hshk_data,
-                                               ctls_crypto_t const *crypto) {
+ctls_op_status_t ctls_hsmg_client_hello_create(ctls_handshake_message_t *hsmg) {
+    ctls_template_t const *template = ctls_template_get();
+    ctls_crypto_t const *crypto = ctls_crypto_get();
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+
+    CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(crypto);
+    CTLS_CHECK_NULL(hshk_data);
+
     ctls_op_status_t const result = ctls_random_generate(hshk_data->client_random,
                                                          &hsmg->handshake_message_body.
                                                          client_hello.random.
@@ -30,15 +35,11 @@ ctls_op_status_t ctls_hsmg_client_hello_create(ctls_handshake_message_t *hsmg,
     hsmg->handshake_message_body.client_hello.legacy_compression_methods = 0x00;
 
     return ctls_extn_client_hello_create(&hsmg->handshake_message_body.client_hello.
-                                         extensions,
-                                         template,
-                                         hshk_data,
-                                         crypto);
+                                         extensions);
 }
 
 
 ctls_op_status_t ctls_hsmg_client_hello_to_struct(ctls_handshake_message_t *hsmg,
-                                                  ctls_template_t const *template,
                                                   uint8_t *buffer,
                                                   ctls_size_t *offset,
                                                   ctls_size_t buffer_size) {
@@ -48,8 +49,10 @@ ctls_op_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
                                                 ctls_size_t *offset,
                                                 ctls_size_t const *buffer_size,
                                                 ctls_handshake_message_t const *hsmg,
-                                                ctls_template_t const *template,
                                                 ctls_wire_format_t const wire_format) {
+    ctls_template_t const *template = ctls_template_get();
+    CTLS_CHECK_NULL(template);
+
     ctls_size_t body_start = *offset;
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
         offset += 2;
@@ -76,7 +79,6 @@ ctls_op_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
         ctls_op_status_t const result = ctls_extn_client_hello_to_wire(buffer,
             offset,
             &hsmg->handshake_message_body.client_hello.extensions,
-            template,
             CTLS_WIRE_FORMAT_DEFAULT);
 
         ctls_write_u16(buffer, &body_start, *offset - body_start);
@@ -119,7 +121,6 @@ ctls_op_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
         ctls_op_status_t const result = ctls_extn_client_hello_to_wire(buffer,
             offset,
             &hsmg->handshake_message_body.client_hello.extensions,
-            template,
             CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
 
         if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
@@ -145,11 +146,12 @@ ctls_op_status_t ctls_hsmg_server_hello_create() {
 }
 
 ctls_op_status_t ctls_hsmg_server_hello_to_struct(ctls_handshake_message_t *hsmg,
-                                                  ctls_template_t const *template,
-                                                  ctls_hshk_data_t *hshk_data,
                                                   uint8_t *buffer,
                                                   ctls_size_t *offset,
                                                   ctls_size_t buffer_size) {
+    ctls_template_t const *template = ctls_template_get();
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+
     CTLS_CHECK_NULL(hsmg);
     CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL(buffer);
@@ -176,8 +178,6 @@ ctls_op_status_t ctls_hsmg_server_hello_to_struct(ctls_handshake_message_t *hsmg
     offset += 2;
     return ctls_extn_server_hello_to_struct(&hsmg->handshake_message_body.server_hello.
                                             extensions,
-                                            template,
-                                            hshk_data,
                                             buffer,
                                             offset,
                                             buffer_size);
@@ -187,8 +187,10 @@ ctls_op_status_t ctls_hsmg_server_hello_to_wire(uint8_t *buffer,
                                                 ctls_size_t *offset,
                                                 ctls_size_t const *buffer_size,
                                                 ctls_handshake_message_t const *hsmg,
-                                                ctls_template_t const *template,
                                                 ctls_wire_format_t wire_format) {
+    ctls_template_t const *template = ctls_template_get();
+    CTLS_CHECK_NULL(template);
+
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
@@ -250,9 +252,9 @@ ctls_op_status_t ctls_hsmg_encrypted_extensions_create() {
 }
 
 ctls_op_status_t ctls_hsmg_encrypted_extensions_to_struct(ctls_handshake_message_t *hsmg,
-                                                          ctls_template_t const *template,
-                                                          ctls_hshk_data_t *hshk_data,
                                                           uint8_t *buffer) {
+    ctls_template_t const *template = ctls_template_get();
+
     CTLS_CHECK_NULL(hsmg);
     CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL(buffer);
@@ -263,7 +265,6 @@ ctls_op_status_t ctls_hsmg_encrypted_extensions_to_struct(ctls_handshake_message
 
     return ctls_extn_encrypted_extensions_to_struct(&hsmg->handshake_message_body.
                                                     encrypted_extensions.extensions,
-                                                    template,
                                                     &offset);
 }
 
@@ -271,8 +272,9 @@ ctls_op_status_t ctls_hsmg_encrypted_extensions_to_wire(uint8_t *buffer,
                                                         ctls_size_t *offset,
                                                         ctls_handshake_message_t const *
                                                         hsmg,
-                                                        ctls_template_t const *template,
                                                         ctls_wire_format_t wire_format) {
+    ctls_template_t const *template = ctls_template_get();
+
     CTLS_CHECK_NULL(buffer);
     CTLS_CHECK_NULL(offset);
     CTLS_CHECK_NULL(template);
@@ -312,9 +314,10 @@ ctls_op_status_t ctls_hsmg_certificate_request_create() {
 }
 
 ctls_op_status_t ctls_hsmg_certificate_request_to_struct(ctls_handshake_message_t *hsmg,
-                                                         ctls_template_t const *template,
-                                                         ctls_hshk_data_t *hshk_data,
                                                          uint8_t *buffer) {
+    ctls_template_t const *template = ctls_template_get();
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+
     CTLS_CHECK_NULL(hsmg);
     CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL(buffer);
@@ -334,7 +337,6 @@ ctls_op_status_t ctls_hsmg_certificate_request_to_struct(ctls_handshake_message_
 
     return ctls_extn_certificate_request_to_struct(&hsmg->handshake_message_body.
                                                    certificate_request.extensions,
-                                                   template,
                                                    &offset);
 }
 
@@ -342,8 +344,11 @@ ctls_op_status_t ctls_hsmg_certificate_request_to_wire(uint8_t *buffer,
                                                        ctls_size_t *offset,
                                                        ctls_handshake_message_t const *
                                                        hsmg,
-                                                       ctls_template_t const *template,
                                                        ctls_wire_format_t wire_format) {
+    ctls_template_t const *template = ctls_template_get();
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+
+    CTLS_CHECK_NULL(hshk_data);
     CTLS_CHECK_NULL(buffer);
     CTLS_CHECK_NULL(offset);
     CTLS_CHECK_NULL(template);

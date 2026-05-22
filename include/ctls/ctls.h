@@ -84,13 +84,18 @@ struct ctls_context {
     ctls_record_t record;
 };
 
+ctls_template_t const *ctls_template_get(void);
+ctls_hshk_data_t *ctls_hshk_data_get(void);
+ctls_crypto_t *ctls_crypto_get(void);
+ctls_hshk_buffer_t *ctls_hshk_buffer_get(void);
+
 ctls_op_status_t ctls_context_init(ctls_context_t *context,
                                    ctls_transport_t const *transport);
 ctls_op_status_t ctls_handshake_state_update(ctls_hshk_state_t *location,
                                              ctls_hshk_state_t state);
 void ctls_wire_buffer_clear(uint8_t *buffer);
 ctls_op_status_t ctls_recd_buffer_clear(ctls_record_t *record_buffer);
-ctls_op_status_t ctls_validate_template(ctls_template_t const *template);
+ctls_op_status_t ctls_validate_template();
 ctls_op_status_t ctls_connect(ctls_context_t *context);
 ctls_op_status_t ctls_read(ctls_context_t const *context,
                            uint8_t *buffer,

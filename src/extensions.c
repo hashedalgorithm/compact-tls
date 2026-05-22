@@ -14,10 +14,15 @@ uint8_t ctls_expected_extensions_size_get(
 }
 
 ctls_op_status_t ctls_extn_client_hello_create(
-    ctls_extn_client_hello_t *client_hello_extensions,
-    ctls_template_t const *template,
-    ctls_hshk_data_t *hshk_data,
-    ctls_crypto_t const *crypto) {
+    ctls_extn_client_hello_t *client_hello_extensions) {
+    ctls_template_t const *template = ctls_template_get();
+    ctls_crypto_t const *crypto = ctls_crypto_get();
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+
+    CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(crypto);
+    CTLS_CHECK_NULL(hshk_data);
+
     uint8_t const size_of_expected_extensions =
             ctls_expected_extensions_size_get(&template->client_hello_extension.
                                               expected_extensions);
@@ -194,8 +199,7 @@ ctls_op_status_t ctls_extn_client_hello_create(
                 ctls_ephemeral_public_key_generate(hshk_data->client_public_ephemeral_key,
                                                    &client_hello_extensions->
                                                    key_share_entity.key_share.
-                                                   buffer_length,
-                                                   crypto);
+                                                   buffer_length);
         client_hello_extensions->key_share_entity.key_share.buffer = hshk_data->
                 client_public_ephemeral_key;
 
@@ -217,8 +221,11 @@ ctls_op_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
                                                 ctls_size_t *offset,
                                                 ctls_extn_client_hello_t const *
                                                 client_hello_extensions,
-                                                ctls_template_t const *template,
                                                 ctls_wire_format_t wire_format) {
+    ctls_template_t const *template = ctls_template_get();
+    CTLS_CHECK_NULL(template);
+
+
     uint8_t const size_of_expected_extensions =
             ctls_expected_extensions_size_get(&template->client_hello_extension.
                                               expected_extensions);
@@ -455,8 +462,7 @@ ctls_op_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
     };
 }
 
-ctls_op_status_t ctls_extn_server_hello_create(ctls_hsmg_server_hello_t *server_hello,
-                                               ctls_template_t const *template) {
+ctls_op_status_t ctls_extn_server_hello_create(void) {
 }
 
 ctls_op_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
@@ -507,11 +513,15 @@ ctls_op_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
 
 ctls_op_status_t ctls_extn_server_hello_to_struct(
     ctls_extn_server_hello_t *server_hello_extensions,
-    ctls_template_t const *template,
-    ctls_hshk_data_t *hshk_data,
     uint8_t *buffer,
     ctls_size_t *offset,
     ctls_size_t buffer_size) {
+    ctls_template_t const *template = ctls_template_get();
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+
+    CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(hshk_data);
+
     server_hello_extensions->supported_versions.form = CTLS_DATA_FORM_PARSED;
     server_hello_extensions->supported_versions.extension_type =
             CTLS_EXTN_TYPE_SUPPORTED_VERSIONS;
@@ -536,16 +546,16 @@ ctls_op_status_t ctls_extn_server_hello_to_struct(
 }
 
 ctls_op_status_t ctls_extn_encrypted_extensions_create(
-    ctls_hsmg_encrypted_extensions_t *encrypted_extensions,
-    ctls_template_t const *template) {
+    ctls_hsmg_encrypted_extensions_t *encrypted_extensions) {
 }
 
 ctls_op_status_t ctls_extn_encrypted_extensions_to_struct(
     ctls_extn_encrypted_extensions_t *encrypted_extensions,
-    ctls_template_t const *template,
     ctls_size_t *offset) {
-    CTLS_CHECK_NULL(encrypted_extensions);
+    ctls_template_t const *template = ctls_template_get();
+
     CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(encrypted_extensions);
     CTLS_CHECK_NULL(offset);
 
     if (template->encrypted_extension.allow_additional) {
@@ -636,7 +646,6 @@ ctls_op_status_t ctls_extn_encrypted_extensions_to_struct(
         . external_code = CTLS_OP_STATUS_SUCCESS,
     };
 }
-
 
 ctls_op_status_t ctls_extn_encrypted_extensions_to_wire(
     uint8_t *buffer,

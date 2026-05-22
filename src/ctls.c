@@ -2,7 +2,17 @@
 #include "ctls/ctls.h"
 #include "ctls/templates.h"
 
-ctls_hshk_buffer_t hshk_buffer;
+static ctls_template_t const *g_template;
+static ctls_hshk_data_t *g_hshk_data;
+static ctls_crypto_t *g_crypto;
+static ctls_hshk_buffer_t *g_hshk_buffer;
+static ctls_hshk_buffer_t g_hshk_buffer_storage;
+
+
+ctls_template_t const *ctls_template_get(void) { return g_template; }
+ctls_hshk_data_t *ctls_hshk_data_get(void) { return g_hshk_data; }
+ctls_crypto_t *ctls_crypto_get(void) { return g_crypto; }
+ctls_hshk_buffer_t *ctls_hshk_buffer_get(void) { return g_hshk_buffer; }
 
 
 ctls_op_status_t ctls_handshake_state_update(ctls_hshk_state_t *location,
@@ -43,16 +53,25 @@ ctls_op_status_t ctls_context_init(ctls_context_t *context,
                                    ctls_transport_t const *transport) {
     memset(context, 0, sizeof(ctls_context_t));
     memset(&context->record, 0, sizeof(ctls_record_t));
-    memset(&hshk_buffer, 0, sizeof(hshk_buffer));
+    memset(&g_hshk_buffer_storage, 0, sizeof(g_hshk_buffer_storage));
 
-    ctls_template_set(CTLS_PROFILE_ID, context);
+    ctls_op_status_t result = ctls_template_set(CTLS_PROFILE_ID, context);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+
     context->transport = *transport;
+    context->hshk_buffer = &g_hshk_buffer_storage;
 
-    ctls_crypto_init(&context->crypto, context->template, &context->hshk_data);
+    g_template = context->template;
+    g_hshk_data = &context->hshk_data;
+    g_crypto = &context->crypto;
+    g_hshk_buffer = context->hshk_buffer;
+
+    result = ctls_crypto_init();
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
     context->state = CTLS_HSHK_STATE_START;
 
-    return ctls_validate_template(context->template);
+    return ctls_validate_template();
 }
 
 
@@ -60,30 +79,15 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
     uint8_t buffer[CTLS_SIZE_WIRE_BUFFER];
     ctls_size_t buffer_length = 0;
 
-    ctls_op_status_t result = ctls_transcript_hash_init(&context->crypto,
-                                                        context->hshk_data.
-                                                        transcript_hash,
-                                                        context->template);
-
-    if (result.code != CTLS_OP_STATUS_SUCCESS) {
-        context->state = CTLS_HSHK_STATE_ERROR;
-        return result;
-    }
-
-
     // 1. build new ClientHello into context->record
-    result = ctls_recd_client_hello_create(&context->record,
-                                           context->template,
-                                           &context->hshk_data,
-                                           &context->crypto);
+    ctls_op_status_t result = ctls_recd_client_hello_create(&context->record);
     if (result.code != CTLS_OP_STATUS_SUCCESS) {
         context->state = CTLS_HSHK_STATE_ERROR;
         return result;
     }
 
     // 2. serialize record to wire bytes
-    result = ctls_record_serialize(context->template,
-                                   &context->record,
+    result = ctls_record_serialize(&context->record,
                                    buffer,
                                    sizeof(buffer),
                                    &buffer_length);
@@ -103,10 +107,7 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
         return result;
     }
 
-    ctls_transcript_hash_update(&context->record,
-                                context->template,
-                                &context->crypto.transcript_hash_operator,
-                                context->hshk_data.transcript_hash);
+    ctls_transcript_hash_update(&context->record);
 
     context->state = CTLS_HSHK_STATE_WAIT_SERVER_HELLO;
     // 4. recv — blocks until server responds
@@ -121,8 +122,6 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
     // 5. deserialize into record
     ctls_recd_buffer_clear(&context->record);
     result = ctls_record_deserialize(&context->record,
-                                     context->template,
-                                     &context->hshk_data,
                                      CTLS_HSMG_TYPE_SERVER_HELLO,
                                      buffer,
                                      recv_len);
@@ -131,10 +130,7 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
         return result;
     }
 
-    ctls_transcript_hash_update(&context->record,
-                                context->template,
-                                &context->crypto.transcript_hash_operator,
-                                context->hshk_data.transcript_hash);
+    ctls_transcript_hash_update(&context->record);
 
     context->state = CTLS_HSHK_STATE_KEY_SCHEDULED;
 
@@ -166,10 +162,7 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
         return result;
     }
 
-    ctls_transcript_hash_update(&context->record,
-                                context->template,
-                                &context->crypto.transcript_hash_operator,
-                                context->hshk_data.transcript_hash);
+    ctls_transcript_hash_update(&context->record);
 
     if (context->template->mutual_auth == 1) {
         // 8. Receive Certificate Request
@@ -185,8 +178,6 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
         context->state = CTLS_HSHK_STATE_WAIT_CERTIFICATE_VERIFY;
         ctls_recd_buffer_clear(&context->record);
         result = ctls_record_deserialize(&context->record,
-                                         context->template,
-                                         &context->hshk_data,
                                          CTLS_HSMG_TYPE_CERTIFICATE_REQUEST,
                                          buffer,
                                          recv_len);
@@ -196,10 +187,7 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
         }
 
         context->state = CTLS_HSHK_STATE_WAIT_CERTIFICATE;
-        ctls_transcript_hash_update(&context->record,
-                                    context->template,
-                                    &context->crypto.transcript_hash_operator,
-                                    context->hshk_data.transcript_hash);
+        ctls_transcript_hash_update(&context->record);
     }
 
 
@@ -212,7 +200,7 @@ ctls_op_status_t ctls_handshake(ctls_context_t *context) {
 
 
 ctls_op_status_t ctls_connect(ctls_context_t *context) {
-    ctls_op_status_t const result = ctls_validate_template(context->template);
+    ctls_op_status_t const result = ctls_validate_template();
     if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
     return ctls_handshake(context);

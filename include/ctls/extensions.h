@@ -164,25 +164,18 @@ struct ctls_extn_certificate {
 };
 
 ctls_op_status_t ctls_extn_client_hello_create(
-    ctls_extn_client_hello_t *client_hello_extensions,
-    ctls_template_t const *template,
-    ctls_hshk_data_t *hshk_data,
-    ctls_crypto_t const *crypto);
+    ctls_extn_client_hello_t *client_hello_extensions);
 ctls_op_status_t ctls_extn_client_hello_to_struct();
 ctls_op_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
                                                 ctls_size_t *offset,
                                                 ctls_extn_client_hello_t const *
                                                 client_hello_extensions,
-                                                ctls_template_t const *template,
                                                 ctls_wire_format_t wire_format);
 
 
-ctls_op_status_t ctls_extn_server_hello_create(ctls_hsmg_server_hello_t *server_hello,
-                                               ctls_template_t const *template);
+ctls_op_status_t ctls_extn_server_hello_create(void);
 ctls_op_status_t ctls_extn_server_hello_to_struct(
     ctls_extn_server_hello_t *server_hello_extensions,
-    ctls_template_t const *template,
-    ctls_hshk_data_t *hshk_data,
     uint8_t *buffer,
     ctls_size_t *offset,
     ctls_size_t buffer_size);
@@ -194,11 +187,9 @@ ctls_op_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
 
 
 ctls_op_status_t ctls_extn_encrypted_extensions_create(
-    ctls_hsmg_encrypted_extensions_t *encrypted_extensions,
-    ctls_template_t const *template);
+    ctls_hsmg_encrypted_extensions_t *encrypted_extensions);
 ctls_op_status_t ctls_extn_encrypted_extensions_to_struct(
     ctls_extn_encrypted_extensions_t *encrypted_extensions,
-    ctls_template_t const *template,
     ctls_size_t *offset);
 ctls_op_status_t ctls_extn_encrypted_extensions_to_wire(uint8_t *buffer,
                                                         ctls_size_t *offset,
@@ -209,13 +200,13 @@ ctls_op_status_t ctls_extn_encrypted_extensions_to_wire(uint8_t *buffer,
 ctls_op_status_t ctls_extn_certificate_request_create(void);
 ctls_op_status_t ctls_extn_certificate_request_to_struct(
     ctls_extn_certificate_request_t *certificate_request_extensions,
-    ctls_template_t const *template,
     ctls_size_t *offset);
 ctls_op_status_t ctls_extn_certificate_request_to_wire(uint8_t *buffer,
                                                        ctls_size_t *offset,
                                                        ctls_extn_certificate_request_t
                                                        const *certificate_request,
                                                        ctls_wire_format_t wire_format);
+
 
 
 #endif

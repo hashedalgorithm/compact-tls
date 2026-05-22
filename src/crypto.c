@@ -45,9 +45,15 @@ ctls_op_status_t ctls_psa_error_map(psa_status_t const status) {
     }
 }
 
-ctls_op_status_t ctls_crypto_init(ctls_crypto_t *crypto,
-                                  ctls_template_t const *template,
-                                  ctls_hshk_data_t *hshk_data) {
+ctls_op_status_t ctls_crypto_init() {
+    ctls_template_t const *template = ctls_template_get();
+    ctls_crypto_t *crypto = ctls_crypto_get();
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+
+    CTLS_CHECK_NULL(crypto);
+    CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(hshk_data);
+
     psa_status_t psa_result = psa_crypto_init();
     if (psa_result != PSA_SUCCESS) return ctls_psa_error_map(psa_result);
 
@@ -114,7 +120,7 @@ ctls_op_status_t ctls_transcript_hash_init(ctls_crypto_t *crypto,
     if (result != PSA_SUCCESS) return ctls_psa_error_map(result);
 
 
-    ctls_op_status_t const res = ctls_template_to_wire(transcript_hash, template);
+    ctls_op_status_t const res = ctls_template_to_wire(transcript_hash);
     if (res.code != CTLS_OP_STATUS_SUCCESS) return res;
 
     return ctls_transcript_hash_calculate(&crypto->transcript_hash_operator,
@@ -133,14 +139,14 @@ ctls_op_status_t ctls_transcript_hash_calculate(psa_hash_operation_t *hash_opera
     return ctls_psa_error_map(result);
 }
 
-ctls_op_status_t ctls_transcript_hash_update(ctls_record_t const *record,
-                                             ctls_template_t const *template,
-                                             psa_hash_operation_t *hash_operator,
-                                             uint8_t *transcript_hash) {
+ctls_op_status_t ctls_transcript_hash_update(ctls_record_t const *record) {
+    ctls_crypto_t *crypto = ctls_crypto_get();
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+
     CTLS_CHECK_NULL(record);
-    CTLS_CHECK_NULL(template);
-    CTLS_CHECK_NULL(transcript_hash);
-    CTLS_CHECK_NULL(hash_operator);
+    CTLS_CHECK_NULL(crypto);
+    CTLS_CHECK_NULL(hshk_data);
+
 
     uint8_t buffer[CTLS_SIZE_WIRE_BUFFER];
     ctls_size_t offset = 0;
@@ -151,7 +157,6 @@ ctls_op_status_t ctls_transcript_hash_update(ctls_record_t const *record,
                                            &offset,
                                            CTLS_SIZE_WIRE_BUFFER,
                                            record,
-                                           template,
                                            CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
 
             break;
@@ -161,7 +166,6 @@ ctls_op_status_t ctls_transcript_hash_update(ctls_record_t const *record,
                                            &offset,
                                            CTLS_SIZE_WIRE_BUFFER,
                                            record,
-                                           template,
                                            CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
             break;
         }
@@ -169,7 +173,6 @@ ctls_op_status_t ctls_transcript_hash_update(ctls_record_t const *record,
             ctls_recd_encrypted_extensions_to_wire(buffer,
                                                    &offset,
                                                    record,
-                                                   template,
                                                    CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
             break;
         }
@@ -177,7 +180,6 @@ ctls_op_status_t ctls_transcript_hash_update(ctls_record_t const *record,
             ctls_recd_certificate_request_to_wire(buffer,
                                                   &offset,
                                                   record,
-                                                  template,
                                                   CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
             break;
         }
@@ -202,7 +204,8 @@ ctls_op_status_t ctls_transcript_hash_update(ctls_record_t const *record,
             };
     }
 
-    return ctls_transcript_hash_calculate(hash_operator, transcript_hash);
+    return ctls_transcript_hash_calculate(&crypto->transcript_hash_operator,
+                                          hshk_data->transcript_hash);
 }
 
 ctls_op_status_t transcript_snapshot(psa_hash_operation_t const *hash_operator,
@@ -240,8 +243,9 @@ ctls_op_status_t ctls_key_schedule_operator_reset(ctls_crypto_t *crypto) {
 }
 
 ctls_op_status_t ctls_ephemeral_public_key_generate(uint8_t *buffer,
-                                                    ctls_size_t *bytes_written,
-                                                    ctls_crypto_t *crypto) {
+                                                    ctls_size_t *bytes_written) {
+    ctls_crypto_t *crypto = ctls_crypto_get();
+
     CTLS_CHECK_NULL(buffer);
     CTLS_CHECK_NULL(crypto);
 
@@ -272,14 +276,17 @@ ctls_op_status_t ctls_ephemeral_public_key_generate(uint8_t *buffer,
 
 ctls_op_status_t ctls_random_generate(uint8_t *buffer,
                                       ctls_size_t *bytes_written,
-                                      const uint8_t random_size) {
+                                      uint8_t const random_size) {
     psa_status_t const result = psa_generate_random(buffer, random_size);
 
     *bytes_written = random_size;
     return ctls_psa_error_map(result);
 }
 
-ctls_op_status_t ctls_key_schedule(ctls_crypto_t *crypto, ctls_hshk_data_t *hshk_data) {
+ctls_op_status_t ctls_key_schedule() {
+    ctls_crypto_t *crypto = ctls_crypto_get();
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+
     CTLS_CHECK_NULL(crypto);
     CTLS_CHECK_NULL(hshk_data);
 
@@ -307,6 +314,9 @@ ctls_op_status_t ctls_key_schedule(ctls_crypto_t *crypto, ctls_hshk_data_t *hshk
 
 ctls_op_status_t ctls_early_secret_generate(ctls_crypto_t *crypto,
                                             uint8_t *early_secret) {
+    CTLS_CHECK_NULL(crypto);
+    CTLS_CHECK_NULL(early_secret);
+
     static const uint8_t ZEROS[32] = {0};
 
     psa_status_t psa_st = PSA_ERROR_DOES_NOT_EXIST;
@@ -963,11 +973,7 @@ ctls_op_status_t ctls_nonce_generate(uint8_t *buffer,
     }
 }
 
-ctls_op_status_t ctls_decrypt(uint8_t const *handshake_key,
-                              /* 16 bytes — server write key */
-                              uint8_t const *iv_key,
-                              /* 12 bytes — server write iv  */
-                              uint16_t const *sequence_number,
+ctls_op_status_t ctls_decrypt(uint16_t const *sequence_number,
                               /* sequence number, starts at 0, increments per record */
                               uint8_t const *aad,
                               /* additional authenticated data (record header bytes) */
@@ -978,9 +984,20 @@ ctls_op_status_t ctls_decrypt(uint8_t const *handshake_key,
                               uint8_t *buffer,
                               /* caller-allocated, at least ciphertext_len - 16 bytes */
                               size_t *bytes_written) {
-    CTLS_CHECK_NULL(handshake_key);
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+    uint8_t *handshake_key;
+    uint8_t *iv_key;
+
+    if (CTLS_CLIENT) {
+        CTLS_CHECK_NULL(hshk_data->client_handshake_key);
+        CTLS_CHECK_NULL(hshk_data->client_handshake_iv_key);
+
+        handshake_key = hshk_data->client_handshake_key;
+        iv_key = hshk_data->client_handshake_iv_key;
+    }
+
+    CTLS_CHECK_NULL(hshk_data);
     CTLS_CHECK_NULL(sequence_number);
-    CTLS_CHECK_NULL(iv_key);
     CTLS_CHECK_NULL(aad);
     CTLS_CHECK_NULL(ciphertext);
     CTLS_CHECK_NULL(buffer);

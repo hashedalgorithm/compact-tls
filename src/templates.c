@@ -329,7 +329,11 @@ ctls_op_status_t ctls_template_element_to_wire(uint8_t *buffer,
     }
 }
 
-ctls_op_status_t ctls_template_to_wire(uint8_t *buffer, ctls_template_t const *template) {
+ctls_op_status_t ctls_template_to_wire(uint8_t *buffer) {
+    ctls_template_t const *template = ctls_template_get();
+    CTLS_CHECK_NULL(template);
+
+
     ctls_size_t offset = 0, template_body_length;
 
     ctls_write_u8(buffer, &offset, CTLS_RECD_CONTENT_TYPE_TEMPLATE);
