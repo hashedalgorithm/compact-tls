@@ -196,6 +196,17 @@ ctls_op_status_t ctls_extn_supported_groups_serialize(
     ctls_size_t *offset,
     ctls_extn_supported_groups_t const *supported_groups);
 
+ctls_op_status_t ctls_extn_signature_algorithm_deserialize(
+    uint8_t *buffer,
+    ctls_size_t const *buffer_length,
+    ctls_data_form_t form,
+    uint8_t is_raw_buffer,
+    ctls_extn_signature_algorithm_t *signature_algorithm);
+ctls_op_status_t ctls_extn_signature_algorithm_serialize(
+    uint8_t *buffer,
+    ctls_size_t *offset,
+    ctls_extn_signature_algorithm_t const *signature_algorithm);
+
 ctls_op_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions);
 ctls_op_status_t ctls_extn_client_hello_to_struct();

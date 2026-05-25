@@ -241,6 +241,7 @@ ctls_op_status_t ctls_extn_signature_algorithm_deserialize(
     uint8_t *buffer,
     ctls_size_t const *buffer_length,
     ctls_data_form_t form,
+    uint8_t is_raw_buffer,
     ctls_extn_signature_algorithm_t *signature_algorithm) {
     CTLS_CHECK_NULL(buffer);
     CTLS_CHECK_NULL(buffer_length);
@@ -249,31 +250,30 @@ ctls_op_status_t ctls_extn_signature_algorithm_deserialize(
     signature_algorithm->form = form;
     signature_algorithm->extension_type = CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS;
 
-    if (form == CTLS_DATA_FORM_OPAQUE) {
+    if (form == CTLS_DATA_FORM_OPAQUE && is_raw_buffer == 1) {
         signature_algorithm->opaque.buffer = buffer;
         signature_algorithm->opaque.buffer_length = *buffer_length;
     }
-    if (form == CTLS_DATA_FORM_PARSED) {
-        ctls_size_t offset = 0;
-        ctls_size_t extension_data_length = ctls_read_u16(buffer, &offset);
-        ctls_size_t extension_data_index = 0;
-        ctls_size_t extension_data_absolute_length = offset + extension_data_length;
-        offset += 2;
 
-        while (offset < extension_data_absolute_length && extension_data_index <
-               CTLS_COUNT_SIGNATURE_ALGORITHM) {
-            signature_algorithm->signature_algorithm[extension_data_index] =
-                    ctls_read_u16(buffer, &offset);
+    ctls_size_t offset = 0;
+    ctls_size_t extension_data_length = ctls_read_u16(buffer, &offset);
+    ctls_size_t extension_data_index = 0;
+    ctls_size_t extension_data_absolute_length = offset + extension_data_length;
+    offset += 2;
 
-            extension_data_index++;
-        }
-        signature_algorithm->list_count = extension_data_index;
+    while (offset < extension_data_absolute_length && extension_data_index <
+           CTLS_COUNT_SIGNATURE_ALGORITHM) {
+        signature_algorithm->signature_algorithm[extension_data_index] =
+                ctls_read_u16(buffer, &offset);
+
+        extension_data_index++;
     }
+    signature_algorithm->list_count = extension_data_index;
 
     return (ctls_op_status_t){
         .source = CTLS_ERROR_SOURCE_INTERNAL,
-        .code = CTLS_OP_STATUS_INVALID,
-        .external_code = CTLS_OP_STATUS_INVALID
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS
     };
 }
 
