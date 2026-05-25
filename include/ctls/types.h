@@ -29,8 +29,7 @@
 #define CTLS_SIZE_WIRE_BUFFER 256U
 
 #define CTLS_PROFILE_ID_LENGTH 1U
-#define CTLS_COUNT_ALPN 3
-#define CTLS_COUNT_SERVER_NAME 3
+#define CTLS_COUNT_SIGNATURE_ALGORITHM  3U
 
 /* config_octet — RFC 9147 §4, used verbatim by cTLS-10 §2.2
  *

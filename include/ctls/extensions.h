@@ -75,8 +75,10 @@ struct ctls_extn_supported_version {
 struct ctls_extn_signature_algorithm {
     ctls_data_form_t form;
     ctls_extn_type_t extension_type;
+    uint8_t list_count;
     union {
-        ctls_extn_signature_algorithm_type_t signature_algorithm;
+        ctls_extn_signature_algorithm_type_t signature_algorithm[
+            CTLS_COUNT_SIGNATURE_ALGORITHM];
         ctls_hshk_buffer_block_t opaque;
     };
 };
