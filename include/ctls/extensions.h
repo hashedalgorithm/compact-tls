@@ -20,8 +20,9 @@ struct ctls_extn_server_name_item {
 struct ctls_extn_server_name {
     ctls_data_form_t form;
     ctls_extn_type_t extension_type;
+    uint8_t list_count;
     union {
-        ctls_extn_server_name_item_t parsed_list[CTLS_COUNT_SERVER_NAME];
+        ctls_extn_server_name_item_t server_name_list[CTLS_COUNT_SERVER_NAME];
         ctls_hshk_buffer_block_t opaque;
     };
 };

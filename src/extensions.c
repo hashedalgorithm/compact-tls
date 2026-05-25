@@ -8,6 +8,18 @@
 #include "ctls/templates.h"
 #include "ctls/bytes.h"
 
+/*
+ * struct {
+ *  NamedType name_type;
+ *  opaque name<1...2^16-1>;
+ * }
+ * enum {
+ *  hostname(0), (255)
+ *  } NameType
+ *  struct {
+ *      ServerName server_name_list<1...2^16-1>;
+ *  } ServerNameList; // Extension Data
+ */
 ctls_op_status_t ctls_extn_server_name_deserialize(uint8_t *buffer,
                                                    ctls_size_t const *buffer_length,
                                                    ctls_data_form_t const form,
@@ -29,20 +41,25 @@ ctls_op_status_t ctls_extn_server_name_deserialize(uint8_t *buffer,
         ctls_size_t offset = 0;
         ctls_size_t server_name_list_index = offset;
         ctls_size_t server_name_list_length = ctls_read_u16(buffer, &offset);
+        ctls_size_t server_name_list_absolute_length = offset + server_name_list_length;
 
-        while (server_name_list_index < server_name_list_length) {
-            server_name->parsed_list[server_name_list_index].name_type =
+        while (offset < server_name_list_absolute_length) {
+            server_name->server_name_list[server_name_list_index].name_type =
                     ctls_read_u8(buffer, &server_name_list_index);
-            server_name->parsed_list[server_name_list_index].server_name.buffer_length =
-                    ctls_read_u16(buffer, &server_name_list_index);
+            server_name->server_name_list[server_name_list_index].server_name.
+                    buffer_length = ctls_read_u16(buffer, &server_name_list_index);
 
-            ctls_read_bytes(server_name->parsed_list[server_name_list_index].server_name.
-                            buffer,
-                            server_name->parsed_list[server_name_list_index].server_name.
-                            buffer_length,
+            ctls_read_bytes(server_name->server_name_list[server_name_list_index].
+                            server_name.buffer,
+                            server_name->server_name_list[server_name_list_index].
+                            server_name.buffer_length,
                             buffer,
                             &server_name_list_index);
+
+            server_name_list_index++;
         }
+
+        server_name->list_count = server_name_list_index;
     }
 
     return (ctls_op_status_t){
@@ -81,18 +98,15 @@ ctls_op_status_t ctls_extn_server_name_serialize(uint8_t *buffer,
     if (server_name->form == CTLS_DATA_FORM_PARSED) {
         *offset += 2;
 
-        ctls_size_t const server_name_list_count =
-                sizeof(server_name->parsed_list) / sizeof(server_name->parsed_list[0]);
-
-        for (ctls_size_t i = 0; i < server_name_list_count; i++) {
-            ctls_write_u8(buffer, offset, server_name->parsed_list[i].name_type);
+        for (ctls_size_t i = 0; i < server_name->list_count; i++) {
+            ctls_write_u8(buffer, offset, server_name->server_name_list[i].name_type);
             ctls_write_u16(buffer,
                            offset,
-                           server_name->parsed_list[i].server_name.buffer_length);
+                           server_name->server_name_list[i].server_name.buffer_length);
             ctls_write_bytes(buffer,
                              offset,
-                             server_name->parsed_list[i].server_name.buffer_length,
-                             server_name->parsed_list[i].server_name.buffer);
+                             server_name->server_name_list[i].server_name.buffer_length,
+                             server_name->server_name_list[i].server_name.buffer);
         }
 
         ctls_write_u16(buffer,
