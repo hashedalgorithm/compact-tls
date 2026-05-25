@@ -107,6 +107,42 @@ ctls_op_status_t ctls_extn_server_name_serialize(uint8_t *buffer,
     };
 }
 
+ctls_op_status_t ctls_extn_max_fragment_length_deserialize(
+    ctls_max_fragment_length_t *source,
+    ctls_max_fragment_length_t *max_fragment_length) {
+    CTLS_CHECK_NULL(max_fragment_length);
+    CTLS_CHECK_NULL(source);
+
+    *max_fragment_length = *source;
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS
+    };
+}
+
+ctls_op_status_t ctls_extn_max_fragment_length_serialize(
+    uint8_t *buffer,
+    ctls_size_t *offset,
+    ctls_max_fragment_length_t const *maximum_fragment_length) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(offset);
+    CTLS_CHECK_NULL(maximum_fragment_length);
+
+
+    ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_MAX_FRAGMENT_LENGTH);
+    ctls_write_u16(buffer, offset, sizeof(*maximum_fragment_length));
+    ctls_write_u16(buffer, offset, *maximum_fragment_length);
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS
+    };
+}
+
+
 
 uint8_t ctls_expected_extensions_size_get(
     ctls_tmpl_expected_extensions_t const *expected_extensions) {

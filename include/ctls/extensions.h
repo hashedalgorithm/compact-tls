@@ -172,6 +172,14 @@ ctls_op_status_t ctls_extn_server_name_serialize(uint8_t *buffer,
                                                  ctls_extn_server_name_t const *
                                                  server_name);
 
+ctls_op_status_t ctls_extn_max_fragment_length_deserialize(
+    ctls_max_fragment_length_t *source,
+    ctls_max_fragment_length_t *max_fragment_length);
+ctls_op_status_t ctls_extn_max_fragment_length_serialize(
+    uint8_t *buffer,
+    ctls_size_t *offset,
+    ctls_max_fragment_length_t const *max_fragment_length);
+
 ctls_op_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions);
 ctls_op_status_t ctls_extn_client_hello_to_struct();
