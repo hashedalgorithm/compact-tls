@@ -317,6 +317,87 @@ ctls_op_status_t ctls_extn_signature_algorithm_serialize(
     };
 }
 
+ctls_op_status_t ctls_extn_signature_algorithm_cert_deserialize(
+    uint8_t *buffer,
+    ctls_size_t const *buffer_length,
+    ctls_data_form_t const form,
+    uint8_t const is_raw_buffer,
+    ctls_extn_signature_algorithm_t *signature_algorithm_cert) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(buffer_length);
+    CTLS_CHECK_NULL(signature_algorithm_cert);
+
+    signature_algorithm_cert->form = form;
+    signature_algorithm_cert->extension_type = CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS_CERT;
+
+    if (form == CTLS_DATA_FORM_OPAQUE && is_raw_buffer == 1) {
+        signature_algorithm_cert->opaque.buffer = buffer;
+        signature_algorithm_cert->opaque.buffer_length = *buffer_length;
+    }
+
+    ctls_size_t offset = 0;
+    ctls_size_t extension_data_length = ctls_read_u16(buffer, &offset);
+    ctls_size_t extension_data_index = 0;
+    ctls_size_t extension_data_absolute_length = offset + extension_data_length;
+    offset += 2;
+
+    while (offset < extension_data_absolute_length && extension_data_index <
+           CTLS_COUNT_SIGNATURE_ALGORITHM) {
+        signature_algorithm_cert->signature_algorithm[extension_data_index] =
+                ctls_read_u16(buffer, &offset);
+
+        extension_data_index++;
+    }
+    signature_algorithm_cert->list_count = extension_data_index;
+
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS
+    };
+}
+
+ctls_op_status_t ctls_extn_signature_algorithm_cert_serialize(
+    uint8_t *buffer,
+    ctls_size_t *offset,
+    ctls_extn_signature_algorithm_t const *signature_algorithm_cert) {
+    ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS_CERT);
+    if (signature_algorithm_cert->form == CTLS_DATA_FORM_OPAQUE) {
+        ctls_write_u16(buffer, offset, signature_algorithm_cert->opaque.buffer_length);
+        ctls_write_bytes(buffer,
+                         offset,
+                         signature_algorithm_cert->opaque.buffer_length,
+                         signature_algorithm_cert->opaque.buffer);
+    }
+    if (signature_algorithm_cert->form == CTLS_DATA_FORM_PARSED) {
+        if (signature_algorithm_cert->list_count <= 0)
+            return (ctls_op_status_t){
+                .source = CTLS_ERROR_SOURCE_INTERNAL,
+                .code = CTLS_OP_STATUS_INVALID,
+                .external_code = CTLS_OP_STATUS_INVALID
+            };
+
+        ctls_write_u16(buffer,
+                       offset,
+                       signature_algorithm_cert->list_count * sizeof(
+                           signature_algorithm_cert->signature_algorithm[0]));
+        uint8_t extension_data_index = 0;
+        while (extension_data_index < signature_algorithm_cert->list_count) {
+            ctls_write_u16(buffer,
+                           offset,
+                           signature_algorithm_cert->signature_algorithm[
+                               extension_data_index]);
+        }
+    }
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_INVALID,
+        .external_code = CTLS_OP_STATUS_INVALID
+    };
+}
+
 
 
 uint8_t ctls_expected_extensions_size_get(

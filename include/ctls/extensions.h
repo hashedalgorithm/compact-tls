@@ -207,6 +207,17 @@ ctls_op_status_t ctls_extn_signature_algorithm_serialize(
     ctls_size_t *offset,
     ctls_extn_signature_algorithm_t const *signature_algorithm);
 
+ctls_op_status_t ctls_extn_signature_algorithm_cert_deserialize(
+    uint8_t *buffer,
+    ctls_size_t const *buffer_length,
+    ctls_data_form_t form,
+    uint8_t is_raw_buffer,
+    ctls_extn_signature_algorithm_t *signature_algorithm_cert);
+ctls_op_status_t ctls_extn_signature_algorithm_cert_serialize(
+    uint8_t *buffer,
+    ctls_size_t *offset,
+    ctls_extn_signature_algorithm_t const *signature_algorithm_cert);
+
 ctls_op_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions);
 ctls_op_status_t ctls_extn_client_hello_to_struct();
