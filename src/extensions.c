@@ -161,6 +161,7 @@ ctls_op_status_t ctls_extn_supported_groups_deserialize(
     uint8_t *buffer,
     ctls_size_t const *buffer_length,
     ctls_data_form_t form,
+    uint8_t is_raw_buffer,
     ctls_extn_supported_groups_t *supported_groups) {
     CTLS_CHECK_NULL(buffer);
     CTLS_CHECK_NULL(buffer_length);
@@ -169,31 +170,31 @@ ctls_op_status_t ctls_extn_supported_groups_deserialize(
     supported_groups->form = form;
     supported_groups->extension_type = CTLS_EXTN_TYPE_SUPPORTED_GROUPS;
 
-    if (form == CTLS_DATA_FORM_OPAQUE) {
+    if (form == CTLS_DATA_FORM_OPAQUE && is_raw_buffer == 1) {
         supported_groups->opaque.buffer = buffer;
         supported_groups->opaque.buffer_length = *buffer_length;
     }
-    if (form == CTLS_DATA_FORM_PARSED) {
-        ctls_size_t offset = 0;
-        ctls_size_t extension_data_length = ctls_read_u16(buffer, &offset);
-        ctls_size_t extension_data_index = 0;
-        ctls_size_t extension_data_absolute_length = offset + extension_data_length;
-        offset += 2;
 
-        while (offset < extension_data_absolute_length && extension_data_index <
-               CTLS_COUNT_SUPPORTED_GROUPS) {
-            supported_groups->supported_group[extension_data_index] =
-                    ctls_read_u16(buffer, &offset);
+    ctls_size_t offset = 0;
+    ctls_size_t extension_data_length = ctls_read_u16(buffer, &offset);
+    ctls_size_t extension_data_index = 0;
+    ctls_size_t extension_data_absolute_length = offset + extension_data_length;
+    offset += 2;
 
-            extension_data_index++;
-        }
-        supported_groups->list_count = extension_data_index;
+    while (offset < extension_data_absolute_length && extension_data_index <
+           CTLS_COUNT_SUPPORTED_GROUPS) {
+        supported_groups->supported_group[extension_data_index] =
+                ctls_read_u16(buffer, &offset);
+
+        extension_data_index++;
     }
+    supported_groups->list_count = extension_data_index;
+
 
     return (ctls_op_status_t){
         .source = CTLS_ERROR_SOURCE_INTERNAL,
-        .code = CTLS_OP_STATUS_INVALID,
-        .external_code = CTLS_OP_STATUS_INVALID
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS
     };
 }
 
