@@ -58,8 +58,9 @@ struct ctls_extn_alpn {
 struct ctls_extn_supported_groups {
     ctls_data_form_t form;
     ctls_extn_type_t extension_type;
+    uint8_t list_count;
     union {
-        ctls_extn_dhe_group_type_t supported_group;
+        ctls_extn_dhe_group_type_t supported_group[CTLS_COUNT_SUPPORTED_GROUPS];
         ctls_hshk_buffer_block_t opaque;
     };
 };
