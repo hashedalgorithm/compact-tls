@@ -398,6 +398,40 @@ ctls_op_status_t ctls_extn_signature_algorithm_cert_serialize(
     };
 }
 
+ctls_op_status_t ctls_extn_heartbeat_mode_deserialize(ctls_extn_heartbeat_mode_t *source,
+                                                      ctls_extn_heartbeat_mode_t *
+                                                      heartbeat_mode) {
+    CTLS_CHECK_NULL(source);
+    CTLS_CHECK_NULL(heartbeat_mode);
+
+    *heartbeat_mode = *source;
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS
+    };
+}
+
+ctls_op_status_t ctls_extn_heartbeat_mode_serialize(uint8_t *buffer,
+                                                    ctls_size_t *offset,
+                                                    ctls_extn_heartbeat_mode_t const *
+                                                    heartbeat_mode) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(offset);
+    CTLS_CHECK_NULL(heartbeat_mode);
+
+    ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_HEARTBEAT);
+    ctls_write_u16(buffer, offset, sizeof(*heartbeat_mode));
+    ctls_write_u8(buffer, offset, *heartbeat_mode);
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_INVALID,
+        .external_code = CTLS_OP_STATUS_INVALID
+    };
+}
+
 
 
 uint8_t ctls_expected_extensions_size_get(

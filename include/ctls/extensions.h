@@ -218,6 +218,14 @@ ctls_op_status_t ctls_extn_signature_algorithm_cert_serialize(
     ctls_size_t *offset,
     ctls_extn_signature_algorithm_t const *signature_algorithm_cert);
 
+ctls_op_status_t ctls_extn_heartbeat_mode_deserialize(ctls_extn_heartbeat_mode_t *source,
+                                                      ctls_extn_heartbeat_mode_t *
+                                                      heartbeat_mode);
+ctls_op_status_t ctls_extn_heartbeat_mode_serialize(uint8_t *buffer,
+                                                    ctls_size_t *offset,
+                                                    ctls_extn_heartbeat_mode_t const *
+                                                    heartbeat_mode);
+
 ctls_op_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions);
 ctls_op_status_t ctls_extn_client_hello_to_struct();
