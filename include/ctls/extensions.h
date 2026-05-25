@@ -163,6 +163,15 @@ struct ctls_extn_certificate {
     ctls_extn_signed_certificate_timestamp_t signed_certificate_timestamp;
 };
 
+ctls_op_status_t ctls_extn_server_name_deserialize(uint8_t *buffer,
+                                                   ctls_size_t const *buffer_length,
+                                                   ctls_data_form_t form,
+                                                   ctls_extn_server_name_t *server_name);
+ctls_op_status_t ctls_extn_server_name_serialize(uint8_t *buffer,
+                                                 ctls_size_t *offset,
+                                                 ctls_extn_server_name_t const *
+                                                 server_name);
+
 ctls_op_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions);
 ctls_op_status_t ctls_extn_client_hello_to_struct();

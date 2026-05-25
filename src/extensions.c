@@ -8,6 +8,106 @@
 #include "ctls/templates.h"
 #include "ctls/bytes.h"
 
+ctls_op_status_t ctls_extn_server_name_deserialize(uint8_t *buffer,
+                                                   ctls_size_t const *buffer_length,
+                                                   ctls_data_form_t const form,
+                                                   ctls_extn_server_name_t *server_name) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(buffer_length);
+    CTLS_CHECK_NULL(server_name);
+
+
+    server_name->extension_type = CTLS_EXTN_TYPE_SERVER_NAME;
+    server_name->form = form;
+
+    if (form == CTLS_DATA_FORM_OPAQUE) {
+        server_name->opaque.buffer_length = *buffer_length;
+        server_name->opaque.buffer = buffer;
+    }
+
+    if (form == CTLS_DATA_FORM_PARSED) {
+        ctls_size_t offset = 0;
+        ctls_size_t server_name_list_index = offset;
+        ctls_size_t server_name_list_length = ctls_read_u16(buffer, &offset);
+
+        while (server_name_list_index < server_name_list_length) {
+            server_name->parsed_list[server_name_list_index].name_type =
+                    ctls_read_u8(buffer, &server_name_list_index);
+            server_name->parsed_list[server_name_list_index].server_name.buffer_length =
+                    ctls_read_u16(buffer, &server_name_list_index);
+
+            ctls_read_bytes(server_name->parsed_list[server_name_list_index].server_name.
+                            buffer,
+                            server_name->parsed_list[server_name_list_index].server_name.
+                            buffer_length,
+                            buffer,
+                            &server_name_list_index);
+        }
+    }
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_INVALID,
+        .external_code = CTLS_OP_STATUS_INVALID
+    };
+}
+
+ctls_op_status_t ctls_extn_server_name_serialize(uint8_t *buffer,
+                                                 ctls_size_t *offset,
+                                                 ctls_extn_server_name_t const *
+                                                 server_name) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(offset);
+    CTLS_CHECK_NULL(server_name);
+
+    ctls_size_t extensions_length_offset = *offset;
+
+    if (server_name->form != CTLS_DATA_FORM_OPAQUE && server_name->form !=
+        CTLS_DATA_FORM_PARSED)
+        return (ctls_op_status_t){
+            .source = CTLS_ERROR_SOURCE_INTERNAL,
+            .code = CTLS_OP_STATUS_INVALID,
+            .external_code = CTLS_OP_STATUS_INVALID
+        };
+
+    ctls_write_u16(buffer, offset, server_name->extension_type);
+    if (server_name->form == CTLS_DATA_FORM_OPAQUE) {
+        ctls_write_u16(buffer, offset, server_name->opaque.buffer_length);
+        ctls_write_bytes(buffer,
+                         offset,
+                         server_name->opaque.buffer_length,
+                         server_name->opaque.buffer);
+    }
+    if (server_name->form == CTLS_DATA_FORM_PARSED) {
+        *offset += 2;
+
+        ctls_size_t const server_name_list_count =
+                sizeof(server_name->parsed_list) / sizeof(server_name->parsed_list[0]);
+
+        for (ctls_size_t i = 0; i < server_name_list_count; i++) {
+            ctls_write_u8(buffer, offset, server_name->parsed_list[i].name_type);
+            ctls_write_u16(buffer,
+                           offset,
+                           server_name->parsed_list[i].server_name.buffer_length);
+            ctls_write_bytes(buffer,
+                             offset,
+                             server_name->parsed_list[i].server_name.buffer_length,
+                             server_name->parsed_list[i].server_name.buffer);
+        }
+
+        ctls_write_u16(buffer,
+                       &extensions_length_offset,
+                       *offset - extensions_length_offset);
+    }
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS,
+    };
+}
+
+
 uint8_t ctls_expected_extensions_size_get(
     ctls_tmpl_expected_extensions_t const *expected_extensions) {
     return sizeof(*expected_extensions) / sizeof((*expected_extensions)[0]);
