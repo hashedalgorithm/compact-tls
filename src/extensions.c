@@ -440,6 +440,88 @@ ctls_op_status_t ctls_extn_heartbeat_mode_serialize(uint8_t *buffer,
     };
 }
 
+ctls_op_status_t ctls_extn_alpn_deserialize(uint8_t *buffer,
+                                            ctls_size_t const *buffer_length,
+                                            ctls_data_form_t const form,
+                                            ctls_extn_alpn_t *alpn) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(buffer_length);
+    CTLS_CHECK_NULL(alpn);
+
+    alpn->form = form;
+    alpn->extension_type = CTLS_EXTN_TYPE_APPLICATION_LAYER_PROTOCOL_NEGOTIATION;
+
+    if (form == CTLS_DATA_FORM_OPAQUE) {
+        alpn->opaque.buffer = buffer;
+        alpn->opaque.buffer_length = *buffer_length;
+    }
+    if (form == CTLS_DATA_FORM_PARSED) {
+        ctls_size_t offset = 0;
+        ctls_size_t alpn_list_index = offset;
+        ctls_size_t alpn_list_length = ctls_read_u16(buffer, &offset);
+        ctls_size_t alpn_list_absolute_length = offset + alpn_list_length;
+
+        while (offset < alpn_list_absolute_length) {
+            alpn->alpn_list[alpn_list_index].protocol_name_length =
+                    ctls_read_u8(buffer, &offset);
+            ctls_read_bytes(alpn->alpn_list[alpn_list_index].protocol_name,
+                            alpn->alpn_list[alpn_list_index].protocol_name_length,
+                            buffer,
+                            &offset);
+
+            alpn_list_index++;
+        }
+
+        alpn->list_count = alpn_list_index;
+    }
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_INVALID,
+        .external_code = CTLS_OP_STATUS_INVALID
+    };
+}
+
+ctls_op_status_t ctls_extn_alpn_serialize(uint8_t *buffer,
+                                          ctls_size_t *offset,
+                                          ctls_extn_alpn_t const *alpn) {
+    ctls_write_u16(buffer, offset, alpn->extension_type);
+
+    if (alpn->form == CTLS_DATA_FORM_OPAQUE) {
+        ctls_write_u16(buffer, offset, alpn->opaque.buffer_length);
+        ctls_write_bytes(buffer, offset, alpn->opaque.buffer_length, alpn->opaque.buffer);
+    }
+    if (alpn->form == CTLS_DATA_FORM_PARSED) {
+        if (alpn->list_count <= 0) {
+            ctls_write_u16(buffer, offset, 0);
+            return (ctls_op_status_t){
+                .source = CTLS_ERROR_SOURCE_INTERNAL,
+                .code = CTLS_OP_STATUS_SUCCESS,
+                .external_code = CTLS_OP_STATUS_SUCCESS,
+            };
+        }
+
+        ctls_size_t extensions_length_offset = *offset;
+        *offset += 2;
+
+        for (uint8_t i = 0; i < alpn->list_count; i++) {
+            ctls_write_u8(buffer, offset, alpn->alpn_list[i].protocol_name_length);
+            ctls_write_bytes(buffer,
+                             offset,
+                             alpn->alpn_list[i].protocol_name_length,
+                             alpn->alpn_list[i].protocol_name);
+        }
+
+        ctls_write_u16(buffer, offset, *offset - extensions_length_offset);
+    }
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_INVALID,
+        .external_code = CTLS_OP_STATUS_INVALID
+    };
+}
+
 
 
 uint8_t ctls_expected_extensions_size_get(

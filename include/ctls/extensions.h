@@ -44,13 +44,18 @@ struct ctls_extn_certificate_status_request {
         ctls_hshk_buffer_block_t opaque;
     };
 };
+struct ctls_extn_alpn_protocol_name {
+    uint8_t protocol_name_length;
+    uint8_t protocol_name[CTLS_SIZE_MAX_ALPN_PROTOCOL_NAME];
+};
 
 // Application layer protocol negotiation
 struct ctls_extn_alpn {
     ctls_data_form_t form;
     ctls_extn_type_t extension_type;
+    uint8_t list_count;
     union {
-        ctls_hshk_buffer_block_t alpn_list[CTLS_COUNT_ALPN];
+        ctls_extn_alpn_protocol_name_t alpn_list[CTLS_COUNT_ALPN];
         ctls_hshk_buffer_block_t opaque;
     };
 };
@@ -225,6 +230,14 @@ ctls_op_status_t ctls_extn_heartbeat_mode_serialize(uint8_t *buffer,
                                                     ctls_size_t *offset,
                                                     ctls_extn_heartbeat_mode_t const *
                                                     heartbeat_mode);
+
+ctls_op_status_t ctls_extn_alpn_deserialize(uint8_t *buffer,
+                                            ctls_size_t const *buffer_length,
+                                            ctls_data_form_t form,
+                                            ctls_extn_alpn_t *alpn);
+ctls_op_status_t ctls_extn_alpn_serialize(uint8_t *buffer,
+                                          ctls_size_t *offset,
+                                          ctls_extn_alpn_t const *alpn);
 
 ctls_op_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions);
