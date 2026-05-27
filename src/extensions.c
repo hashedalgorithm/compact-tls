@@ -77,7 +77,6 @@ ctls_op_status_t ctls_extn_server_name_serialize(uint8_t *buffer,
     CTLS_CHECK_NULL(offset);
     CTLS_CHECK_NULL(server_name);
 
-    ctls_size_t extensions_length_offset = *offset;
 
     if (server_name->form != CTLS_DATA_FORM_OPAQUE && server_name->form !=
         CTLS_DATA_FORM_PARSED)
@@ -96,6 +95,15 @@ ctls_op_status_t ctls_extn_server_name_serialize(uint8_t *buffer,
                          server_name->opaque.buffer);
     }
     if (server_name->form == CTLS_DATA_FORM_PARSED) {
+        if (server_name->list_count <= 0) {
+            ctls_write_u16(buffer, offset, 0);
+            return (ctls_op_status_t){
+                .source = CTLS_ERROR_SOURCE_INTERNAL,
+                .code = CTLS_OP_STATUS_SUCCESS,
+                .external_code = CTLS_OP_STATUS_SUCCESS,
+            };
+        }
+        ctls_size_t extensions_length_offset = *offset;
         *offset += 2;
 
         for (ctls_size_t i = 0; i < server_name->list_count; i++) {
