@@ -127,7 +127,7 @@ typedef enum {
     CTLS_HSMG_PROTOCOL_VERSION_SENTINEL = 0x0000,
     CTLS_HSMG_PROTOCOL_VERSION_1_2 = 0x0303,
     CTLS_HSMG_PROTOCOL_VERSION_1_3 = 0x0304,
-} ctls_hsmg_protocol_version_t;
+} ctls_protocol_version_t;
 
 typedef enum {
     CTLS_RECD_CONTENT_TYPE_INVALID = 0x00,
@@ -333,7 +333,6 @@ typedef struct ctls_extn_ocsp_status_request ctls_extn_ocsp_status_request_t;
 typedef struct ctls_extn_alpn_protocol_name ctls_extn_alpn_protocol_name_t;
 typedef struct ctls_extn_alpn ctls_extn_alpn_t;
 typedef struct ctls_extn_supported_groups ctls_extn_supported_groups_t;
-typedef struct ctls_extn_supported_version ctls_extn_supported_version_t;
 typedef struct ctls_extn_signature_algorithm ctls_extn_signature_algorithm_t;
 typedef struct ctls_extn_key_share ctls_extn_key_share_t;
 typedef uint8_t ctls_extn_post_handshake_auth_t;

@@ -61,7 +61,7 @@ struct ctls_tmpl_known_certificates {
 struct ctls_template {
     uint8_t profile_id;
     uint16_t ctls_version;
-    ctls_hsmg_protocol_version_t protocol_version;
+    ctls_protocol_version_t protocol_version;
     ctls_hsmg_cipher_suite_type_t cipher_suite;
     ctls_tmpl_dhe_group_t dhe_group;
     ctls_tmpl_signature_algorithm_t signature_algorithm;

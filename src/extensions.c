@@ -680,6 +680,33 @@ ctls_op_status_t ctls_extn_server_certificate_type_serialize(
     };
 }
 
+ctls_op_status_t ctls_extn_supported_versions_deserialize(
+    ctls_protocol_version_t const *source,
+    ctls_protocol_version_t *supported_versions) {
+    *supported_versions = *source;
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS
+    };
+}
+
+ctls_op_status_t ctls_extn_supported_versions_serialize(
+    uint8_t *buffer,
+    ctls_size_t *offset,
+    ctls_protocol_version_t const *supported_versions) {
+    ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SUPPORTED_VERSIONS);
+    ctls_write_u16(buffer, offset, sizeof(supported_versions));
+    ctls_write_u16(buffer, offset, *supported_versions);
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_INVALID,
+        .external_code = CTLS_OP_STATUS_INVALID
+    };
+}
+
 
 
 uint8_t ctls_expected_extensions_size_get(

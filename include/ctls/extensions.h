@@ -69,14 +69,6 @@ struct ctls_extn_supported_groups {
         ctls_hshk_buffer_block_t opaque;
     };
 };
-struct ctls_extn_supported_version {
-    ctls_data_form_t form;
-    ctls_extn_type_t extension_type;
-    union {
-        ctls_hsmg_protocol_version_t version;
-        ctls_hshk_buffer_block_t opaque;
-    };
-};
 struct ctls_extn_signature_algorithm {
     ctls_data_form_t form;
     ctls_extn_type_t extension_type;
@@ -134,7 +126,7 @@ struct ctls_extn_client_hello {
     ctls_extn_signed_certificate_timestamp_t signed_certificate_timestamp;
     ctls_extn_certificate_type_t client_certificate_type;
     ctls_extn_certificate_type_t server_certificate_type;
-    ctls_extn_supported_version_t supported_versions;
+    ctls_protocol_version_t supported_versions;
     ctls_extn_psk_key_exchange_mode_t psk_key_exchange_modes;
     ctls_extn_certificate_authorities_t certificate_authorities;
     ctls_extn_post_handshake_auth_t post_handshake_auth;
@@ -143,7 +135,7 @@ struct ctls_extn_client_hello {
 };
 
 struct ctls_extn_server_hello {
-    ctls_extn_supported_version_t supported_versions;
+    ctls_protocol_version_t supported_versions;
     ctls_extn_key_share_t key_share_entity;
 };
 
@@ -271,6 +263,14 @@ ctls_op_status_t ctls_extn_server_certificate_type_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
     ctls_extn_certificate_type_t const *server_certificate_type);
+
+ctls_op_status_t ctls_extn_supported_versions_deserialize(
+    ctls_protocol_version_t const *source,
+    ctls_protocol_version_t *supported_versions);
+ctls_op_status_t ctls_extn_supported_versions_serialize(
+    uint8_t *buffer,
+    ctls_size_t *offset,
+    ctls_protocol_version_t const *supported_versions);
 
 ctls_op_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions);
