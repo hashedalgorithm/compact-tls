@@ -836,6 +836,48 @@ ctls_op_status_t ctls_extn_post_handshake_auth_serialize(
     };
 }
 
+ctls_op_status_t ctls_extn_key_share_deserialize(uint8_t *buffer,
+                                                 ctls_size_t *offset,
+                                                 ctls_extn_key_share_t *key_share) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(offset);
+    CTLS_CHECK_NULL(key_share);
+
+    key_share->extension_type = CTLS_EXTN_TYPE_KEY_SHARE;
+    ctls_read_bytes(key_share->key_share, CTLS_SIZE_KEY_SHARE, buffer, offset);
+
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS
+    };
+}
+
+ctls_op_status_t ctls_extn_key_share_serialize(uint8_t *buffer,
+                                               ctls_size_t *offset,
+                                               ctls_wire_format_t wire_format,
+                                               ctls_extn_key_share_t const *key_share) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(offset);
+    CTLS_CHECK_NULL(key_share);
+
+    if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
+        ctls_write_u16(buffer, offset, CTLS_SIZE_KEY_SHARE);
+        ctls_write_bytes(buffer, offset, CTLS_SIZE_WIRE_BUFFER, key_share->key_share);
+    }
+    if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
+        ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_KEY_SHARE);
+        ctls_write_u16(buffer, offset, CTLS_SIZE_KEY_SHARE);
+        ctls_write_bytes(buffer, offset, CTLS_SIZE_WIRE_BUFFER, key_share->key_share);
+    }
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS
+    };
+}
 
 
 uint8_t ctls_expected_extensions_size_get(

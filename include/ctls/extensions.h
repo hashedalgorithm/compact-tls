@@ -80,12 +80,8 @@ struct ctls_extn_signature_algorithm {
     };
 };
 struct ctls_extn_key_share {
-    ctls_data_form_t form;
     ctls_extn_type_t extension_type;
-    union {
-        ctls_hshk_buffer_block_t key_share;
-        ctls_hshk_buffer_block_t opaque;
-    };
+    uint8_t key_share[CTLS_SIZE_KEY_SHARE];
 };
 
 struct ctls_extn_certificate_authorities {
@@ -298,6 +294,14 @@ ctls_op_status_t ctls_extn_post_handshake_auth_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
     ctls_extn_post_handshake_auth_t const *post_handshake_auth);
+
+ctls_op_status_t ctls_extn_key_share_deserialize(uint8_t *buffer,
+                                                 ctls_size_t *offset,
+                                                 ctls_extn_key_share_t *key_share);
+ctls_op_status_t ctls_extn_key_share_serialize(uint8_t *buffer,
+                                               ctls_size_t *offset,
+                                               ctls_wire_format_t wire_format,
+                                               ctls_extn_key_share_t const *key_share);
 
 ctls_op_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions);
