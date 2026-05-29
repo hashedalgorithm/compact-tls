@@ -741,6 +741,61 @@ ctls_op_status_t ctls_extn_psk_key_exchange_modes_serialize(
     };
 }
 
+ctls_op_status_t ctls_extn_certificate_authorities_deserialize(
+    uint8_t *buffer,
+    ctls_size_t const *buffer_length,
+    ctls_data_form_t const form,
+    ctls_extn_certificate_authorities_t *certificate_authorities) {
+    if (form == CTLS_DATA_FORM_OPAQUE) {
+        certificate_authorities->opaque.buffer = buffer;
+        certificate_authorities->opaque.buffer_length = *buffer_length;
+    }
+    if (form == CTLS_DATA_FORM_PARSED) {
+        ctls_size_t offset = 0;
+        certificate_authorities->distinguished_name_length =
+                ctls_read_u16(buffer, &offset);
+        ctls_read_bytes(certificate_authorities->distinguished_name,
+                        certificate_authorities->distinguished_name_length,
+                        buffer,
+                        &offset);
+    }
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS
+    };
+}
+
+ctls_op_status_t ctls_extn_certificate_authorities_serialize(
+    uint8_t *buffer,
+    ctls_size_t *offset,
+    ctls_extn_certificate_authorities_t const *certificate_authorities) {
+    ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_CERTIFICATE_AUTHORITIES);
+    if (certificate_authorities->form == CTLS_DATA_FORM_OPAQUE) {
+        ctls_write_u16(buffer, offset, certificate_authorities->opaque.buffer_length);
+        ctls_write_bytes(buffer,
+                         offset,
+                         certificate_authorities->opaque.buffer_length,
+                         certificate_authorities->opaque.buffer);
+    }
+    if (certificate_authorities->form == CTLS_DATA_FORM_PARSED) {
+        ctls_write_u16(buffer,
+                       offset,
+                       certificate_authorities->distinguished_name_length);
+        ctls_write_bytes(buffer,
+                         offset,
+                         certificate_authorities->distinguished_name_length,
+                         certificate_authorities->distinguished_name);
+    }
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_INVALID,
+        .external_code = CTLS_OP_STATUS_INVALID
+    };
+}
+
 
 
 uint8_t ctls_expected_extensions_size_get(

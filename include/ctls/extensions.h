@@ -91,9 +91,10 @@ struct ctls_extn_key_share {
 struct ctls_extn_certificate_authorities {
     ctls_data_form_t form;
     ctls_extn_type_t extension_type;
+    uint8_t distinguished_name_length;
     union {
         ctls_hshk_buffer_block_t opaque;
-        ctls_hshk_buffer_block_t distinguished_name;
+        uint8_t distinguished_name[CTLS_SIZE_MAX_DISTINGUISHED_NAME];
     };
 };
 
@@ -279,6 +280,16 @@ ctls_op_status_t ctls_extn_psk_key_exchange_modes_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
     ctls_extn_psk_key_exchange_mode_t const *psk_key_exchange_modes);
+
+ctls_op_status_t ctls_extn_certificate_authorities_deserialize(
+    uint8_t *buffer,
+    ctls_size_t const *buffer_length,
+    ctls_data_form_t form,
+    ctls_extn_certificate_authorities_t *certificate_authorities);
+ctls_op_status_t ctls_extn_certificate_authorities_serialize(
+    uint8_t *buffer,
+    ctls_size_t *offset,
+    ctls_extn_certificate_authorities_t const *certificate_authorities);
 
 ctls_op_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions);
