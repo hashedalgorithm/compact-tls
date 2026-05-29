@@ -707,6 +707,40 @@ ctls_op_status_t ctls_extn_supported_versions_serialize(
     };
 }
 
+ctls_op_status_t ctls_extn_psk_key_exchange_modes_deserialize(
+    ctls_extn_psk_key_exchange_mode_t const *source,
+    ctls_extn_psk_key_exchange_mode_t *psk_key_exchange_modes) {
+    CTLS_CHECK_NULL(source);
+    CTLS_CHECK_NULL(psk_key_exchange_modes);
+
+    *psk_key_exchange_modes = *source;
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS
+    };
+}
+
+ctls_op_status_t ctls_extn_psk_key_exchange_modes_serialize(
+    uint8_t *buffer,
+    ctls_size_t *offset,
+    ctls_extn_psk_key_exchange_mode_t const *psk_key_exchange_modes) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(offset);
+    CTLS_CHECK_NULL(psk_key_exchange_modes);
+
+    ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_PSK_KEY_EXCHANGE_MODES);
+    ctls_write_u8(buffer, offset, sizeof(*psk_key_exchange_modes));
+    ctls_write_u8(buffer, offset, *psk_key_exchange_modes);
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_INVALID,
+        .external_code = CTLS_OP_STATUS_INVALID
+    };
+}
+
 
 
 uint8_t ctls_expected_extensions_size_get(

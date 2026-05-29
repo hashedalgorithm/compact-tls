@@ -272,6 +272,14 @@ ctls_op_status_t ctls_extn_supported_versions_serialize(
     ctls_size_t *offset,
     ctls_protocol_version_t const *supported_versions);
 
+ctls_op_status_t ctls_extn_psk_key_exchange_modes_deserialize(
+    ctls_extn_psk_key_exchange_mode_t const *source,
+    ctls_extn_psk_key_exchange_mode_t *psk_key_exchange_modes);
+ctls_op_status_t ctls_extn_psk_key_exchange_modes_serialize(
+    uint8_t *buffer,
+    ctls_size_t *offset,
+    ctls_extn_psk_key_exchange_mode_t const *psk_key_exchange_modes);
+
 ctls_op_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions);
 ctls_op_status_t ctls_extn_client_hello_to_struct();
