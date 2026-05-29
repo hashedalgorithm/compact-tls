@@ -291,6 +291,14 @@ ctls_op_status_t ctls_extn_certificate_authorities_serialize(
     ctls_size_t *offset,
     ctls_extn_certificate_authorities_t const *certificate_authorities);
 
+ctls_op_status_t ctls_extn_post_handshake_auth_deserialize(
+    ctls_extn_post_handshake_auth_t const *source,
+    ctls_extn_post_handshake_auth_t *post_handshake_auth);
+ctls_op_status_t ctls_extn_post_handshake_auth_serialize(
+    uint8_t *buffer,
+    ctls_size_t *offset,
+    ctls_extn_post_handshake_auth_t const *post_handshake_auth);
+
 ctls_op_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions);
 ctls_op_status_t ctls_extn_client_hello_to_struct();

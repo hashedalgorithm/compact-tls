@@ -796,6 +796,46 @@ ctls_op_status_t ctls_extn_certificate_authorities_serialize(
     };
 }
 
+ctls_op_status_t ctls_extn_post_handshake_auth_deserialize(
+    ctls_extn_post_handshake_auth_t const *source,
+    ctls_extn_post_handshake_auth_t *post_handshake_auth) {
+    CTLS_CHECK_NULL(source);
+    CTLS_CHECK_NULL(post_handshake_auth);
+
+    *post_handshake_auth = *source;
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_INVALID,
+        .external_code = CTLS_OP_STATUS_INVALID
+    };
+}
+
+ctls_op_status_t ctls_extn_post_handshake_auth_serialize(
+    uint8_t *buffer,
+    ctls_size_t *offset,
+    ctls_extn_post_handshake_auth_t const *post_handshake_auth) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(offset);
+    CTLS_CHECK_NULL(post_handshake_auth);
+
+    if (!*post_handshake_auth)
+        return (ctls_op_status_t){
+            .source = CTLS_ERROR_SOURCE_INTERNAL,
+            .code = CTLS_OP_STATUS_SUCCESS,
+            .external_code = CTLS_OP_STATUS_SUCCESS
+        };
+
+    ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_POST_HANDSHAKE_AUTH);
+    ctls_write_u16(buffer, offset, 0);
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS
+    };
+}
+
 
 
 uint8_t ctls_expected_extensions_size_get(
