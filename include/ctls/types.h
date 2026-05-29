@@ -29,6 +29,8 @@
 #define CTLS_SIZE_WIRE_BUFFER 256U
 
 #define CTLS_PROFILE_ID_LENGTH 1U
+#define CTLS_COUNT_ALPN 3U
+#define CTLS_SIZE_MAX_ALPN_PROTOCOL_NAME 12U
 #define CTLS_COUNT_SIGNATURE_ALGORITHM  3U
 
 /* config_octet — RFC 9147 §4, used verbatim by cTLS-10 §2.2
@@ -319,7 +321,6 @@ typedef enum {
     CTLS_EXTN_SCT_ENTRY_TYPE_PRECERT = 1, // pre-certificate
 } ctls_extn_sct_entry_type_t;
 
-
 typedef struct ctls_extn_server_name_item ctls_extn_server_name_item_t;
 typedef struct ctls_extn_server_name ctls_extn_server_name_t;
 typedef struct ctls_extn_certificate_status_request_parsed
@@ -327,6 +328,7 @@ ctls_extn_certificate_status_request_parsed_t;
 typedef struct ctls_extn_certificate_status_request
 ctls_extn_certificate_status_request_t;
 typedef struct ctls_extn_ocsp_status_request ctls_extn_ocsp_status_request_t;
+typedef struct ctls_extn_alpn_protocol_name ctls_extn_alpn_protocol_name_t;
 typedef struct ctls_extn_alpn ctls_extn_alpn_t;
 typedef struct ctls_extn_supported_groups ctls_extn_supported_groups_t;
 typedef struct ctls_extn_supported_version ctls_extn_supported_version_t;
@@ -334,6 +336,7 @@ typedef struct ctls_extn_signature_algorithm ctls_extn_signature_algorithm_t;
 typedef struct ctls_extn_key_share ctls_extn_key_share_t;
 typedef uint8_t ctls_extn_post_handshake_auth_t;
 typedef struct ctls_extn_certificate_authorities ctls_extn_certificate_authorities_t;
+
 typedef struct ctls_extn_signed_certificate_timestamp_parsed
 ctls_extn_signed_certificate_timestamp_parsed_t;
 typedef struct ctls_extn_signed_certificate_timestamp
@@ -350,6 +353,7 @@ typedef struct ctls_hsmg_encrypted_extensions ctls_hsmg_encrypted_extensions_t;
 
 typedef struct ctls_extn_certificate_request ctls_extn_certificate_request_t;
 typedef struct ctls_hsmg_certificate_request ctls_hsmg_certificate_request_t;
+
 
 
 typedef struct ctls_hsmg_certificate_verify ctls_hsmg_certificate_verify_t;
