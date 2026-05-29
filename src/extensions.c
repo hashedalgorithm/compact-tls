@@ -522,6 +522,100 @@ ctls_op_status_t ctls_extn_alpn_serialize(uint8_t *buffer,
     };
 }
 
+ctls_op_status_t ctls_extn_signed_certificate_timestamp_deserialize(
+    uint8_t *buffer,
+    ctls_size_t const *buffer_length,
+    ctls_data_form_t form,
+    ctls_extn_signed_certificate_timestamp_t *signed_certificate_timestamp) {
+    signed_certificate_timestamp->extension_type =
+            CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP;
+    signed_certificate_timestamp->form = form;
+
+    if (form == CTLS_DATA_FORM_OPAQUE) {
+        signed_certificate_timestamp->opaque.buffer = buffer;
+        signed_certificate_timestamp->opaque.buffer_length = *buffer_length;
+    }
+    if (form == CTLS_DATA_FORM_PARSED) {
+        ctls_size_t offset = 0;
+        signed_certificate_timestamp->signed_certificate_timestamp.sct_version =
+                ctls_read_u8(buffer, &offset);
+        ctls_read_bytes(signed_certificate_timestamp->signed_certificate_timestamp.log_id,
+                        CTLS_SIZE_SCT_LOG_ID,
+                        buffer,
+                        &offset);
+        signed_certificate_timestamp->signed_certificate_timestamp.timestamp =
+                ctls_read_u64(buffer, &offset);
+        signed_certificate_timestamp->signed_certificate_timestamp.extensions =
+                ctls_read_u8(buffer, &offset);
+        signed_certificate_timestamp->signed_certificate_timestamp.signature_algorithm =
+                ctls_read_u16(buffer, &offset);
+        signed_certificate_timestamp->signed_certificate_timestamp.certificate.
+                buffer_length = ctls_read_u16(buffer, &offset);
+        ctls_read_bytes(signed_certificate_timestamp->signed_certificate_timestamp.
+                        certificate.buffer,
+                        signed_certificate_timestamp->signed_certificate_timestamp.
+                        certificate.buffer_length,
+                        buffer,
+                        &offset);
+    }
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_INVALID,
+        .external_code = CTLS_OP_STATUS_INVALID
+    };
+}
+
+ctls_op_status_t ctls_extn_signed_certificate_timestamp_serialize(
+    uint8_t *buffer,
+    ctls_size_t *offset,
+    ctls_extn_signed_certificate_timestamp_t const *signed_certificate_timestamp) {
+    if (signed_certificate_timestamp->form == CTLS_DATA_FORM_OPAQUE) {
+        ctls_write_u16(buffer,
+                       offset,
+                       signed_certificate_timestamp->opaque.buffer_length);
+        ctls_write_bytes(buffer,
+                         offset,
+                         signed_certificate_timestamp->opaque.buffer_length,
+                         signed_certificate_timestamp->opaque.buffer);
+    }
+    if (signed_certificate_timestamp->form == CTLS_DATA_FORM_PARSED) {
+        ctls_write_u8(buffer,
+                      offset,
+                      signed_certificate_timestamp->signed_certificate_timestamp.
+                      sct_version);
+        ctls_write_bytes(buffer,
+                         offset,
+                         CTLS_SIZE_SCT_LOG_ID,
+                         signed_certificate_timestamp->signed_certificate_timestamp.
+                         log_id);
+        ctls_write_u64(buffer,
+                       offset,
+                       signed_certificate_timestamp->signed_certificate_timestamp.
+                       timestamp);
+        ctls_write_u8(buffer,
+                      offset,
+                      signed_certificate_timestamp->signed_certificate_timestamp.
+                      extensions);
+        ctls_write_u16(buffer,
+                       offset,
+                       signed_certificate_timestamp->signed_certificate_timestamp.
+                       signature_algorithm);
+        ctls_write_bytes(buffer,
+                         offset,
+                         signed_certificate_timestamp->signed_certificate_timestamp.
+                         certificate.buffer_length,
+                         signed_certificate_timestamp->signed_certificate_timestamp.
+                         certificate.buffer);
+    }
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_INVALID,
+        .external_code = CTLS_OP_STATUS_INVALID
+    };
+}
+
 
 
 uint8_t ctls_expected_extensions_size_get(

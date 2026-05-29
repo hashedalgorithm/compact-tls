@@ -106,15 +106,13 @@ struct ctls_extn_certificate_authorities {
 };
 
 struct ctls_extn_signed_certificate_timestamp_parsed {
-    ctls_extn_signature_algorithm_type_t signature_algorithm;
     ctls_extn_sct_version_t sct_version;
     uint8_t log_id[CTLS_SIZE_SCT_LOG_ID];
     uint64_t timestamp;
-    ctls_extn_sct_entry_type_t entry_type;
-    uint8_t *certificate;
     uint8_t extensions;
-    uint8_t *signed_bytes;
-    ctls_size_t signed_bytes_length;
+    ctls_extn_sct_entry_type_t entry_type;
+    ctls_extn_sct_signature_type_t signature_algorithm;
+    ctls_hshk_buffer_block_t certificate;
 };
 struct ctls_extn_signed_certificate_timestamp {
     ctls_data_form_t form;
@@ -189,6 +187,15 @@ ctls_op_status_t ctls_extn_max_fragment_length_serialize(
     ctls_size_t *offset,
     ctls_max_fragment_length_t const *max_fragment_length);
 
+ctls_op_status_t ctls_extn_certificate_status_request_deserialize(
+    uint8_t *buffer,
+    ctls_size_t const *buffer_length,
+    ctls_data_form_t form,
+    ctls_extn_certificate_status_request_t *certificate_status_request);
+ctls_op_status_t ctls_extn_certificate_status_request_serialize(
+    uint8_t *buffer,
+    ctls_size_t *offset,
+    ctls_extn_certificate_status_request_t const *certificate_status_request);
 
 ctls_op_status_t ctls_extn_supported_groups_deserialize(
     uint8_t *buffer,
@@ -238,6 +245,16 @@ ctls_op_status_t ctls_extn_alpn_deserialize(uint8_t *buffer,
 ctls_op_status_t ctls_extn_alpn_serialize(uint8_t *buffer,
                                           ctls_size_t *offset,
                                           ctls_extn_alpn_t const *alpn);
+
+ctls_op_status_t ctls_extn_signed_certificate_timestamp_deserialize(
+    uint8_t *buffer,
+    ctls_size_t const *buffer_length,
+    ctls_data_form_t form,
+    ctls_extn_signed_certificate_timestamp_t *signed_certificate_timestamp);
+ctls_op_status_t ctls_extn_signed_certificate_timestamp_serialize(
+    uint8_t *buffer,
+    ctls_size_t *offset,
+    ctls_extn_signed_certificate_timestamp_t const *signed_certificate_timestamp);
 
 ctls_op_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions);
