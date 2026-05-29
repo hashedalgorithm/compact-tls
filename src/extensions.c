@@ -646,6 +646,40 @@ ctls_op_status_t ctls_extn_client_certificate_type_serialize(
     };
 }
 
+ctls_op_status_t ctls_extn_server_certificate_type_deserialize(
+    ctls_extn_certificate_type_t const *source,
+    ctls_extn_certificate_type_t *server_certificate_type) {
+    CTLS_CHECK_NULL(source);
+    CTLS_CHECK_NULL(server_certificate_type);
+
+    *server_certificate_type = *source;
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS
+    };
+}
+
+ctls_op_status_t ctls_extn_server_certificate_type_serialize(
+    uint8_t *buffer,
+    ctls_size_t *offset,
+    ctls_extn_certificate_type_t const *server_certificate_type) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(offset);
+    CTLS_CHECK_NULL(server_certificate_type);
+
+    ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SERVER_CERTIFICATE_TYPE);
+    ctls_write_u16(buffer, offset, sizeof(server_certificate_type));
+    ctls_write_u16(buffer, offset, *server_certificate_type);
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS
+    };
+}
+
 
 
 uint8_t ctls_expected_extensions_size_get(
