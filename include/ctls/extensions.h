@@ -256,6 +256,14 @@ ctls_op_status_t ctls_extn_signed_certificate_timestamp_serialize(
     ctls_size_t *offset,
     ctls_extn_signed_certificate_timestamp_t const *signed_certificate_timestamp);
 
+ctls_op_status_t ctls_extn_client_certificate_type_deserialize(
+    ctls_extn_certificate_type_t const *source,
+    ctls_extn_certificate_type_t *client_certificate_type);
+ctls_op_status_t ctls_extn_client_certificate_type_serialize(
+    uint8_t *buffer,
+    ctls_size_t *offset,
+    ctls_extn_certificate_type_t const *client_certificate_type);
+
 ctls_op_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions);
 ctls_op_status_t ctls_extn_client_hello_to_struct();
