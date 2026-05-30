@@ -29,8 +29,8 @@ struct ctls_extn_server_name {
 
 struct ctls_extn_ocsp_status_request {
     // set these values to 0.
-    ctls_hshk_buffer_block_t responder_id;
-    ctls_hshk_buffer_block_t request_extensions;
+    uint8_t responder_id;
+    uint8_t request_extensions;
 };
 struct ctls_extn_certificate_status_request_parsed {
     ctls_extn_certificate_status_type_t certificate_status_type;

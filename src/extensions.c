@@ -164,6 +164,101 @@ ctls_op_status_t ctls_extn_max_fragment_length_serialize(
     };
 }
 
+ctls_op_status_t ctls_extn_certificate_status_request_deserialize(
+    uint8_t *buffer,
+    ctls_size_t const *buffer_length,
+    ctls_data_form_t form,
+    ctls_extn_certificate_status_request_t *certificate_status_request) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(buffer_length);
+    CTLS_CHECK_NULL(certificate_status_request);
+
+    certificate_status_request->form = form;
+    certificate_status_request->extension_type = CTLS_EXTN_TYPE_STATUS_REQUEST;
+    if (form == CTLS_DATA_FORM_OPAQUE) {
+        certificate_status_request->opaque.buffer = buffer;
+        certificate_status_request->opaque.buffer_length = *buffer_length;
+    }
+    if (form == CTLS_DATA_FORM_PARSED) {
+        ctls_size_t offset = 0;
+
+        certificate_status_request->status_request.certificate_status_type =
+                ctls_read_u8(buffer, &offset);
+
+        if (certificate_status_request->status_request.certificate_status_type !=
+            CTLS_EXTN_CERTIFICATE_STATUS_TYPE_OSCP)
+            return (ctls_op_status_t){
+                .source = CTLS_ERROR_SOURCE_INTERNAL,
+                .code = CTLS_OP_STATUS_INVALID,
+                .external_code = CTLS_OP_STATUS_INVALID
+            };
+
+        offset += 2;
+        offset += 2;
+        certificate_status_request->status_request.ocsp_status_request.responder_id =
+                ctls_read_u8(buffer, &offset);
+        offset += 2;
+        certificate_status_request->status_request.ocsp_status_request.request_extensions
+                = ctls_read_u8(buffer, &offset);
+    }
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_INVALID,
+        .external_code = CTLS_OP_STATUS_INVALID
+    };
+}
+
+ctls_op_status_t ctls_extn_certificate_status_request_serialize(
+    uint8_t *buffer,
+    ctls_size_t *offset,
+    ctls_extn_certificate_status_request_t const *certificate_status_request) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(offset);
+    CTLS_CHECK_NULL(certificate_status_request);
+
+    ctls_write_u16(buffer, offset, certificate_status_request->extension_type);
+    if (certificate_status_request->form == CTLS_DATA_FORM_OPAQUE) {
+        ctls_write_u16(buffer, offset, certificate_status_request->opaque.buffer_length);
+        ctls_write_bytes(buffer,
+                         offset,
+                         certificate_status_request->opaque.buffer_length,
+                         certificate_status_request->opaque.buffer);
+    }
+    if (certificate_status_request->form == CTLS_DATA_FORM_PARSED) {
+        ctls_write_u8(buffer,
+                      offset,
+                      certificate_status_request->status_request.certificate_status_type);
+
+        ctls_size_t responder_list_length_offset = *offset;
+        *offset += 2;
+
+        ctls_write_u16(buffer,
+                       offset,
+                       sizeof(certificate_status_request->status_request.
+                           ocsp_status_request.responder_id));
+        ctls_write_u8(buffer,
+                      offset,
+                      certificate_status_request->status_request.ocsp_status_request.
+                      responder_id);
+
+        ctls_write_u16(buffer,
+                       offset,
+                       certificate_status_request->status_request.ocsp_status_request.
+                       request_extensions);
+
+        ctls_write_u16(buffer,
+                       &responder_list_length_offset,
+                       *offset - responder_list_length_offset);
+    }
+
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_INVALID,
+        .external_code = CTLS_OP_STATUS_INVALID
+    };
+}
 
 ctls_op_status_t ctls_extn_supported_groups_deserialize(
     uint8_t *buffer,
