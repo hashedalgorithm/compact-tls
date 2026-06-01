@@ -1416,13 +1416,13 @@ ctls_op_status_t ctls_extn_certificate_request_create(void) {
 }
 
 ctls_op_status_t ctls_extn_certificate_request_to_struct(
-    ctls_extn_certificate_request_t *certificate_request_extensions,
-    ctls_template_t const *template,
-    ctls_size_t *offset) {
+    ctls_extn_certificate_request_t *certificate_request_extensions) {
+    ctls_template_t const *template = ctls_template_get();
+
     CTLS_CHECK_NULL(certificate_request_extensions);
     CTLS_CHECK_NULL(template);
-    CTLS_CHECK_NULL(offset);
 
+    ctls_op_status_t result;
 
     // certificate_status_request
     if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(template->certificate_request_extension.
@@ -1431,26 +1431,24 @@ ctls_op_status_t ctls_extn_certificate_request_to_struct(
                                            template->certificate_request_extension.
                                            predefined_extensions.
                                            certificate_status_request.length)) {
-        certificate_request_extensions->certificate_status_request.form =
-                CTLS_DATA_FORM_OPAQUE;
-        certificate_request_extensions->certificate_status_request.extension_type =
-                CTLS_EXTN_TYPE_STATUS_REQUEST;
-        certificate_request_extensions->certificate_status_request.opaque.buffer_length =
-                template->certificate_request_extension.predefined_extensions.
-                certificate_status_request.length;
-        certificate_request_extensions->certificate_status_request.opaque.buffer =
-                template->certificate_request_extension.predefined_extensions.
-                certificate_status_request.data;
+        result = ctls_extn_certificate_status_request_deserialize(template->
+            certificate_request_extension.predefined_extensions.
+            certificate_status_request.data,
+            &template->certificate_request_extension.predefined_extensions.
+            certificate_status_request.length,
+            CTLS_DATA_FORM_OPAQUE,
+            &certificate_request_extensions->certificate_status_request);
+        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
     }
 
     // signature_algorithms
     if (template->signature_algorithm.signature_algorithm_type !=
         CTLS_EXTN_SIGNATURE_ALGORITHM_SENTINEL) {
-        certificate_request_extensions->signature_algorithm.form = CTLS_DATA_FORM_PARSED;
-        certificate_request_extensions->signature_algorithm.extension_type =
-                CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS;
-        certificate_request_extensions->signature_algorithm.signature_algorithm = template
-                ->signature_algorithm.signature_algorithm_type;
+        result = ctls_extn_signature_algorithm_deserialize(&template->signature_algorithm.
+                                                           signature_algorithm_type,
+                                                           &certificate_request_extensions
+                                                           ->signature_algorithm);
+        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
     }
 
     // signed_certificate_timestamp
@@ -1460,15 +1458,14 @@ ctls_op_status_t ctls_extn_certificate_request_to_struct(
                                            template->certificate_request_extension.
                                            predefined_extensions.
                                            signed_certificate_timestamp. length)) {
-        certificate_request_extensions->signed_certificate_timestamp.form =
-                CTLS_DATA_FORM_OPAQUE;
-        certificate_request_extensions->signed_certificate_timestamp.extension_type =
-                CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP;
-        certificate_request_extensions->signed_certificate_timestamp.opaque.buffer =
-                template->client_hello_extension.predefined_extensions.
-                signed_certificate_timestamp.data;
-        certificate_request_extensions->signed_certificate_timestamp.opaque.buffer_length
-                = template->client_hello_extension.predefined_extensions.alpn.length;
+        result = ctls_extn_signed_certificate_timestamp_deserialize(template->
+            certificate_request_extension.predefined_extensions.
+            signed_certificate_timestamp.data,
+            &template->certificate_request_extension.predefined_extensions.
+            signed_certificate_timestamp.length,
+            CTLS_DATA_FORM_OPAQUE,
+            &certificate_request_extensions->signed_certificate_timestamp);
+        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
     }
 
     // certificate_authorities
@@ -1478,23 +1475,24 @@ ctls_op_status_t ctls_extn_certificate_request_to_struct(
                                            template->certificate_request_extension.
                                            predefined_extensions.certificate_authorities.
                                            length)) {
-        certificate_request_extensions->certificate_authorities.form =
-                CTLS_DATA_FORM_OPAQUE;
-        certificate_request_extensions->certificate_authorities.extension_type =
-                CTLS_EXTN_TYPE_CERTIFICATE_AUTHORITIES;
-        certificate_request_extensions->certificate_authorities.opaque.buffer = template->
-                certificate_request_extension.predefined_extensions.
-                certificate_authorities.data;
-        certificate_request_extensions->certificate_authorities.opaque.buffer_length =
-                template->certificate_request_extension.predefined_extensions.
-                certificate_authorities.length;
+        result = ctls_extn_certificate_authorities_deserialize(template->
+            certificate_request_extension.predefined_extensions.
+            certificate_authorities.data,
+            &template->certificate_request_extension.predefined_extensions.
+            certificate_authorities.length,
+            CTLS_DATA_FORM_OPAQUE,
+            &certificate_request_extensions->certificate_authorities);
+        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
     }
 
     // signature_algorithm_cert
     if (template->certificate_request_extension.predefined_extensions.
         signature_algorithm_cert != 0) {
-        certificate_request_extensions->signature_algorithm_cert = template->
-                client_hello_extension.predefined_extensions.signature_algorithm_cert;
+        result = ctls_extn_signature_algorithm_cert_deserialize(&template->
+            certificate_request_extension.predefined_extensions.
+            signature_algorithm_cert,
+            &certificate_request_extensions->signature_algorithm_cert);
+        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
     }
 
     return (ctls_op_status_t){
@@ -1512,66 +1510,39 @@ ctls_op_status_t ctls_extn_certificate_request_to_wire(uint8_t *buffer,
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
+        ctls_op_status_t result;
         // certificate status request
-        if (certificate_request->certificate_status_request.form ==
-            CTLS_DATA_FORM_OPAQUE) {
-            ctls_write_u16(buffer,
-                           offset,
-                           certificate_request->certificate_status_request.
-                           extension_type);
-
-
-            ctls_write_u16(buffer,
-                           offset,
-                           certificate_request->certificate_status_request.opaque.
-                           buffer_length);
-            ctls_write_bytes(buffer,
-                             offset,
-                             certificate_request->certificate_status_request.opaque.
-                             buffer_length,
-                             certificate_request->certificate_status_request.opaque.
-                             buffer);
+        if (certificate_request->certificate_status_request.form !=
+            CTLS_DATA_FORM_SENTINEL) {
+            result = ctls_extn_certificate_status_request_serialize(buffer,
+                offset,
+                &certificate_request->certificate_status_request);
+            if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
         }
 
 
         // signature algorithms
-        ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS);
-        ctls_write_u16(buffer,
-                       offset,
-                       sizeof(certificate_request->signature_algorithm.
-                           signature_algorithm));
-        ctls_write_u16(buffer,
-                       offset,
-                       certificate_request->signature_algorithm.signature_algorithm);
+        result = ctls_extn_signature_algorithm_serialize(buffer,
+                                                         offset,
+                                                         &certificate_request->
+                                                         signature_algorithm);
+        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
         // signed_certificate_timestamp
-        if (certificate_request->signed_certificate_timestamp.form ==
-            CTLS_DATA_FORM_OPAQUE) {
-            ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP);
-            ctls_write_u16(buffer,
-                           offset,
-                           certificate_request->signed_certificate_timestamp.opaque.
-                           buffer_length);
-            ctls_write_bytes(buffer,
-                             offset,
-                             certificate_request->signed_certificate_timestamp.opaque.
-                             buffer_length,
-                             certificate_request->signed_certificate_timestamp.opaque.
-                             buffer);
+        if (certificate_request->signed_certificate_timestamp.form !=
+            CTLS_DATA_FORM_SENTINEL) {
+            result = ctls_extn_signed_certificate_timestamp_serialize(buffer,
+                offset,
+                &certificate_request->signed_certificate_timestamp);
+            if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
         }
 
         // certificate_authorities
         if (certificate_request->certificate_authorities.form == CTLS_DATA_FORM_OPAQUE) {
-            ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_CERTIFICATE_AUTHORITIES);
-            ctls_write_u16(buffer,
-                           offset,
-                           certificate_request->certificate_authorities.opaque.
-                           buffer_length);
-            ctls_write_bytes(buffer,
-                             offset,
-                             certificate_request->certificate_authorities.opaque.
-                             buffer_length,
-                             certificate_request->certificate_authorities.opaque.buffer);
+            result = ctls_extn_certificate_authorities_serialize(buffer,
+                offset,
+                &certificate_request->certificate_authorities);
+            if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
         }
 
         return (ctls_op_status_t){

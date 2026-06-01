@@ -324,8 +324,7 @@ ctls_op_status_t ctls_extn_encrypted_extensions_to_wire(uint8_t *buffer,
 
 ctls_op_status_t ctls_extn_certificate_request_create(void);
 ctls_op_status_t ctls_extn_certificate_request_to_struct(
-    ctls_extn_certificate_request_t *certificate_request_extensions,
-    ctls_size_t *offset);
+    ctls_extn_certificate_request_t *certificate_request_extensions);
 ctls_op_status_t ctls_extn_certificate_request_to_wire(uint8_t *buffer,
                                                        ctls_size_t *offset,
                                                        ctls_extn_certificate_request_t
