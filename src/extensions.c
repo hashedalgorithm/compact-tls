@@ -83,8 +83,6 @@ ctls_op_status_t ctls_extn_server_name_deserialize(uint8_t *buffer,
     CTLS_CHECK_NULL(buffer_length);
     CTLS_CHECK_NULL(server_name);
 
-
-    server_name->extension_type = CTLS_EXTN_TYPE_SERVER_NAME;
     server_name->form = form;
 
     if (form == CTLS_DATA_FORM_OPAQUE) {
@@ -141,7 +139,7 @@ ctls_op_status_t ctls_extn_server_name_serialize(uint8_t *buffer,
             .external_code = CTLS_OP_STATUS_INVALID
         };
 
-    ctls_write_u16(buffer, offset, server_name->extension_type);
+    ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SERVER_NAME);
     if (server_name->form == CTLS_DATA_FORM_OPAQUE) {
         ctls_write_u16(buffer, offset, server_name->opaque.buffer_length);
         ctls_write_bytes(buffer,
@@ -213,7 +211,7 @@ ctls_op_status_t ctls_extn_certificate_status_request_deserialize(
     CTLS_CHECK_NULL(certificate_status_request);
 
     certificate_status_request->form = form;
-    certificate_status_request->extension_type = CTLS_EXTN_TYPE_STATUS_REQUEST;
+
     if (form == CTLS_DATA_FORM_OPAQUE) {
         certificate_status_request->opaque.buffer = buffer;
         certificate_status_request->opaque.buffer_length = *buffer_length;
@@ -256,7 +254,7 @@ ctls_op_status_t ctls_extn_certificate_status_request_serialize(
     CTLS_CHECK_NULL(offset);
     CTLS_CHECK_NULL(certificate_status_request);
 
-    ctls_write_u16(buffer, offset, certificate_status_request->extension_type);
+    ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_STATUS_REQUEST);
     if (certificate_status_request->form == CTLS_DATA_FORM_OPAQUE) {
         ctls_write_u16(buffer, offset, certificate_status_request->opaque.buffer_length);
         ctls_write_bytes(buffer,
@@ -380,7 +378,6 @@ ctls_op_status_t ctls_extn_alpn_deserialize(uint8_t *buffer,
     CTLS_CHECK_NULL(alpn);
 
     alpn->form = form;
-    alpn->extension_type = CTLS_EXTN_TYPE_APPLICATION_LAYER_PROTOCOL_NEGOTIATION;
 
     if (form == CTLS_DATA_FORM_OPAQUE) {
         alpn->opaque.buffer = buffer;
@@ -416,7 +413,7 @@ ctls_op_status_t ctls_extn_alpn_deserialize(uint8_t *buffer,
 ctls_op_status_t ctls_extn_alpn_serialize(uint8_t *buffer,
                                           ctls_size_t *offset,
                                           ctls_extn_alpn_t const *alpn) {
-    ctls_write_u16(buffer, offset, alpn->extension_type);
+    ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_APPLICATION_LAYER_PROTOCOL_NEGOTIATION);
 
     if (alpn->form == CTLS_DATA_FORM_OPAQUE) {
         ctls_write_u16(buffer, offset, alpn->opaque.buffer_length);
@@ -715,7 +712,7 @@ ctls_op_status_t ctls_extn_key_share_deserialize(uint8_t *buffer,
                                                  ctls_size_t *offset,
                                                  ctls_helper_entity_ownership_t const
                                                  entity_ownership,
-                                                 ctls_extn_key_share_t *key_share) {
+                                                 ctls_extn_key_share_t key_share) {
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
 
     CTLS_CHECK_NULL(buffer);
@@ -731,17 +728,15 @@ ctls_op_status_t ctls_extn_key_share_deserialize(uint8_t *buffer,
             . external_code = CTLS_OP_STATUS_INVALID
         };
 
-    key_share->extension_type = CTLS_EXTN_TYPE_KEY_SHARE;
-
     ctls_read_bytes(entity_ownership == CTLS_HELPER_ENTITY_OWNERSHIP_SERVER
                         ? hshk_data->server_public_ephemeral_key
                         : hshk_data->client_public_ephemeral_key,
                     CTLS_SIZE_KEY_SHARE,
                     buffer,
                     offset);
-    key_share->key_share = entity_ownership == CTLS_HELPER_ENTITY_OWNERSHIP_SERVER
-                               ? hshk_data->server_public_ephemeral_key
-                               : hshk_data->client_public_ephemeral_key;
+    key_share = entity_ownership == CTLS_HELPER_ENTITY_OWNERSHIP_SERVER
+                    ? hshk_data->server_public_ephemeral_key
+                    : hshk_data->client_public_ephemeral_key;
 
     return (ctls_op_status_t){
         . source = CTLS_ERROR_SOURCE_INTERNAL,
@@ -752,20 +747,20 @@ ctls_op_status_t ctls_extn_key_share_deserialize(uint8_t *buffer,
 
 ctls_op_status_t ctls_extn_key_share_serialize(uint8_t *buffer,
                                                ctls_size_t *offset,
-                                               ctls_wire_format_t wire_format,
-                                               ctls_extn_key_share_t const *key_share) {
+                                               ctls_wire_format_t const wire_format,
+                                               ctls_extn_key_share_t key_share) {
     CTLS_CHECK_NULL(buffer);
     CTLS_CHECK_NULL(offset);
     CTLS_CHECK_NULL(key_share);
 
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
         ctls_write_u16(buffer, offset, CTLS_SIZE_KEY_SHARE);
-        ctls_write_bytes(buffer, offset, CTLS_SIZE_WIRE_BUFFER, key_share->key_share);
+        ctls_write_bytes(buffer, offset, CTLS_SIZE_WIRE_BUFFER, key_share);
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
         ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_KEY_SHARE);
         ctls_write_u16(buffer, offset, CTLS_SIZE_KEY_SHARE);
-        ctls_write_bytes(buffer, offset, CTLS_SIZE_WIRE_BUFFER, key_share->key_share);
+        ctls_write_bytes(buffer, offset, CTLS_SIZE_WIRE_BUFFER, key_share);
     }
 
     return (ctls_op_status_t){
@@ -965,16 +960,13 @@ ctls_op_status_t ctls_extn_client_hello_create(
         if (template->client_hello_extension.expected_extensions[i] !=
             CTLS_EXTN_TYPE_KEY_SHARE) continue;
 
-        client_hello_extensions->key_share_entity.extension_type =
-                CTLS_EXTN_TYPE_KEY_SHARE;
-
         ctls_size_t bytes_written = CTLS_SIZE_KEY_SHARE;
         ctls_op_status_t const result =
                 ctls_ephemeral_public_key_generate(hshk_data->client_public_ephemeral_key,
                                                    &bytes_written);
         if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
-        client_hello_extensions->key_share_entity.key_share = hshk_data->
+        client_hello_extensions->key_share_entity = hshk_data->
                 client_public_ephemeral_key;
     }
 
@@ -1021,7 +1013,7 @@ ctls_op_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
             ctls_write_bytes(buffer,
                              offset,
                              CTLS_SIZE_KEY_SHARE,
-                             client_hello_extensions->key_share_entity.key_share);
+                             client_hello_extensions->key_share_entity);
         }
 
         return (ctls_op_status_t){
@@ -1139,11 +1131,11 @@ ctls_op_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
         }
 
         // key share
-        CTLS_CHECK_NULL(client_hello_extensions->key_share_entity.key_share);
+        CTLS_CHECK_NULL(client_hello_extensions->key_share_entity);
         ctls_extn_key_share_serialize(buffer,
                                       offset,
                                       CTLS_WIRE_FORMAT_DEFAULT,
-                                      &client_hello_extensions->key_share_entity);
+                                      client_hello_extensions->key_share_entity);
 
         return (ctls_op_status_t){
             . source = CTLS_ERROR_SOURCE_INTERNAL,
@@ -1181,7 +1173,7 @@ ctls_op_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
         result = ctls_extn_key_share_serialize(buffer,
                                                offset,
                                                wire_format,
-                                               &server_hello_extensions->
+                                               server_hello_extensions->
                                                key_share_entity);
         return result;
     }
@@ -1213,7 +1205,7 @@ ctls_op_status_t ctls_extn_server_hello_to_struct(
     result = ctls_extn_key_share_deserialize(buffer,
                                              offset,
                                              CTLS_HELPER_ENTITY_OWNERSHIP_SERVER,
-                                             &server_hello_extensions->key_share_entity);
+                                             server_hello_extensions->key_share_entity);
     return result;
 }
 

@@ -15,7 +15,7 @@ typedef enum {
 
 typedef enum {
     CTLS_HELPER_ENTITY_OWNERSHIP_CLIENT = 0,
-    CTLS_HELPER_ENTITY_OWNERSHIP_SERVER = 0,
+    CTLS_HELPER_ENTITY_OWNERSHIP_SERVER,
 } ctls_helper_entity_ownership_t;
 
 struct ctls_hshk_buffer_block {
@@ -29,7 +29,6 @@ struct ctls_extn_server_name_item {
 };
 struct ctls_extn_server_name {
     ctls_data_form_t form;
-    ctls_extn_type_t extension_type;
     uint8_t list_count;
     union {
         ctls_extn_server_name_item_t server_name_list[CTLS_COUNT_SERVER_NAME];
@@ -48,7 +47,6 @@ struct ctls_extn_certificate_status_request_parsed {
 };
 struct ctls_extn_certificate_status_request {
     ctls_data_form_t form;
-    ctls_extn_type_t extension_type;
     union {
         ctls_extn_certificate_status_request_parsed_t status_request;
         ctls_hshk_buffer_block_t opaque;
@@ -62,7 +60,6 @@ struct ctls_extn_alpn_protocol_name {
 // Application layer protocol negotiation
 struct ctls_extn_alpn {
     ctls_data_form_t form;
-    ctls_extn_type_t extension_type;
     uint8_t list_count;
     union {
         ctls_extn_alpn_protocol_name_t alpn_list[CTLS_COUNT_ALPN];
@@ -70,10 +67,6 @@ struct ctls_extn_alpn {
     };
 };
 
-struct ctls_extn_key_share {
-    ctls_extn_type_t extension_type;
-    uint8_t *key_share;
-};
 
 struct ctls_extn_certificate_authorities {
     ctls_data_form_t form;
@@ -289,11 +282,11 @@ ctls_op_status_t ctls_extn_key_share_deserialize(uint8_t *buffer,
                                                  ctls_size_t *offset,
                                                  ctls_helper_entity_ownership_t
                                                  entity_ownership,
-                                                 ctls_extn_key_share_t *key_share);
+                                                 ctls_extn_key_share_t key_share);
 ctls_op_status_t ctls_extn_key_share_serialize(uint8_t *buffer,
                                                ctls_size_t *offset,
                                                ctls_wire_format_t wire_format,
-                                               ctls_extn_key_share_t const *key_share);
+                                               ctls_extn_key_share_t key_share);
 
 ctls_op_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions);
