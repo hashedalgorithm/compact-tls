@@ -15,19 +15,19 @@
 /* ------------------------------------------------------------------ */
 
 #define CTLS_CHECK_NULL(pointer) \
-    do { if ((pointer) == NULL) return CTLS_ERR_NULL_PTR; } while (0)
+    do { if ((pointer) == NULL) return CTLS_STATUS_NULL_PTR; } while (0)
 
 #define CTLS_CHECK_NULL_BUFFER(pointer) \
-    do { if ((pointer) == NULL) return CTLS_ERR_NULL_BUFFER; } while (0)
+    do { if ((pointer) == NULL) return CTLS_STATUS_NULL_BUFFER; } while (0)
 
 #define CTLS_CHECK_NULL_OFFSET(pointer) \
-    do { if ((pointer) == NULL) return CTLS_ERR_NULL_OFFSET; } while (0)
+    do { if ((pointer) == NULL) return CTLS_STATUS_NULL_OFFSET; } while (0)
 
 #define CTLS_CHECK_NULL_STRUCT(pointer) \
-    do { if ((pointer) == NULL) return CTLS_ERR_NULL_STRUCT; } while (0)
+    do { if ((pointer) == NULL) return CTLS_STATUS_NULL_STRUCT; } while (0)
 
 #define CTLS_CHECK_BOUNDS(offset, size, limit) \
-    do { if ((offset) + (size) > (limit)) return CTLS_ERR_BOUNDS_EXCEEDED; } while (0)
+    do { if ((offset) + (size) > (limit)) return CTLS_STATUS_BOUNDS_EXCEEDED; } while (0)
 
 /* ------------------------------------------------------------------ */
 /*  DEFINITIONS                                                       */

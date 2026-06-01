@@ -25,7 +25,7 @@ ctls_status_t ctls_hsmg_client_hello_create(ctls_handshake_message_t *hsmg) {
             template->random);
     hsmg->handshake_message_body.client_hello.random.buffer = hshk_data->client_random;
 
-    if (result != CTLS_ERR_SUCCESS) return result;
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
     hsmg->handshake_message_body.client_hello.cipher_suite = template->cipher_suite;
     hsmg->handshake_message_body.client_hello.protocol_version = template->protocol_version;
@@ -41,7 +41,7 @@ ctls_status_t ctls_hsmg_client_hello_to_struct(ctls_handshake_message_t *hsmg,
                                                uint8_t *buffer,
                                                ctls_size_t *offset,
                                                ctls_size_t buffer_size) {
-    return CTLS_ERR_NOT_IMPLEMENTED;
+    return CTLS_STATUS_NOT_IMPLEMENTED;
 }
 
 ctls_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
@@ -102,17 +102,17 @@ ctls_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
         ctls_status_t const result = ctls_extn_client_hello_to_wire(buffer, offset,
                 &hsmg->handshake_message_body.client_hello.extensions,
                 CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
-        if (result != CTLS_ERR_SUCCESS) return result;
+        if (result != CTLS_STATUS_SUCCESS) return result;
 
         ctls_write_u24(buffer, &hsmg_body_length_offset, *offset - hsmg_body_length_offset);
 
-        return CTLS_ERR_SUCCESS;
+        return CTLS_STATUS_SUCCESS;
     }
-    return CTLS_ERR_HSMG_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT;
 }
 
 ctls_status_t ctls_hsmg_server_hello_create(void) {
-    return CTLS_ERR_NOT_IMPLEMENTED;
+    return CTLS_STATUS_NOT_IMPLEMENTED;
 }
 
 ctls_status_t ctls_hsmg_server_hello_to_struct(ctls_handshake_message_t *hsmg,
@@ -179,18 +179,18 @@ ctls_status_t ctls_hsmg_server_hello_to_wire(uint8_t *buffer,
         ctls_status_t const result = ctls_extn_server_hello_to_wire(buffer, offset,
                 &hsmg->handshake_message_body.server_hello.extensions,
                 CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
-        if (result != CTLS_ERR_SUCCESS) return result;
+        if (result != CTLS_STATUS_SUCCESS) return result;
 
         ctls_write_u24(buffer, &hsmg_body_length_offset, *offset - hsmg_body_length_offset);
 
-        return CTLS_ERR_SUCCESS;
+        return CTLS_STATUS_SUCCESS;
     }
 
-    return CTLS_ERR_HSMG_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT;
 }
 
 ctls_status_t ctls_hsmg_encrypted_extensions_create(void) {
-    return CTLS_ERR_NOT_IMPLEMENTED;
+    return CTLS_STATUS_NOT_IMPLEMENTED;
 }
 
 ctls_status_t ctls_hsmg_encrypted_extensions_to_struct(ctls_handshake_message_t *hsmg,
@@ -227,18 +227,18 @@ ctls_status_t ctls_hsmg_encrypted_extensions_to_wire(uint8_t *buffer,
         ctls_status_t const result = ctls_extn_encrypted_extensions_to_wire(buffer, offset,
                 &hsmg->handshake_message_body.encrypted_extensions.extensions,
                 CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
-        if (result != CTLS_ERR_SUCCESS) return result;
+        if (result != CTLS_STATUS_SUCCESS) return result;
 
         ctls_write_u16(buffer, &extensions_length_offset,
                        *offset - extensions_length_offset);
-        return CTLS_ERR_SUCCESS;
+        return CTLS_STATUS_SUCCESS;
     }
 
-    return CTLS_ERR_HSMG_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT;
 }
 
 ctls_status_t ctls_hsmg_certificate_request_create(void) {
-    return CTLS_ERR_NOT_IMPLEMENTED;
+    return CTLS_STATUS_NOT_IMPLEMENTED;
 }
 
 ctls_status_t ctls_hsmg_certificate_request_to_struct(ctls_handshake_message_t *hsmg,
@@ -298,14 +298,14 @@ ctls_status_t ctls_hsmg_certificate_request_to_wire(uint8_t *buffer,
         ctls_status_t const result = ctls_extn_certificate_request_to_wire(buffer, offset,
                 &hsmg->handshake_message_body.certificate_request.extensions,
                 CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
-        if (result != CTLS_ERR_SUCCESS) return result;
+        if (result != CTLS_STATUS_SUCCESS) return result;
 
         ctls_write_u16(buffer, &extensions_length_offset, *offset - extensions_length_offset);
 
-        return CTLS_ERR_SUCCESS;
+        return CTLS_STATUS_SUCCESS;
     }
 
-    return CTLS_ERR_HSMG_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT;
 }
 
     }

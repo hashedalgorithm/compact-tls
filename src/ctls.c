@@ -19,19 +19,19 @@ ctls_status_t ctls_handshake_state_update(ctls_hshk_state_t *location,
                                           ctls_hshk_state_t const state) {
     CTLS_CHECK_NULL(location);
     *location = state;
-    return CTLS_ERR_SUCCESS;
+    return CTLS_STATUS_SUCCESS;
 }
 
 ctls_status_t ctls_validate_template() {
     ctls_template_t const *template = g_template;
-    if (!template) return CTLS_ERR_TMPL_NULL;
+    if (!template) return CTLS_STATUS_TMPL_NULL;
 
-    if (template->cipher_suite == 0) return CTLS_ERR_TMPL_INVALID_CIPHER_SUITE;
-    if (template->dhe_group.dhe_group == 0) return CTLS_ERR_TMPL_INVALID_DHE_GROUP;
+    if (template->cipher_suite == 0) return CTLS_STATUS_TMPL_INVALID_CIPHER_SUITE;
+    if (template->dhe_group.dhe_group == 0) return CTLS_STATUS_TMPL_INVALID_DHE_GROUP;
     if (template->signature_algorithm.signature_algorithm_type == 0)
-        return CTLS_ERR_TMPL_INVALID_SIG_ALGORITHM;
+        return CTLS_STATUS_TMPL_INVALID_SIG_ALGORITHM;
 
-    return CTLS_ERR_SUCCESS;
+    return CTLS_STATUS_SUCCESS;
 }
 
 void ctls_wire_buffer_clear(uint8_t *buffer) {
@@ -45,7 +45,7 @@ ctls_status_t ctls_context_init(ctls_context_t *context,
     memset(&g_hshk_buffer_storage, 0, sizeof(g_hshk_buffer_storage));
 
     ctls_status_t result = ctls_template_set(CTLS_PROFILE_ID, context);
-    if (result != CTLS_ERR_SUCCESS) return result;
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
     context->transport = *transport;
     context->hshk_buffer = &g_hshk_buffer_storage;
@@ -56,7 +56,7 @@ ctls_status_t ctls_context_init(ctls_context_t *context,
     g_hshk_buffer = context->hshk_buffer;
 
     result = ctls_crypto_init();
-    if (result != CTLS_ERR_SUCCESS) return result;
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
     context->state = CTLS_HSHK_STATE_START;
 
@@ -69,13 +69,16 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     ctls_size_t buffer_length = 0;
 
     ctls_status_t result = ctls_recd_client_hello_create(&context->record);
-    if (result != CTLS_ERR_SUCCESS) {
+    if (result != CTLS_STATUS_SUCCESS) {
         context->state = CTLS_HSHK_STATE_ERROR;
         return result;
     }
 
-    result = ctls_record_serialize(&context->record, buffer, sizeof(buffer), &buffer_length);
-    if (result != CTLS_ERR_SUCCESS) {
+    result = ctls_record_serialize(&context->record,
+                                   buffer,
+                                   sizeof(buffer),
+                                   &buffer_length);
+    if (result != CTLS_STATUS_SUCCESS) {
         ctls_wire_buffer_clear(buffer);
         return result;
     }
@@ -84,9 +87,9 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     ctls_wire_buffer_clear(buffer);
 
     result = context->transport.recd_send(buffer, buffer_length);
-    if (result != CTLS_ERR_SUCCESS) {
+    if (result != CTLS_STATUS_SUCCESS) {
         ctls_handshake_state_update(&context->state, CTLS_HSHK_STATE_ERROR);
-        return CTLS_ERR_TRANSPORT_SEND_FAILED;
+        return CTLS_STATUS_TRANSPORT_SEND_FAILED;
     }
 
     ctls_transcript_hash_update(&context->record);
@@ -95,15 +98,17 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     ctls_size_t recv_len = 0;
     memset(buffer, 0, CTLS_SIZE_WIRE_BUFFER);
     result = context->transport.recd_receive(buffer, &recv_len, sizeof(buffer));
-    if (result != CTLS_ERR_SUCCESS) {
+    if (result != CTLS_STATUS_SUCCESS) {
         context->state = CTLS_HSHK_STATE_ERROR;
-        return CTLS_ERR_TRANSPORT_RECV_FAILED;
+        return CTLS_STATUS_TRANSPORT_RECV_FAILED;
     }
 
     ctls_recd_buffer_clear(&context->record);
-    result = ctls_record_deserialize(&context->record, CTLS_HSMG_TYPE_SERVER_HELLO,
-                                     buffer, recv_len);
-    if (result != CTLS_ERR_SUCCESS) {
+    result = ctls_record_deserialize(&context->record,
+                                     CTLS_HSMG_TYPE_SERVER_HELLO,
+                                     buffer,
+                                     recv_len);
+    if (result != CTLS_STATUS_SUCCESS) {
         context->state = CTLS_HSHK_STATE_ERROR;
         return result;
     }
@@ -113,23 +118,25 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     context->state = CTLS_HSHK_STATE_KEY_SCHEDULED;
 
     result = ctls_key_schedule(&context->crypto, &context->hshk_data);
-    if (result != CTLS_ERR_SUCCESS) return result;
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
 
     context->state = CTLS_HSHK_STATE_WAIT_ENCRYPTED_EXTENSIONS;
     recv_len = 0;
     memset(buffer, 0, CTLS_SIZE_WIRE_BUFFER);
     result = context->transport.recd_receive(buffer, &recv_len, sizeof(buffer));
-    if (result != CTLS_ERR_SUCCESS) {
+    if (result != CTLS_STATUS_SUCCESS) {
         context->state = CTLS_HSHK_STATE_ERROR;
-        return CTLS_ERR_TRANSPORT_RECV_FAILED;
+        return CTLS_STATUS_TRANSPORT_RECV_FAILED;
     }
 
     context->state = CTLS_HSHK_STATE_WAIT_CERTIFICATE;
     ctls_recd_buffer_clear(&context->record);
-    result = ctls_record_deserialize(&context->record, CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS,
-                                     buffer, recv_len);
-    if (result != CTLS_ERR_SUCCESS) {
+    result = ctls_record_deserialize(&context->record,
+                                     CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS,
+                                     buffer,
+                                     recv_len);
+    if (result != CTLS_STATUS_SUCCESS) {
         context->state = CTLS_HSHK_STATE_ERROR;
         return result;
     }
@@ -140,16 +147,18 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
         recv_len = 0;
         memset(buffer, 0, CTLS_SIZE_WIRE_BUFFER);
         result = context->transport.recd_receive(buffer, &recv_len, sizeof(buffer));
-        if (result != CTLS_ERR_SUCCESS) {
+        if (result != CTLS_STATUS_SUCCESS) {
             context->state = CTLS_HSHK_STATE_ERROR;
-            return CTLS_ERR_TRANSPORT_RECV_FAILED;
+            return CTLS_STATUS_TRANSPORT_RECV_FAILED;
         }
 
         context->state = CTLS_HSHK_STATE_WAIT_CERTIFICATE_VERIFY;
         ctls_recd_buffer_clear(&context->record);
-        result = ctls_record_deserialize(&context->record, CTLS_HSMG_TYPE_CERTIFICATE_REQUEST,
-                                         buffer, recv_len);
-        if (result != CTLS_ERR_SUCCESS) {
+        result = ctls_record_deserialize(&context->record,
+                                         CTLS_HSMG_TYPE_CERTIFICATE_REQUEST,
+                                         buffer,
+                                         recv_len);
+        if (result != CTLS_STATUS_SUCCESS) {
             context->state = CTLS_HSHK_STATE_ERROR;
             return result;
         }
@@ -169,7 +178,7 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
 
 ctls_status_t ctls_connect(ctls_context_t *context) {
     ctls_status_t const result = ctls_validate_template();
-    if (result != CTLS_ERR_SUCCESS) return result;
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
     return ctls_handshake(context);
 }

@@ -13,7 +13,7 @@ store it separately before returning a `ctls_err_t`.
 ```c
 typedef uint16_t ctls_status_t;
 
-#define CTLS_ERR_SUCCESS  0x0000
+#define CTLS_STATUS_SUCCESS  0x0000
 ```
 
 ---
@@ -39,7 +39,7 @@ typedef uint16_t ctls_status_t;
 
 | Code   | Name               | Reason / Trigger                   |
 |--------|--------------------|------------------------------------|
-| 0x0000 | `CTLS_ERR_SUCCESS` | Operation completed without error. |
+| 0x0000 | `CTLS_STATUS_SUCCESS` | Operation completed without error. |
 
 ---
 
@@ -49,13 +49,13 @@ These fire before any subsystem logic executes.
 
 | Code   | Name                       | Reason / Trigger                                                                                                                                                          |
 |--------|----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 0x0001 | `CTLS_ERR_NULL_PTR`        | A required pointer argument was NULL. Generic catch-all for `CTLS_CHECK_NULL`.                                                                                            |
-| 0x0002 | `CTLS_ERR_NULL_BUFFER`     | The `buffer` pointer specifically was NULL. Distinct from a NULL struct so the caller knows which arg to fix.                                                             |
-| 0x0003 | `CTLS_ERR_NULL_OFFSET`     | The `offset` pointer was NULL. Offset is a write-back argument; NULL here is a programming error in the caller.                                                           |
-| 0x0004 | `CTLS_ERR_NULL_STRUCT`     | The primary struct pointer (e.g. `hsmg`, `record`, `template`, `crypto`) was NULL. Caller forgot to allocate/pass the object.                                             |
-| 0x0005 | `CTLS_ERR_INVALID_ARG`     | A non-pointer argument held an illegal value (enum out of defined range, zero where non-zero required, etc.).                                                             |
-| 0x0006 | `CTLS_ERR_UNKNOWN`         | Unclassified internal error. Should not appear in production; means a code path returned without setting a real code.                                                     |
-| 0x0007 | `CTLS_ERR_NOT_IMPLEMENTED` | Called a function stub (`ctls_hsmg_server_hello_create`, `ctls_hsmg_finished_*`, etc.) that has no body yet. Replaces silent empty returns that currently return garbage. |
+| 0x0001 | `CTLS_STATUS_NULL_PTR`        | A required pointer argument was NULL. Generic catch-all for `CTLS_CHECK_NULL`.                                                                                            |
+| 0x0002 | `CTLS_STATUS_NULL_BUFFER`     | The `buffer` pointer specifically was NULL. Distinct from a NULL struct so the caller knows which arg to fix.                                                             |
+| 0x0003 | `CTLS_STATUS_NULL_OFFSET`     | The `offset` pointer was NULL. Offset is a write-back argument; NULL here is a programming error in the caller.                                                           |
+| 0x0004 | `CTLS_STATUS_NULL_STRUCT`     | The primary struct pointer (e.g. `hsmg`, `record`, `template`, `crypto`) was NULL. Caller forgot to allocate/pass the object.                                             |
+| 0x0005 | `CTLS_STATUS_INVALID_ARG`     | A non-pointer argument held an illegal value (enum out of defined range, zero where non-zero required, etc.).                                                             |
+| 0x0006 | `CTLS_STATUS_UNKNOWN`         | Unclassified internal error. Should not appear in production; means a code path returned without setting a real code.                                                     |
+| 0x0007 | `CTLS_STATUS_NOT_IMPLEMENTED` | Called a function stub (`ctls_hsmg_server_hello_create`, `ctls_hsmg_finished_*`, etc.) that has no body yet. Replaces silent empty returns that currently return garbage. |
 
 ---
 
@@ -63,9 +63,9 @@ These fire before any subsystem logic executes.
 
 | Code   | Name                        | Reason / Trigger                                                                                                                                                                                               |
 |--------|-----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 0x0032 | `CTLS_ERR_BUFFER_OVERFLOW`  | A write would exceed the known buffer boundary (`sizeof(field) + *offset > buffer_size`). Fired in `ctls_recd_client_hello_to_wire` content-type and profile-id writes.                                        |
-| 0x0033 | `CTLS_ERR_BUFFER_TOO_SMALL` | Output buffer is smaller than the minimum required for the result. Distinct from overflow: overflow is a bounds check on a write; this is a capacity pre-check. Also maps to PSA `PSA_ERROR_BUFFER_TOO_SMALL`. |
-| 0x0034 | `CTLS_ERR_BOUNDS_EXCEEDED`  | `CTLS_CHECK_BOUNDS`: `offset + size > limit`. Fired in `ctls_unified_header_deserialize` when fewer than 2 bytes remain in the incoming record.                                                                |
+| 0x0032 | `CTLS_STATUS_BUFFER_OVERFLOW`  | A write would exceed the known buffer boundary (`sizeof(field) + *offset > buffer_size`). Fired in `ctls_recd_client_hello_to_wire` content-type and profile-id writes.                                        |
+| 0x0033 | `CTLS_STATUS_BUFFER_TOO_SMALL` | Output buffer is smaller than the minimum required for the result. Distinct from overflow: overflow is a bounds check on a write; this is a capacity pre-check. Also maps to PSA `PSA_ERROR_BUFFER_TOO_SMALL`. |
+| 0x0034 | `CTLS_STATUS_BOUNDS_EXCEEDED`  | `CTLS_CHECK_BOUNDS`: `offset + size > limit`. Fired in `ctls_unified_header_deserialize` when fewer than 2 bytes remain in the incoming record.                                                                |
 
 ---
 
@@ -75,21 +75,21 @@ All errors in this band originate inside crypto operations backed by Mbed TLS PS
 
 | Code   | Name                                       | Reason / Trigger                                                                                                                                   |
 |--------|--------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------|
-| 0x0064 | `CTLS_ERR_CRYPTO_INIT_FAILED`              | `psa_crypto_init()` returned non-success. PSA subsystem not usable.                                                                                |
-| 0x0065 | `CTLS_ERR_CRYPTO_INVALID_SIGNATURE`        | `PSA_ERROR_INVALID_SIGNATURE` — signature verification failed (wrong key or tampered data).                                                        |
-| 0x0066 | `CTLS_ERR_CRYPTO_INVALID_ARG`              | `PSA_ERROR_INVALID_ARGUMENT` — bad algorithm ID, wrong key type, or zero-length input passed to a PSA function.                                    |
-| 0x0067 | `CTLS_ERR_CRYPTO_NOT_SUPPORTED`            | `PSA_ERROR_NOT_SUPPORTED` — algorithm or key type not compiled into the PSA build.                                                                 |
-| 0x0068 | `CTLS_ERR_CRYPTO_INSUFFICIENT_ENTROPY`     | `PSA_ERROR_INSUFFICIENT_ENTROPY` — platform RNG could not generate requested bytes.                                                                |
-| 0x0069 | `CTLS_ERR_CRYPTO_KEY_GEN_FAILED`           | `psa_generate_key()` failed; ephemeral ECDHE key pair could not be created.                                                                        |
-| 0x006A | `CTLS_ERR_CRYPTO_KEY_EXPORT_FAILED`        | `psa_export_public_key()` or `psa_import_key()` failed; key material could not be read or loaded.                                                  |
-| 0x006B | `CTLS_ERR_CRYPTO_ECDH_FAILED`              | `psa_raw_key_agreement()` failed; shared ephemeral secret derivation failed.                                                                       |
-| 0x006C | `CTLS_ERR_CRYPTO_HKDF_FAILED`              | Any HKDF extract/expand PSA call failed (early secret, derived secret, handshake secret, traffic secrets, write keys, IVs).                        |
-| 0x006D | `CTLS_ERR_CRYPTO_HASH_FAILED`              | `psa_hash_setup`, `psa_hash_update`, `psa_hash_finish`, or `psa_hash_clone` returned non-success. Transcript hash is broken.                       |
-| 0x006E | `CTLS_ERR_CRYPTO_AEAD_DECRYPT_FAILED`      | `psa_aead_decrypt()` failed; either the tag check failed (authentication failure) or a PSA internal error.                                         |
-| 0x006F | `CTLS_ERR_CRYPTO_UNSUPPORTED_CIPHER_SUITE` | Cipher suite value has no PSA hash algorithm mapping in `ctls_psa_hash_algorithm_set`. New cipher suite added to enum without updating the switch. |
-| 0x0070 | `CTLS_ERR_CRYPTO_UNSUPPORTED_DHE_GROUP`    | DHE group has no PSA ECC family mapping in `ctls_psa_ecc_family_set`. New group added to enum without updating the switch.                         |
-| 0x0071 | `CTLS_ERR_CRYPTO_RANDOM_FAILED`            | `psa_generate_random()` failed in `ctls_random_generate`; random nonce or client-random could not be produced.                                     |
-| 0x0072 | `CTLS_ERR_CRYPTO_UNKNOWN`                  | PSA returned an error code not explicitly mapped in `ctls_psa_error_map`. Raw PSA status must be logged separately.                                |
+| 0x0064 | `CTLS_STATUS_CRYPTO_INIT_FAILED`              | `psa_crypto_init()` returned non-success. PSA subsystem not usable.                                                                                |
+| 0x0065 | `CTLS_STATUS_CRYPTO_INVALID_SIGNATURE`        | `PSA_ERROR_INVALID_SIGNATURE` — signature verification failed (wrong key or tampered data).                                                        |
+| 0x0066 | `CTLS_STATUS_CRYPTO_INVALID_ARG`              | `PSA_ERROR_INVALID_ARGUMENT` — bad algorithm ID, wrong key type, or zero-length input passed to a PSA function.                                    |
+| 0x0067 | `CTLS_STATUS_CRYPTO_NOT_SUPPORTED`            | `PSA_ERROR_NOT_SUPPORTED` — algorithm or key type not compiled into the PSA build.                                                                 |
+| 0x0068 | `CTLS_STATUS_CRYPTO_INSUFFICIENT_ENTROPY`     | `PSA_ERROR_INSUFFICIENT_ENTROPY` — platform RNG could not generate requested bytes.                                                                |
+| 0x0069 | `CTLS_STATUS_CRYPTO_KEY_GEN_FAILED`           | `psa_generate_key()` failed; ephemeral ECDHE key pair could not be created.                                                                        |
+| 0x006A | `CTLS_STATUS_CRYPTO_KEY_EXPORT_FAILED`        | `psa_export_public_key()` or `psa_import_key()` failed; key material could not be read or loaded.                                                  |
+| 0x006B | `CTLS_STATUS_CRYPTO_ECDH_FAILED`              | `psa_raw_key_agreement()` failed; shared ephemeral secret derivation failed.                                                                       |
+| 0x006C | `CTLS_STATUS_CRYPTO_HKDF_FAILED`              | Any HKDF extract/expand PSA call failed (early secret, derived secret, handshake secret, traffic secrets, write keys, IVs).                        |
+| 0x006D | `CTLS_STATUS_CRYPTO_HASH_FAILED`              | `psa_hash_setup`, `psa_hash_update`, `psa_hash_finish`, or `psa_hash_clone` returned non-success. Transcript hash is broken.                       |
+| 0x006E | `CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED`      | `psa_aead_decrypt()` failed; either the tag check failed (authentication failure) or a PSA internal error.                                         |
+| 0x006F | `CTLS_STATUS_CRYPTO_UNSUPPORTED_CIPHER_SUITE` | Cipher suite value has no PSA hash algorithm mapping in `ctls_psa_hash_algorithm_set`. New cipher suite added to enum without updating the switch. |
+| 0x0070 | `CTLS_STATUS_CRYPTO_UNSUPPORTED_DHE_GROUP`    | DHE group has no PSA ECC family mapping in `ctls_psa_ecc_family_set`. New group added to enum without updating the switch.                         |
+| 0x0071 | `CTLS_STATUS_CRYPTO_RANDOM_FAILED`            | `psa_generate_random()` failed in `ctls_random_generate`; random nonce or client-random could not be produced.                                     |
+| 0x0072 | `CTLS_STATUS_CRYPTO_UNKNOWN`                  | PSA returned an error code not explicitly mapped in `ctls_psa_error_map`. Raw PSA status must be logged separately.                                |
 
 ---
 
@@ -97,14 +97,14 @@ All errors in this band originate inside crypto operations backed by Mbed TLS PS
 
 | Code   | Name                                      | Reason / Trigger                                                                                                                                                                                                                              |
 |--------|-------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 0x00C8 | `CTLS_ERR_EXTN_INVALID_SIZE_FLAG`         | `isOneByte` argument to `ctls_extn_enum_serialize/deserialize` is neither `CTLS_HELPER_IS_ONE_BYTE` nor `CTLS_HELPER_IS_TWO_BYTE`. Caller passed an uninitialized or wrong flag.                                                              |
-| 0x00C9 | `CTLS_ERR_EXTN_INVALID_FORM`              | `form` field is neither `CTLS_DATA_FORM_OPAQUE` nor `CTLS_DATA_FORM_PARSED`. Fired in `ctls_extn_server_name_serialize` and similar. Extension struct was never properly initialized.                                                         |
-| 0x00CA | `CTLS_ERR_EXTN_UNKNOWN_TYPE`              | Extension type value not handled in the `ctls_extn_is_initialized` switch. An extension type was added to the enum but the initialization check was not updated.                                                                              |
-| 0x00CB | `CTLS_ERR_EXTN_UNKNOWN_MSG_TYPE`          | `hsmg_type` passed to `ctls_extn_is_initialized` is not `CLIENT_HELLO`, `SERVER_HELLO`, `ENCRYPTED_EXTENSIONS`, or `CERTIFICATE_REQUEST`. Wrong message type used at call site.                                                               |
-| 0x00CC | `CTLS_ERR_EXTN_INVALID_STATUS_TYPE`       | Certificate status type is not `CTLS_EXTN_CERTIFICATE_STATUS_TYPE_OSCP`. Only OCSP is defined; any other value in the deserialized byte is a malformed or unsupported extension.                                                              |
-| 0x00CD | `CTLS_ERR_EXTN_INVALID_ENTITY_OWNERSHIP`  | `entity_ownership` in `ctls_extn_key_share_deserialize` is neither `CLIENT` nor `SERVER`. Caller passed uninitialized or wrong ownership flag.                                                                                                |
-| 0x00CE | `CTLS_ERR_EXTN_INVALID_WIRE_FORMAT`       | `wire_format` in any `_to_wire` extension function is not `DEFAULT` or `TRANSCRIPT_HASH`. Caller passed an unsupported format.                                                                                                                |
-| 0x00CF | `CTLS_ERR_EXTN_UNEXPECTED_EXPECTED_EXTNS` | `ctls_extn_encrypted_extensions_to_struct`: template's `encrypted_extension.expected_extensions` has non-zero count. No valid cTLS extensions for `EncryptedExtensions` exist in the expected-extensions list; this indicates a bad template. |
+| 0x00C8 | `CTLS_STATUS_EXTN_INVALID_SIZE_FLAG`         | `isOneByte` argument to `ctls_extn_enum_serialize/deserialize` is neither `CTLS_HELPER_IS_ONE_BYTE` nor `CTLS_HELPER_IS_TWO_BYTE`. Caller passed an uninitialized or wrong flag.                                                              |
+| 0x00C9 | `CTLS_STATUS_EXTN_INVALID_FORM`              | `form` field is neither `CTLS_DATA_FORM_OPAQUE` nor `CTLS_DATA_FORM_PARSED`. Fired in `ctls_extn_server_name_serialize` and similar. Extension struct was never properly initialized.                                                         |
+| 0x00CA | `CTLS_STATUS_EXTN_UNKNOWN_TYPE`              | Extension type value not handled in the `ctls_extn_is_initialized` switch. An extension type was added to the enum but the initialization check was not updated.                                                                              |
+| 0x00CB | `CTLS_STATUS_EXTN_UNKNOWN_MSG_TYPE`          | `hsmg_type` passed to `ctls_extn_is_initialized` is not `CLIENT_HELLO`, `SERVER_HELLO`, `ENCRYPTED_EXTENSIONS`, or `CERTIFICATE_REQUEST`. Wrong message type used at call site.                                                               |
+| 0x00CC | `CTLS_STATUS_EXTN_INVALID_STATUS_TYPE`       | Certificate status type is not `CTLS_EXTN_CERTIFICATE_STATUS_TYPE_OSCP`. Only OCSP is defined; any other value in the deserialized byte is a malformed or unsupported extension.                                                              |
+| 0x00CD | `CTLS_STATUS_EXTN_INVALID_ENTITY_OWNERSHIP`  | `entity_ownership` in `ctls_extn_key_share_deserialize` is neither `CLIENT` nor `SERVER`. Caller passed uninitialized or wrong ownership flag.                                                                                                |
+| 0x00CE | `CTLS_STATUS_EXTN_INVALID_WIRE_FORMAT`       | `wire_format` in any `_to_wire` extension function is not `DEFAULT` or `TRANSCRIPT_HASH`. Caller passed an unsupported format.                                                                                                                |
+| 0x00CF | `CTLS_STATUS_EXTN_UNEXPECTED_EXPECTED_EXTNS` | `ctls_extn_encrypted_extensions_to_struct`: template's `encrypted_extension.expected_extensions` has non-zero count. No valid cTLS extensions for `EncryptedExtensions` exist in the expected-extensions list; this indicates a bad template. |
 
 ---
 
@@ -112,12 +112,12 @@ All errors in this band originate inside crypto operations backed by Mbed TLS PS
 
 | Code   | Name                                 | Reason / Trigger                                                                                                                                                                     |
 |--------|--------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 0x012C | `CTLS_ERR_RECD_UNSUPPORTED_CID`      | Record unified header has the C bit set (connection ID present). CID is not implemented; any record with C=1 must be rejected.                                                       |
-| 0x012D | `CTLS_ERR_RECD_INVALID_SEQ_LEN`      | S bit in the unified header is outside `{0, 1}`. This means the header byte is malformed or corrupted.                                                                               |
-| 0x012E | `CTLS_ERR_RECD_INVALID_CONTENT_TYPE` | Content type byte in the plaintext record header does not match any known `ctls_recd_content_type_t` value. Peer sent an unknown record type.                                        |
-| 0x012F | `CTLS_ERR_RECD_INVALID_WIRE_FORMAT`  | Wire format passed to `ctls_recd_client_hello_to_wire` or `ctls_recd_server_hello_to_wire` is not `DEFAULT` or `TRANSCRIPT_HASH`.                                                    |
-| 0x0130 | `CTLS_ERR_RECD_UNKNOWN_MSG_TYPE`     | `ctls_record_serialize` or `ctls_record_deserialize` received a `message_type` with no case in its switch. New handshake message type added without updating record dispatch.        |
-| 0x0131 | `CTLS_ERR_RECD_NO_MUTUAL_AUTH`       | `ctls_recd_certificate_request_to_struct` was called but `template->mutual_auth == 0`. A CertificateRequest was received on a non-mutual-auth profile; this is a protocol violation. |
+| 0x012C | `CTLS_STATUS_RECD_UNSUPPORTED_CID`      | Record unified header has the C bit set (connection ID present). CID is not implemented; any record with C=1 must be rejected.                                                       |
+| 0x012D | `CTLS_STATUS_RECD_INVALID_SEQ_LEN`      | S bit in the unified header is outside `{0, 1}`. This means the header byte is malformed or corrupted.                                                                               |
+| 0x012E | `CTLS_STATUS_RECD_INVALID_CONTENT_TYPE` | Content type byte in the plaintext record header does not match any known `ctls_recd_content_type_t` value. Peer sent an unknown record type.                                        |
+| 0x012F | `CTLS_STATUS_RECD_INVALID_WIRE_FORMAT`  | Wire format passed to `ctls_recd_client_hello_to_wire` or `ctls_recd_server_hello_to_wire` is not `DEFAULT` or `TRANSCRIPT_HASH`.                                                    |
+| 0x0130 | `CTLS_STATUS_RECD_UNKNOWN_MSG_TYPE`     | `ctls_record_serialize` or `ctls_record_deserialize` received a `message_type` with no case in its switch. New handshake message type added without updating record dispatch.        |
+| 0x0131 | `CTLS_STATUS_RECD_NO_MUTUAL_AUTH`       | `ctls_recd_certificate_request_to_struct` was called but `template->mutual_auth == 0`. A CertificateRequest was received on a non-mutual-auth profile; this is a protocol violation. |
 
 ---
 
@@ -125,8 +125,8 @@ All errors in this band originate inside crypto operations backed by Mbed TLS PS
 
 | Code   | Name                                | Reason / Trigger                                                                                                                                                                                                                                         |
 |--------|-------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 0x015E | `CTLS_ERR_HSMG_INVALID_WIRE_FORMAT` | Wire format passed to any `ctls_hsmg_*_to_wire` function is not `DEFAULT` or `TRANSCRIPT_HASH`.                                                                                                                                                          |
-| 0x015F | `CTLS_ERR_HSMG_UNKNOWN_MSG_TYPE`    | `ctls_transcript_hash_update`'s switch hit the default case; the record's `message_type` has no transcript-hash serializer. Fired for `NEW_SESSION_TICKET`, `KEY_UPDATE`, `SENTINEL`, etc. that should never appear during normal client-side handshake. |
+| 0x015E | `CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT` | Wire format passed to any `ctls_hsmg_*_to_wire` function is not `DEFAULT` or `TRANSCRIPT_HASH`.                                                                                                                                                          |
+| 0x015F | `CTLS_STATUS_HSMG_UNKNOWN_MSG_TYPE`    | `ctls_transcript_hash_update`'s switch hit the default case; the record's `message_type` has no transcript-hash serializer. Fired for `NEW_SESSION_TICKET`, `KEY_UPDATE`, `SENTINEL`, etc. that should never appear during normal client-side handshake. |
 
 ---
 
@@ -134,13 +134,13 @@ All errors in this band originate inside crypto operations backed by Mbed TLS PS
 
 | Code   | Name                                  | Reason / Trigger                                                                                                                                     |
 |--------|---------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 0x0190 | `CTLS_ERR_TMPL_NULL`                  | `ctls_validate_template` or any function that calls `ctls_template_get()` received NULL. Template was never set via `ctls_context_init`.             |
-| 0x0191 | `CTLS_ERR_TMPL_INVALID_CIPHER_SUITE`  | `template->cipher_suite` is 0 (sentinel). Profile must specify a cipher suite.                                                                       |
-| 0x0192 | `CTLS_ERR_TMPL_INVALID_DHE_GROUP`     | `template->dhe_group.dhe_group` is 0 (sentinel). Profile must specify a DHE group.                                                                   |
-| 0x0193 | `CTLS_ERR_TMPL_INVALID_SIG_ALGORITHM` | `template->signature_algorithm.signature_algorithm_type` is 0 (sentinel). Profile must specify a signature algorithm.                                |
-| 0x0194 | `CTLS_ERR_TMPL_UNKNOWN_PROFILE`       | `ctls_template_set` received a profile ID with no registered template. The `CTLS_PROFILE_ID` compile-time constant does not match any known profile. |
-| 0x0195 | `CTLS_ERR_TMPL_INVALID_EXTENSION`     | `ctls_tmpl_extension_to_wire`: `CTLS_EXTN_TYPE_KEY_SHARE` found in `expected_extensions` or `self_delimiting_extensions`. Key share is a runtime extension — must not appear in the template definition. |
-| 0x0196 | `CTLS_ERR_TMPL_UNKNOWN_ELEMENT`       | `ctls_template_element_to_wire` hit the `default` case — unrecognised `ctls_tmpl_type_t` value passed. New template element added to the enum without a serialization case. |
+| 0x0190 | `CTLS_STATUS_TMPL_NULL`                  | `ctls_validate_template` or any function that calls `ctls_template_get()` received NULL. Template was never set via `ctls_context_init`.             |
+| 0x0191 | `CTLS_STATUS_TMPL_INVALID_CIPHER_SUITE`  | `template->cipher_suite` is 0 (sentinel). Profile must specify a cipher suite.                                                                       |
+| 0x0192 | `CTLS_STATUS_TMPL_INVALID_DHE_GROUP`     | `template->dhe_group.dhe_group` is 0 (sentinel). Profile must specify a DHE group.                                                                   |
+| 0x0193 | `CTLS_STATUS_TMPL_INVALID_SIG_ALGORITHM` | `template->signature_algorithm.signature_algorithm_type` is 0 (sentinel). Profile must specify a signature algorithm.                                |
+| 0x0194 | `CTLS_STATUS_TMPL_UNKNOWN_PROFILE`       | `ctls_template_set` received a profile ID with no registered template. The `CTLS_PROFILE_ID` compile-time constant does not match any known profile. |
+| 0x0195 | `CTLS_STATUS_TMPL_INVALID_EXTENSION`     | `ctls_tmpl_extension_to_wire`: `CTLS_EXTN_TYPE_KEY_SHARE` found in `expected_extensions` or `self_delimiting_extensions`. Key share is a runtime extension — must not appear in the template definition. |
+| 0x0196 | `CTLS_STATUS_TMPL_UNKNOWN_ELEMENT`       | `ctls_template_element_to_wire` hit the `default` case — unrecognised `ctls_tmpl_type_t` value passed. New template element added to the enum without a serialization case. |
 
 ---
 
@@ -148,8 +148,8 @@ All errors in this band originate inside crypto operations backed by Mbed TLS PS
 
 | Code   | Name                             | Reason / Trigger                                                                                                           |
 |--------|----------------------------------|----------------------------------------------------------------------------------------------------------------------------|
-| 0x01C2 | `CTLS_ERR_TRANSPORT_SEND_FAILED` | The `recd_send` callback returned non-success. The underlying socket/UART/bus write failed.                                |
-| 0x01C3 | `CTLS_ERR_TRANSPORT_RECV_FAILED` | The `recd_receive` callback returned non-success. No data arrived, the connection closed, or the driver reported an error. |
+| 0x01C2 | `CTLS_STATUS_TRANSPORT_SEND_FAILED` | The `recd_send` callback returned non-success. The underlying socket/UART/bus write failed.                                |
+| 0x01C3 | `CTLS_STATUS_TRANSPORT_RECV_FAILED` | The `recd_receive` callback returned non-success. No data arrived, the connection closed, or the driver reported an error. |
 
 ---
 
@@ -157,8 +157,8 @@ All errors in this band originate inside crypto operations backed by Mbed TLS PS
 
 | Code   | Name                              | Reason / Trigger                                                                                                        |
 |--------|-----------------------------------|-------------------------------------------------------------------------------------------------------------------------|
-| 0x01F4 | `CTLS_ERR_HSHK_INVALID_STATE`     | An operation was attempted in a handshake state where it is not valid (e.g. trying to decrypt before keys are derived). |
-| 0x01F5 | `CTLS_ERR_HSHK_ALREADY_CONNECTED` | `ctls_connect` or `ctls_handshake` called when state is already `CTLS_HSHK_STATE_CONNECTED`.                            |
+| 0x01F4 | `CTLS_STATUS_HSHK_INVALID_STATE`     | An operation was attempted in a handshake state where it is not valid (e.g. trying to decrypt before keys are derived). |
+| 0x01F5 | `CTLS_STATUS_HSHK_ALREADY_CONNECTED` | `ctls_connect` or `ctls_handshake` called when state is already `CTLS_HSHK_STATE_CONNECTED`.                            |
 
 ---
 
@@ -173,12 +173,12 @@ All errors in this band originate inside crypto operations backed by Mbed TLS PS
 
 The raw PSA status is only useful for debug logging. Recommendation: store it in a
 single `ctls_last_psa_status` global (or in `ctls_context_t`) before returning
-`CTLS_ERR_CRYPTO_*`. The error code itself tells you which subsystem and failure class.
+`CTLS_STATUS_CRYPTO_*`. The error code itself tells you which subsystem and failure class.
 
 ### Existing `CTLS_CHECK_NULL` macro
 
 Replace the single generic `CTLS_OP_STATUS_FAIL` return with context-specific codes:
 
-- `buffer` or `offset` args → `CTLS_ERR_NULL_BUFFER` / `CTLS_ERR_NULL_OFFSET`
-- primary struct arg (first param of most functions) → `CTLS_ERR_NULL_STRUCT`
-- global getter returns (template, crypto, hshk_data) → `CTLS_ERR_TMPL_NULL` or `CTLS_ERR_NULL_PTR`
+- `buffer` or `offset` args → `CTLS_STATUS_NULL_BUFFER` / `CTLS_STATUS_NULL_OFFSET`
+- primary struct arg (first param of most functions) → `CTLS_STATUS_NULL_STRUCT`
+- global getter returns (template, crypto, hshk_data) → `CTLS_STATUS_TMPL_NULL` or `CTLS_STATUS_NULL_PTR`
