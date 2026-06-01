@@ -14,25 +14,20 @@
 /*  MACROS                                                            */
 /* ------------------------------------------------------------------ */
 
-#define CTLS_CHECK_NULL(pointer)                                    \
-    do {                                                            \
-        if ((pointer) == NULL)                                      \
-            return (ctls_op_status_t) {                             \
-                        .source = CTLS_ERROR_SOURCE_INTERNAL,       \
-                        .code = CTLS_OP_STATUS_FAIL,                \
-                        .external_code = CTLS_OP_STATUS_FAIL,       \
-                    };                                              \
-    } while (0)
+#define CTLS_CHECK_NULL(pointer) \
+    do { if ((pointer) == NULL) return CTLS_ERR_NULL_PTR; } while (0)
 
-#define CTLS_CHECK_BOUNDS(offset, size, limit)                      \
-    do {                                                            \
-        if ((offset) + (size) > (limit))                            \
-            return (ctls_op_status_t) {                             \
-                        .source = CTLS_ERROR_SOURCE_INTERNAL,       \
-                        .code = CTLS_OP_STATUS_OVERFLOW,            \
-                        .external_code = CTLS_OP_STATUS_OVERFLOW,   \
-                    };                                              \
-    } while (0)
+#define CTLS_CHECK_NULL_BUFFER(pointer) \
+    do { if ((pointer) == NULL) return CTLS_ERR_NULL_BUFFER; } while (0)
+
+#define CTLS_CHECK_NULL_OFFSET(pointer) \
+    do { if ((pointer) == NULL) return CTLS_ERR_NULL_OFFSET; } while (0)
+
+#define CTLS_CHECK_NULL_STRUCT(pointer) \
+    do { if ((pointer) == NULL) return CTLS_ERR_NULL_STRUCT; } while (0)
+
+#define CTLS_CHECK_BOUNDS(offset, size, limit) \
+    do { if ((offset) + (size) > (limit)) return CTLS_ERR_BOUNDS_EXCEEDED; } while (0)
 
 /* ------------------------------------------------------------------ */
 /*  DEFINITIONS                                                       */
@@ -62,11 +57,6 @@ struct ctls_hshk_data {
     uint8_t certificate_request_context[CTLS_SIZE_CERTIFICATE_REQUEST_CONTEXT];
 };
 
-struct ctls_op_status {
-    ctls_op_status_code_t code;
-    ctls_error_source_t source;
-    uint16_t external_code;
-};
 
 struct ctls_transport {
     ctls_recd_send recd_send;
@@ -89,18 +79,18 @@ ctls_hshk_data_t *ctls_hshk_data_get(void);
 ctls_crypto_t *ctls_crypto_get(void);
 ctls_hshk_buffer_t *ctls_hshk_buffer_get(void);
 
-ctls_op_status_t ctls_context_init(ctls_context_t *context,
+ctls_status_t ctls_context_init(ctls_context_t *context,
                                    ctls_transport_t const *transport);
-ctls_op_status_t ctls_handshake_state_update(ctls_hshk_state_t *location,
+ctls_status_t ctls_handshake_state_update(ctls_hshk_state_t *location,
                                              ctls_hshk_state_t state);
 void ctls_wire_buffer_clear(uint8_t *buffer);
-ctls_op_status_t ctls_recd_buffer_clear(ctls_record_t *record_buffer);
-ctls_op_status_t ctls_validate_template();
-ctls_op_status_t ctls_connect(ctls_context_t *context);
-ctls_op_status_t ctls_read(ctls_context_t const *context,
+ctls_status_t ctls_recd_buffer_clear(ctls_record_t *record_buffer);
+ctls_status_t ctls_validate_template();
+ctls_status_t ctls_connect(ctls_context_t *context);
+ctls_status_t ctls_read(ctls_context_t const *context,
                            uint8_t *buffer,
                            size_t buffer_length);
-ctls_op_status_t ctls_write(ctls_context_t const *context,
+ctls_status_t ctls_write(ctls_context_t const *context,
                             uint8_t *buffer,
                             size_t buffer_length);
 

@@ -237,20 +237,95 @@ typedef enum {
     CTLS_HSHK_STATE_ERROR, // unrecoverable error
 } ctls_hshk_state_t;
 
-typedef enum {
-    CTLS_OP_STATUS_SUCCESS = 100,
-    CTLS_OP_STATUS_FAIL,
-    CTLS_OP_STATUS_UNKNOWN,
-    CTLS_OP_STATUS_OVERFLOW,
-    CTLS_OP_STATUS_INVALID,
-    CTLS_OP_STATUS_ERROR,
-} ctls_op_status_code_t;
+/* ------------------------------------------------------------------ */
+/*  STATUS TYPE + ERROR CODES                                         */
+/*  uint16_t — range encodes subsystem for traceability               */
+/*  0x0000        Success                                             */
+/*  0x0001-0x0031 General / Parameter                                */
+/*  0x0032-0x0063 Buffer / Memory                                     */
+/*  0x0064-0x00C7 Crypto (PSA-backed)                                */
+/*  0x00C8-0x012B Extension Ser/Deser                                */
+/*  0x012C-0x015D Record Layer                                       */
+/*  0x015E-0x018F Handshake Messages                                 */
+/*  0x0190-0x01C1 Template / Profile                                 */
+/*  0x01C2-0x01F3 Transport                                          */
+/*  0x01F4-0x0225 Handshake State Machine                            */
+/* ------------------------------------------------------------------ */
 
-typedef enum {
-    CTLS_ERROR_SOURCE_CRYPTO = 0,
-    CTLS_ERROR_SOURCE_INTERNAL,
-    CTLS_ERROR_SOURCE_TRANSPORT,
-} ctls_error_source_t;
+typedef uint16_t ctls_status_t;
+
+/* Success */
+#define CTLS_ERR_SUCCESS                         ((ctls_status_t)0x0000u)
+
+/* General / Parameter (0x0001-0x0031) */
+#define CTLS_ERR_NULL_PTR                        ((ctls_status_t)0x0001u)
+#define CTLS_ERR_NULL_BUFFER                     ((ctls_status_t)0x0002u)
+#define CTLS_ERR_NULL_OFFSET                     ((ctls_status_t)0x0003u)
+#define CTLS_ERR_NULL_STRUCT                     ((ctls_status_t)0x0004u)
+#define CTLS_ERR_INVALID_ARG                     ((ctls_status_t)0x0005u)
+#define CTLS_ERR_UNKNOWN                         ((ctls_status_t)0x0006u)
+#define CTLS_ERR_NOT_IMPLEMENTED                 ((ctls_status_t)0x0007u)
+
+/* Buffer / Memory (0x0032-0x0063) */
+#define CTLS_ERR_BUFFER_OVERFLOW                 ((ctls_status_t)0x0032u)
+#define CTLS_ERR_BUFFER_TOO_SMALL                ((ctls_status_t)0x0033u)
+#define CTLS_ERR_BOUNDS_EXCEEDED                 ((ctls_status_t)0x0034u)
+
+/* Crypto (0x0064-0x00C7) */
+#define CTLS_ERR_CRYPTO_INIT_FAILED              ((ctls_status_t)0x0064u)
+#define CTLS_ERR_CRYPTO_INVALID_SIGNATURE        ((ctls_status_t)0x0065u)
+#define CTLS_ERR_CRYPTO_INVALID_ARG              ((ctls_status_t)0x0066u)
+#define CTLS_ERR_CRYPTO_NOT_SUPPORTED            ((ctls_status_t)0x0067u)
+#define CTLS_ERR_CRYPTO_INSUFFICIENT_ENTROPY     ((ctls_status_t)0x0068u)
+#define CTLS_ERR_CRYPTO_KEY_GEN_FAILED           ((ctls_status_t)0x0069u)
+#define CTLS_ERR_CRYPTO_KEY_EXPORT_FAILED        ((ctls_status_t)0x006Au)
+#define CTLS_ERR_CRYPTO_ECDH_FAILED              ((ctls_status_t)0x006Bu)
+#define CTLS_ERR_CRYPTO_HKDF_FAILED              ((ctls_status_t)0x006Cu)
+#define CTLS_ERR_CRYPTO_HASH_FAILED              ((ctls_status_t)0x006Du)
+#define CTLS_ERR_CRYPTO_AEAD_DECRYPT_FAILED      ((ctls_status_t)0x006Eu)
+#define CTLS_ERR_CRYPTO_UNSUPPORTED_CIPHER_SUITE ((ctls_status_t)0x006Fu)
+#define CTLS_ERR_CRYPTO_UNSUPPORTED_DHE_GROUP    ((ctls_status_t)0x0070u)
+#define CTLS_ERR_CRYPTO_RANDOM_FAILED            ((ctls_status_t)0x0071u)
+#define CTLS_ERR_CRYPTO_UNKNOWN                  ((ctls_status_t)0x0072u)
+
+/* Extension Ser/Deser (0x00C8-0x012B) */
+#define CTLS_ERR_EXTN_INVALID_SIZE_FLAG          ((ctls_status_t)0x00C8u)
+#define CTLS_ERR_EXTN_INVALID_FORM               ((ctls_status_t)0x00C9u)
+#define CTLS_ERR_EXTN_UNKNOWN_TYPE               ((ctls_status_t)0x00CAu)
+#define CTLS_ERR_EXTN_UNKNOWN_MSG_TYPE           ((ctls_status_t)0x00CBu)
+#define CTLS_ERR_EXTN_INVALID_STATUS_TYPE        ((ctls_status_t)0x00CCu)
+#define CTLS_ERR_EXTN_INVALID_ENTITY_OWNERSHIP   ((ctls_status_t)0x00CDu)
+#define CTLS_ERR_EXTN_INVALID_WIRE_FORMAT        ((ctls_status_t)0x00CEu)
+#define CTLS_ERR_EXTN_UNEXPECTED_EXPECTED_EXTNS  ((ctls_status_t)0x00CFu)
+
+/* Record Layer (0x012C-0x015D) */
+#define CTLS_ERR_RECD_UNSUPPORTED_CID            ((ctls_status_t)0x012Cu)
+#define CTLS_ERR_RECD_INVALID_SEQ_LEN            ((ctls_status_t)0x012Du)
+#define CTLS_ERR_RECD_INVALID_CONTENT_TYPE       ((ctls_status_t)0x012Eu)
+#define CTLS_ERR_RECD_INVALID_WIRE_FORMAT        ((ctls_status_t)0x012Fu)
+#define CTLS_ERR_RECD_UNKNOWN_MSG_TYPE           ((ctls_status_t)0x0130u)
+#define CTLS_ERR_RECD_NO_MUTUAL_AUTH             ((ctls_status_t)0x0131u)
+
+/* Handshake Messages (0x015E-0x018F) */
+#define CTLS_ERR_HSMG_INVALID_WIRE_FORMAT        ((ctls_status_t)0x015Eu)
+#define CTLS_ERR_HSMG_UNKNOWN_MSG_TYPE           ((ctls_status_t)0x015Fu)
+
+/* Template / Profile (0x0190-0x01C1) */
+#define CTLS_ERR_TMPL_NULL                       ((ctls_status_t)0x0190u)
+#define CTLS_ERR_TMPL_INVALID_CIPHER_SUITE       ((ctls_status_t)0x0191u)
+#define CTLS_ERR_TMPL_INVALID_DHE_GROUP          ((ctls_status_t)0x0192u)
+#define CTLS_ERR_TMPL_INVALID_SIG_ALGORITHM      ((ctls_status_t)0x0193u)
+#define CTLS_ERR_TMPL_UNKNOWN_PROFILE            ((ctls_status_t)0x0194u)
+#define CTLS_ERR_TMPL_INVALID_EXTENSION          ((ctls_status_t)0x0195u)
+#define CTLS_ERR_TMPL_UNKNOWN_ELEMENT            ((ctls_status_t)0x0196u)
+
+/* Transport (0x01C2-0x01F3) */
+#define CTLS_ERR_TRANSPORT_SEND_FAILED           ((ctls_status_t)0x01C2u)
+#define CTLS_ERR_TRANSPORT_RECV_FAILED           ((ctls_status_t)0x01C3u)
+
+/* Handshake State Machine (0x01F4-0x0225) */
+#define CTLS_ERR_HSHK_INVALID_STATE              ((ctls_status_t)0x01F4u)
+#define CTLS_ERR_HSHK_ALREADY_CONNECTED          ((ctls_status_t)0x01F5u)
 
 typedef enum {
     CTLS_EXTN_CERTIFICATE_TYPE_X509 = 0x00,
@@ -373,7 +448,6 @@ typedef struct ctls_unified_header ctls_unified_header_t;
 typedef struct ctls_recd_config_octet ctls_recd_config_octet_t;
 typedef struct ctls_handshake_message ctls_handshake_message_t;
 
-typedef struct ctls_op_status ctls_op_status_t;
 
 typedef struct ctls_template ctls_template_t;
 typedef struct ctls_template_bytes ctls_template_bytes_t;
@@ -408,8 +482,8 @@ typedef struct ctls_hshk_buffer_block ctls_hshk_buffer_block_t;
 /*  VIRTUAL FUNCTIONS                                                 */
 /* ------------------------------------------------------------------ */
 
-typedef ctls_op_status_t (*ctls_recd_send)(uint8_t *buffer, ctls_size_t buffer_length);
-typedef ctls_op_status_t (*ctls_recd_receive)(uint8_t *buffer,
+typedef ctls_status_t (*ctls_recd_send)(uint8_t *buffer, ctls_size_t buffer_length);
+typedef ctls_status_t (*ctls_recd_receive)(uint8_t *buffer,
                                               ctls_size_t *buffer_length,
                                               ctls_size_t buffer_size);
 
