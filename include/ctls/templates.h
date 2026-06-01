@@ -21,11 +21,11 @@ struct ctls_template_bytes {
 };
 struct ctls_tmpl_dhe_group {
     ctls_size_t key_share_length;
-    ctls_extn_dhe_group_type_t dhe_group;
+    ctls_dhe_group_t dhe_group;
 };
 struct ctls_tmpl_signature_algorithm {
     ctls_size_t signature_length;
-    ctls_extn_signature_algorithm_type_t signature_algorithm_type;
+    ctls_signature_scheme_t signature_algorithm_type;
 };
 struct ctls_tmpl_predefined_extensions {
     ctls_template_bytes_t server_name;
@@ -39,7 +39,7 @@ struct ctls_tmpl_predefined_extensions {
     ctls_extn_psk_key_exchange_mode_t psk_key_exchange_modes;
     ctls_template_bytes_t certificate_authorities;
     ctls_extn_post_handshake_auth_t post_handshake_auth;
-    ctls_extn_signature_algorithm_type_t signature_algorithm_cert;
+    ctls_signature_scheme_t signature_algorithm_cert;
 };
 struct ctls_tmpl_extension {
     ctls_tmpl_predefined_extensions_t predefined_extensions;
@@ -62,7 +62,7 @@ struct ctls_template {
     uint8_t profile_id;
     uint16_t ctls_version;
     ctls_protocol_version_t protocol_version;
-    ctls_hsmg_cipher_suite_type_t cipher_suite;
+    ctls_cipher_suite_t cipher_suite;
     ctls_tmpl_dhe_group_t dhe_group;
     ctls_tmpl_signature_algorithm_t signature_algorithm;
     uint16_t random;

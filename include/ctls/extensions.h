@@ -95,32 +95,32 @@ struct ctls_extn_signed_certificate_timestamp {
 
 struct ctls_extn_client_hello {
     ctls_extn_server_name_t server_name;
-    ctls_max_fragment_length_t maximum_fragment_length;
+    ctls_extn_max_fragment_length_t maximum_fragment_length;
     ctls_extn_certificate_status_request_t certificate_status_request;
-    ctls_extn_dhe_group_type_t supported_groups;
-    ctls_extn_signature_algorithm_type_t signature_algorithm;
+    ctls_extn_supported_group_t supported_groups;
+    ctls_extn_signature_algorithm_cert_t signature_algorithm;
     ctls_extn_heartbeat_mode_t heartbeat_mode;
     ctls_extn_alpn_t alpn;
     ctls_extn_signed_certificate_timestamp_t signed_certificate_timestamp;
     ctls_extn_certificate_type_t client_certificate_type;
     ctls_extn_certificate_type_t server_certificate_type;
-    ctls_protocol_version_t supported_versions;
+    ctls_extn_supported_version_t supported_versions;
     ctls_extn_psk_key_exchange_mode_t psk_key_exchange_modes;
     ctls_extn_certificate_authorities_t certificate_authorities;
     ctls_extn_post_handshake_auth_t post_handshake_auth;
-    ctls_extn_signature_algorithm_type_t signature_algorithm_cert;
+    ctls_extn_signature_algorithm_cert_t signature_algorithm_cert;
     ctls_extn_key_share_t key_share_entity;
 };
 
 struct ctls_extn_server_hello {
-    ctls_protocol_version_t supported_versions;
+    ctls_extn_supported_version_t supported_versions;
     ctls_extn_key_share_t key_share_entity;
 };
 
 struct ctls_extn_encrypted_extensions {
     ctls_extn_server_name_t server_name;
-    ctls_max_fragment_length_t maximum_fragment_length;
-    ctls_extn_dhe_group_type_t supported_groups;
+    ctls_extn_max_fragment_length_t maximum_fragment_length;
+    ctls_extn_supported_group_t supported_groups;
     ctls_extn_heartbeat_mode_t heartbeat_mode;
     ctls_extn_alpn_t alpn;
     ctls_extn_certificate_type_t client_certificate_type;
@@ -129,10 +129,10 @@ struct ctls_extn_encrypted_extensions {
 
 struct ctls_extn_certificate_request {
     ctls_extn_certificate_status_request_t certificate_status_request;
-    ctls_extn_signature_algorithm_type_t signature_algorithm;
+    ctls_extn_signature_algorithm_cert_t signature_algorithm;
     ctls_extn_signed_certificate_timestamp_t signed_certificate_timestamp;
     ctls_extn_certificate_authorities_t certificate_authorities;
-    ctls_extn_signature_algorithm_type_t signature_algorithm_cert;
+    ctls_extn_signature_algorithm_cert_t signature_algorithm_cert;
 };
 
 struct ctls_extn_certificate {
@@ -150,12 +150,12 @@ ctls_op_status_t ctls_extn_server_name_serialize(uint8_t *buffer,
                                                  server_name);
 
 ctls_op_status_t ctls_extn_max_fragment_length_deserialize(
-    ctls_max_fragment_length_t const *source,
-    ctls_max_fragment_length_t *max_fragment_length);
+    ctls_extn_max_fragment_length_t const *source,
+    ctls_extn_max_fragment_length_t *max_fragment_length);
 ctls_op_status_t ctls_extn_max_fragment_length_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
-    ctls_max_fragment_length_t const *max_fragment_length);
+    ctls_extn_max_fragment_length_t const *max_fragment_length);
 
 ctls_op_status_t ctls_extn_certificate_status_request_deserialize(
     uint8_t *buffer,
@@ -168,28 +168,28 @@ ctls_op_status_t ctls_extn_certificate_status_request_serialize(
     ctls_extn_certificate_status_request_t const *certificate_status_request);
 
 ctls_op_status_t ctls_extn_supported_groups_deserialize(
-    ctls_extn_dhe_group_type_t const *source,
-    ctls_extn_dhe_group_type_t *supported_group);
+    ctls_extn_supported_group_t const *source,
+    ctls_extn_supported_group_t *supported_group);
 ctls_op_status_t ctls_extn_supported_groups_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
-    ctls_extn_dhe_group_type_t const *supported_groups);
+    ctls_extn_supported_group_t const *supported_groups);
 
 ctls_op_status_t ctls_extn_signature_algorithm_deserialize(
-    ctls_extn_signature_algorithm_type_t const *source,
-    ctls_extn_signature_algorithm_type_t *signature_algorithm);
+    ctls_extn_signature_algorithm_t const *source,
+    ctls_extn_signature_algorithm_t *signature_algorithm);
 ctls_op_status_t ctls_extn_signature_algorithm_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
-    ctls_extn_signature_algorithm_type_t const *signature_algorithm);
+    ctls_extn_signature_algorithm_t const *signature_algorithm);
 
 ctls_op_status_t ctls_extn_signature_algorithm_cert_deserialize(
-    ctls_extn_signature_algorithm_type_t const *source,
-    ctls_extn_signature_algorithm_type_t *signature_algorithm_cert);
+    ctls_extn_signature_algorithm_t const *source,
+    ctls_extn_signature_algorithm_t *signature_algorithm_cert);
 ctls_op_status_t ctls_extn_signature_algorithm_cert_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
-    ctls_extn_signature_algorithm_type_t const *signature_algorithm_cert);
+    ctls_extn_signature_algorithm_t const *signature_algorithm_cert);
 
 ctls_op_status_t ctls_extn_heartbeat_mode_deserialize(
     ctls_extn_heartbeat_mode_t const *source,
@@ -218,28 +218,28 @@ ctls_op_status_t ctls_extn_signed_certificate_timestamp_serialize(
     ctls_extn_signed_certificate_timestamp_t const *signed_certificate_timestamp);
 
 ctls_op_status_t ctls_extn_client_certificate_type_deserialize(
-    ctls_extn_certificate_type_t const *source,
-    ctls_extn_certificate_type_t *client_certificate_type);
+    ctls_extn_client_certificate_type_t const *source,
+    ctls_extn_client_certificate_type_t *client_certificate_type);
 ctls_op_status_t ctls_extn_client_certificate_type_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
-    ctls_extn_certificate_type_t const *client_certificate_type);
+    ctls_extn_client_certificate_type_t const *client_certificate_type);
 
 ctls_op_status_t ctls_extn_server_certificate_type_deserialize(
-    ctls_extn_certificate_type_t const *source,
-    ctls_extn_certificate_type_t *server_certificate_type);
+    ctls_extn_server_certificate_type_t const *source,
+    ctls_extn_server_certificate_type_t *server_certificate_type);
 ctls_op_status_t ctls_extn_server_certificate_type_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
-    ctls_extn_certificate_type_t const *server_certificate_type);
+    ctls_extn_server_certificate_type_t const *server_certificate_type);
 
 ctls_op_status_t ctls_extn_supported_versions_deserialize(
-    ctls_protocol_version_t const *source,
-    ctls_protocol_version_t *supported_versions);
+    ctls_extn_supported_version_t const *source,
+    ctls_extn_supported_version_t *supported_versions);
 ctls_op_status_t ctls_extn_supported_versions_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
-    ctls_protocol_version_t const *supported_versions);
+    ctls_extn_supported_version_t const *supported_versions);
 
 ctls_op_status_t ctls_extn_psk_key_exchange_modes_deserialize(
     ctls_extn_psk_key_exchange_mode_t const *source,

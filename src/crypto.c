@@ -67,7 +67,7 @@ ctls_op_status_t ctls_crypto_init() {
 }
 
 ctls_op_status_t ctls_psa_hash_algorithm_set(ctls_crypto_t *crypto,
-                                             ctls_hsmg_cipher_suite_type_t const
+                                             ctls_cipher_suite_t const
                                              cipher_suite) {
     switch (cipher_suite) {
         case CTLS_HSMG_CIPHER_SUITE_AES_128_GCM_SHA256:
@@ -85,7 +85,7 @@ ctls_op_status_t ctls_psa_hash_algorithm_set(ctls_crypto_t *crypto,
 }
 
 ctls_op_status_t ctls_psa_ecc_family_set(ctls_crypto_t *crypto,
-                                         ctls_extn_dhe_group_type_t const
+                                         ctls_dhe_group_t const
                                          dhe_group_type) {
     switch (dhe_group_type) {
         case CTLS_EXTN_DHE_GROUP_FFDHE2048:
@@ -225,7 +225,7 @@ ctls_op_status_t transcript_snapshot(psa_hash_operation_t const *hash_operator,
 }
 
 ctls_op_status_t ctls_hkdf_init(ctls_crypto_t *crypto,
-                                ctls_extn_dhe_group_type_t const ecdhe_group_type) {
+                                ctls_dhe_group_t const ecdhe_group_type) {
     CTLS_CHECK_NULL(crypto);
 
     ctls_op_status_t const result = ctls_key_schedule_operator_reset(crypto);

@@ -130,18 +130,8 @@ ctls_op_status_t ctls_extn_server_name_serialize(uint8_t *buffer,
 }
 
 ctls_op_status_t ctls_extn_max_fragment_length_deserialize(
-    ctls_max_fragment_length_t const *source,
-    ctls_max_fragment_length_t *max_fragment_length) {
-    CTLS_CHECK_NULL(max_fragment_length);
-    CTLS_CHECK_NULL(source);
-
-    *max_fragment_length = *source;
-
-    return (ctls_op_status_t){
-        .source = CTLS_ERROR_SOURCE_INTERNAL,
-        .code = CTLS_OP_STATUS_SUCCESS,
-        .external_code = CTLS_OP_STATUS_SUCCESS
-    };
+    ctls_extn_max_fragment_length_t const *source,
+    ctls_extn_max_fragment_length_t *max_fragment_length) {
 }
 
 ctls_op_status_t ctls_extn_max_fragment_length_serialize(
@@ -261,107 +251,36 @@ ctls_op_status_t ctls_extn_certificate_status_request_serialize(
 }
 
 ctls_op_status_t ctls_extn_supported_groups_deserialize(
-    ctls_extn_dhe_group_type_t const *source,
-    ctls_extn_dhe_group_type_t *supported_group) {
-    CTLS_CHECK_NULL(source);
-    CTLS_CHECK_NULL(supported_group);
-
-    *supported_group = *source;
-
-    return (ctls_op_status_t){
-        .source = CTLS_ERROR_SOURCE_INTERNAL,
-        .code = CTLS_OP_STATUS_SUCCESS,
-        .external_code = CTLS_OP_STATUS_SUCCESS
-    };
+    ctls_extn_supported_group_t const *source,
+    ctls_extn_supported_group_t *supported_group) {
 }
 
 ctls_op_status_t ctls_extn_supported_groups_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
-    ctls_extn_dhe_group_type_t const *supported_groups) {
-    CTLS_CHECK_NULL(buffer);
-    CTLS_CHECK_NULL(offset);
-    CTLS_CHECK_NULL(supported_groups);
-
-    ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SUPPORTED_GROUPS);
-    ctls_write_u16(buffer, offset, sizeof(*supported_groups));
-    ctls_write_u16(buffer, offset, *supported_groups);
-
-
-    return (ctls_op_status_t){
-        .source = CTLS_ERROR_SOURCE_INTERNAL,
-        .code = CTLS_OP_STATUS_INVALID,
-        .external_code = CTLS_OP_STATUS_INVALID
-    };
+    ctls_extn_supported_group_t const *supported_groups) {
 }
 
 ctls_op_status_t ctls_extn_signature_algorithm_deserialize(
-    ctls_extn_signature_algorithm_type_t const *source,
-    ctls_extn_signature_algorithm_type_t *signature_algorithm) {
-    CTLS_CHECK_NULL(source);
-    CTLS_CHECK_NULL(signature_algorithm);
-
-    *signature_algorithm = *source;
-
-    return (ctls_op_status_t){
-        . source = CTLS_ERROR_SOURCE_INTERNAL,
-        . code = CTLS_OP_STATUS_SUCCESS,
-        . external_code = CTLS_OP_STATUS_SUCCESS
-    };
+    ctls_extn_signature_algorithm_t const *source,
+    ctls_extn_signature_algorithm_t *signature_algorithm) {
 }
 
 ctls_op_status_t ctls_extn_signature_algorithm_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
-    ctls_extn_signature_algorithm_type_t const *signature_algorithm) {
-    CTLS_CHECK_NULL(buffer);
-    CTLS_CHECK_NULL(offset);
-    CTLS_CHECK_NULL(signature_algorithm);
-
-    ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS);
-    ctls_write_u16(buffer, offset, sizeof(*signature_algorithm));
-    ctls_write_u16(buffer, offset, *signature_algorithm);
-
-
-    return (ctls_op_status_t){
-        . source = CTLS_ERROR_SOURCE_INTERNAL,
-        . code = CTLS_OP_STATUS_INVALID,
-        . external_code = CTLS_OP_STATUS_INVALID
-    };
+    ctls_extn_signature_algorithm_t const *signature_algorithm) {
 }
 
 ctls_op_status_t ctls_extn_signature_algorithm_cert_deserialize(
-    ctls_extn_signature_algorithm_type_t const *source,
-    ctls_extn_signature_algorithm_type_t *signature_algorithm_cert) {
-    CTLS_CHECK_NULL(source);
-    CTLS_CHECK_NULL(signature_algorithm_cert);
-
-    *signature_algorithm_cert = *source;
-
-    return (ctls_op_status_t){
-        . source = CTLS_ERROR_SOURCE_INTERNAL,
-        . code = CTLS_OP_STATUS_SUCCESS,
-        . external_code = CTLS_OP_STATUS_SUCCESS
-    };
+    ctls_extn_signature_algorithm_t const *source,
+    ctls_extn_signature_algorithm_t *signature_algorithm_cert) {
 }
 
 ctls_op_status_t ctls_extn_signature_algorithm_cert_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
-    ctls_extn_signature_algorithm_type_t const *signature_algorithm_cert) {
-    CTLS_CHECK_NULL(buffer);
-    CTLS_CHECK_NULL(offset);
-    CTLS_CHECK_NULL(signature_algorithm_cert);
-
-    ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS_CERT);
-    ctls_write_u16(buffer, offset, sizeof(*signature_algorithm_cert));
-    ctls_write_u16(buffer, offset, *signature_algorithm_cert);
-
-    return (ctls_op_status_t){
-        . source = CTLS_ERROR_SOURCE_INTERNAL,
-        . code = CTLS_OP_STATUS_INVALID,
-        . external_code = CTLS_OP_STATUS_INVALID
-    };
+    ctls_extn_signature_algorithm_t const *signature_algorithm_cert) {
 }
 
 ctls_op_status_t ctls_extn_heartbeat_mode_deserialize(
@@ -575,94 +494,39 @@ ctls_op_status_t ctls_extn_signed_certificate_timestamp_serialize(
 }
 
 ctls_op_status_t ctls_extn_client_certificate_type_deserialize(
-    ctls_extn_certificate_type_t const *source,
-    ctls_extn_certificate_type_t *client_certificate_type) {
-    CTLS_CHECK_NULL(source);
-    CTLS_CHECK_NULL(client_certificate_type);
-
-    *client_certificate_type = *source;
-
-    return (ctls_op_status_t){
-        . source = CTLS_ERROR_SOURCE_INTERNAL,
-        . code = CTLS_OP_STATUS_SUCCESS,
-        . external_code = CTLS_OP_STATUS_SUCCESS
-    };
+    ctls_extn_client_certificate_type_t const *source,
+    ctls_extn_client_certificate_type_t *client_certificate_type) {
 }
 
 ctls_op_status_t ctls_extn_client_certificate_type_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
-    ctls_extn_certificate_type_t const *client_certificate_type) {
-    ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_CLIENT_CERTIFICATE_TYPE);
-    ctls_write_u16(buffer, offset, sizeof(*client_certificate_type));
-    ctls_write_u16(buffer, offset, *client_certificate_type);
-
-    return (ctls_op_status_t){
-        . source = CTLS_ERROR_SOURCE_INTERNAL,
-        . code = CTLS_OP_STATUS_SUCCESS,
-        . external_code = CTLS_OP_STATUS_SUCCESS
-    };
+    ctls_extn_client_certificate_type_t const *client_certificate_type) {
 }
 
 ctls_op_status_t ctls_extn_server_certificate_type_deserialize(
-    ctls_extn_certificate_type_t const *source,
-    ctls_extn_certificate_type_t *server_certificate_type) {
-    CTLS_CHECK_NULL(source);
-    CTLS_CHECK_NULL(server_certificate_type);
-
-    *server_certificate_type = *source;
-
-    return (ctls_op_status_t){
-        . source = CTLS_ERROR_SOURCE_INTERNAL,
-        . code = CTLS_OP_STATUS_SUCCESS,
-        . external_code = CTLS_OP_STATUS_SUCCESS
-    };
+    ctls_extn_server_certificate_type_t const *source,
+    ctls_extn_server_certificate_type_t *server_certificate_type) {
 }
 
 ctls_op_status_t ctls_extn_server_certificate_type_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
-    ctls_extn_certificate_type_t const *server_certificate_type) {
-    CTLS_CHECK_NULL(buffer);
-    CTLS_CHECK_NULL(offset);
-    CTLS_CHECK_NULL(server_certificate_type);
-
-    ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SERVER_CERTIFICATE_TYPE);
-    ctls_write_u16(buffer, offset, sizeof(server_certificate_type));
-    ctls_write_u16(buffer, offset, *server_certificate_type);
-
-    return (ctls_op_status_t){
-        . source = CTLS_ERROR_SOURCE_INTERNAL,
-        . code = CTLS_OP_STATUS_SUCCESS,
-        . external_code = CTLS_OP_STATUS_SUCCESS
-    };
+    ctls_extn_server_certificate_type_t const *server_certificate_type) {
 }
 
 ctls_op_status_t ctls_extn_supported_versions_deserialize(
-    ctls_protocol_version_t const *source,
-    ctls_protocol_version_t *supported_versions) {
-    *supported_versions = *source;
-
-    return (ctls_op_status_t){
-        . source = CTLS_ERROR_SOURCE_INTERNAL,
-        . code = CTLS_OP_STATUS_SUCCESS,
-        . external_code = CTLS_OP_STATUS_SUCCESS
-    };
+    ctls_extn_supported_version_t const *source,
+    ctls_extn_supported_version_t *supported_versions) {
+    return ctls_extn_enum_deserialize(source,
+                                      supported_versions,
+                                      CTLS_HELPER_IS_TWO_BYTE);
 }
 
 ctls_op_status_t ctls_extn_supported_versions_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
-    ctls_protocol_version_t const *supported_versions) {
-    ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SUPPORTED_VERSIONS);
-    ctls_write_u16(buffer, offset, sizeof(supported_versions));
-    ctls_write_u16(buffer, offset, *supported_versions);
-
-    return (ctls_op_status_t){
-        . source = CTLS_ERROR_SOURCE_INTERNAL,
-        . code = CTLS_OP_STATUS_INVALID,
-        . external_code = CTLS_OP_STATUS_INVALID
-    };
+    ctls_extn_supported_version_t const *supported_versions) {
 }
 
 ctls_op_status_t ctls_extn_psk_key_exchange_modes_deserialize(

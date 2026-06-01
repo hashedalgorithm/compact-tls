@@ -9,19 +9,19 @@
 
 
 struct ctls_hsmg_client_hello {
-    ctls_hsmg_protocol_version_t protocol_version;
+    ctls_protocol_version_t protocol_version;
     ctls_hshk_buffer_block_t random;
     uint8_t legacy_session_id;
-    ctls_hsmg_cipher_suite_type_t cipher_suite;
+    ctls_cipher_suite_t cipher_suite;
     uint8_t legacy_compression_methods;
     ctls_extn_client_hello_t extensions;
 };
 
 struct ctls_hsmg_server_hello {
-    ctls_hsmg_protocol_version_t protocol_version;
+    ctls_protocol_version_t protocol_version;
     ctls_hshk_buffer_block_t random;
     uint8_t legacy_session_id_echo;
-    ctls_hsmg_cipher_suite_type_t cipher_suite;
+    ctls_cipher_suite_t cipher_suite;
     uint8_t legacy_compression_method;
     ctls_extn_server_hello_t extensions;
 };
