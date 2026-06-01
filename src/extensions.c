@@ -3,10 +3,65 @@
 // Created by Sanjay Kumar Kumaravelan on 18/04/26.
 //
 
+#include <string.h>
 #include "ctls/ctls.h"
 #include "ctls/extensions.h"
 #include "ctls/templates.h"
 #include "ctls/bytes.h"
+
+ctls_op_status_t ctls_extn_enum_deserialize(void const *source,
+                                            void *destination,
+                                            ctls_helper_is_one_byte_t const isOneByte) {
+    CTLS_CHECK_NULL(source);
+    CTLS_CHECK_NULL(destination);
+
+    if (isOneByte != CTLS_HELPER_IS_ONE_BYTE && isOneByte != CTLS_HELPER_IS_TWO_BYTE)
+        return (ctls_op_status_t){
+            .source = CTLS_ERROR_SOURCE_INTERNAL,
+            .code = CTLS_OP_STATUS_ERROR,
+            .external_code = CTLS_OP_STATUS_ERROR,
+        };
+
+    memcpy(destination, source, isOneByte == CTLS_HELPER_IS_ONE_BYTE ? 1 : 2);
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS,
+    };
+}
+
+ctls_op_status_t ctls_extn_enum_serialize(uint8_t *buffer,
+                                          ctls_size_t *offset,
+                                          ctls_extn_type_t const extn_type,
+                                          ctls_helper_is_one_byte_t const isOneByte,
+                                          uint16_t const value) {
+    CTLS_CHECK_NULL(buffer);
+    CTLS_CHECK_NULL(offset);
+
+    if (isOneByte != CTLS_HELPER_IS_ONE_BYTE && isOneByte != CTLS_HELPER_IS_TWO_BYTE)
+        return (ctls_op_status_t){
+            .source = CTLS_ERROR_SOURCE_INTERNAL,
+            .code = CTLS_OP_STATUS_ERROR,
+            .external_code = CTLS_OP_STATUS_ERROR,
+        };
+
+    ctls_write_u16(buffer, offset, extn_type);
+    ctls_write_u16(buffer, offset, sizeof(value));
+
+    if (isOneByte == CTLS_HELPER_IS_ONE_BYTE) {
+        ctls_write_u8(buffer, offset, value);
+    } else {
+        ctls_write_u16(buffer, offset, value);
+    }
+
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS,
+    };
+}
+
 
 /*
  * struct {
@@ -132,26 +187,20 @@ ctls_op_status_t ctls_extn_server_name_serialize(uint8_t *buffer,
 ctls_op_status_t ctls_extn_max_fragment_length_deserialize(
     ctls_extn_max_fragment_length_t const *source,
     ctls_extn_max_fragment_length_t *max_fragment_length) {
+    return ctls_extn_enum_deserialize(source,
+                                      max_fragment_length,
+                                      CTLS_HELPER_IS_ONE_BYTE);
 }
 
 ctls_op_status_t ctls_extn_max_fragment_length_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
-    ctls_max_fragment_length_t const *maximum_fragment_length) {
-    CTLS_CHECK_NULL(buffer);
-    CTLS_CHECK_NULL(offset);
-    CTLS_CHECK_NULL(maximum_fragment_length);
-
-
-    ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_MAX_FRAGMENT_LENGTH);
-    ctls_write_u16(buffer, offset, sizeof(*maximum_fragment_length));
-    ctls_write_u16(buffer, offset, *maximum_fragment_length);
-
-    return (ctls_op_status_t){
-        .source = CTLS_ERROR_SOURCE_INTERNAL,
-        .code = CTLS_OP_STATUS_SUCCESS,
-        .external_code = CTLS_OP_STATUS_SUCCESS
-    };
+    ctls_extn_max_fragment_length_t const *max_fragment_length) {
+    return ctls_extn_enum_serialize(buffer,
+                                    offset,
+                                    CTLS_EXTN_TYPE_MAX_FRAGMENT_LENGTH,
+                                    CTLS_HELPER_IS_ONE_BYTE,
+                                    *max_fragment_length);
 }
 
 ctls_op_status_t ctls_extn_certificate_status_request_deserialize(
@@ -253,68 +302,73 @@ ctls_op_status_t ctls_extn_certificate_status_request_serialize(
 ctls_op_status_t ctls_extn_supported_groups_deserialize(
     ctls_extn_supported_group_t const *source,
     ctls_extn_supported_group_t *supported_group) {
+    return ctls_extn_enum_deserialize(source, supported_group, CTLS_HELPER_IS_TWO_BYTE);
 }
 
 ctls_op_status_t ctls_extn_supported_groups_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
     ctls_extn_supported_group_t const *supported_groups) {
+    return ctls_extn_enum_serialize(buffer,
+                                    offset,
+                                    CTLS_EXTN_TYPE_SUPPORTED_GROUPS,
+                                    CTLS_HELPER_IS_TWO_BYTE,
+                                    *supported_groups);
 }
 
 ctls_op_status_t ctls_extn_signature_algorithm_deserialize(
     ctls_extn_signature_algorithm_t const *source,
     ctls_extn_signature_algorithm_t *signature_algorithm) {
+    return ctls_extn_enum_deserialize(source,
+                                      signature_algorithm,
+                                      CTLS_HELPER_IS_TWO_BYTE);
 }
 
 ctls_op_status_t ctls_extn_signature_algorithm_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
     ctls_extn_signature_algorithm_t const *signature_algorithm) {
+    return ctls_extn_enum_serialize(buffer,
+                                    offset,
+                                    CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS,
+                                    CTLS_HELPER_IS_TWO_BYTE,
+                                    *signature_algorithm);
 }
 
 ctls_op_status_t ctls_extn_signature_algorithm_cert_deserialize(
     ctls_extn_signature_algorithm_t const *source,
     ctls_extn_signature_algorithm_t *signature_algorithm_cert) {
+    return ctls_extn_enum_deserialize(source,
+                                      signature_algorithm_cert,
+                                      CTLS_HELPER_IS_TWO_BYTE);
 }
 
 ctls_op_status_t ctls_extn_signature_algorithm_cert_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
     ctls_extn_signature_algorithm_t const *signature_algorithm_cert) {
+    return ctls_extn_enum_serialize(buffer,
+                                    offset,
+                                    CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS_CERT,
+                                    CTLS_HELPER_IS_TWO_BYTE,
+                                    *signature_algorithm_cert);
 }
 
 ctls_op_status_t ctls_extn_heartbeat_mode_deserialize(
     ctls_extn_heartbeat_mode_t const *source,
     ctls_extn_heartbeat_mode_t *heartbeat_mode) {
-    CTLS_CHECK_NULL(source);
-    CTLS_CHECK_NULL(heartbeat_mode);
-
-    *heartbeat_mode = *source;
-
-    return (ctls_op_status_t){
-        . source = CTLS_ERROR_SOURCE_INTERNAL,
-        . code = CTLS_OP_STATUS_SUCCESS,
-        . external_code = CTLS_OP_STATUS_SUCCESS
-    };
+    return ctls_extn_enum_deserialize(source, heartbeat_mode, CTLS_HELPER_IS_ONE_BYTE);
 }
 
 ctls_op_status_t ctls_extn_heartbeat_mode_serialize(uint8_t *buffer,
                                                     ctls_size_t *offset,
                                                     ctls_extn_heartbeat_mode_t const *
                                                     heartbeat_mode) {
-    CTLS_CHECK_NULL(buffer);
-    CTLS_CHECK_NULL(offset);
-    CTLS_CHECK_NULL(heartbeat_mode);
-
-    ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_HEARTBEAT);
-    ctls_write_u16(buffer, offset, sizeof(*heartbeat_mode));
-    ctls_write_u8(buffer, offset, *heartbeat_mode);
-
-    return (ctls_op_status_t){
-        . source = CTLS_ERROR_SOURCE_INTERNAL,
-        . code = CTLS_OP_STATUS_INVALID,
-        . external_code = CTLS_OP_STATUS_INVALID
-    };
+    return ctls_extn_enum_serialize(buffer,
+                                    offset,
+                                    CTLS_EXTN_TYPE_HEARTBEAT,
+                                    CTLS_HELPER_IS_ONE_BYTE,
+                                    *heartbeat_mode);
 }
 
 ctls_op_status_t ctls_extn_alpn_deserialize(uint8_t *buffer,
@@ -496,23 +550,39 @@ ctls_op_status_t ctls_extn_signed_certificate_timestamp_serialize(
 ctls_op_status_t ctls_extn_client_certificate_type_deserialize(
     ctls_extn_client_certificate_type_t const *source,
     ctls_extn_client_certificate_type_t *client_certificate_type) {
+    return ctls_extn_enum_deserialize(source,
+                                      client_certificate_type,
+                                      CTLS_HELPER_IS_ONE_BYTE);
 }
 
 ctls_op_status_t ctls_extn_client_certificate_type_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
     ctls_extn_client_certificate_type_t const *client_certificate_type) {
+    return ctls_extn_enum_serialize(buffer,
+                                    offset,
+                                    CTLS_EXTN_TYPE_CLIENT_CERTIFICATE_TYPE,
+                                    CTLS_HELPER_IS_ONE_BYTE,
+                                    *client_certificate_type);
 }
 
 ctls_op_status_t ctls_extn_server_certificate_type_deserialize(
     ctls_extn_server_certificate_type_t const *source,
     ctls_extn_server_certificate_type_t *server_certificate_type) {
+    return ctls_extn_enum_deserialize(source,
+                                      server_certificate_type,
+                                      CTLS_HELPER_IS_ONE_BYTE);
 }
 
 ctls_op_status_t ctls_extn_server_certificate_type_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
     ctls_extn_server_certificate_type_t const *server_certificate_type) {
+    return ctls_extn_enum_serialize(buffer,
+                                    offset,
+                                    CTLS_EXTN_TYPE_SERVER_CERTIFICATE_TYPE,
+                                    CTLS_HELPER_IS_ONE_BYTE,
+                                    *server_certificate_type);
 }
 
 ctls_op_status_t ctls_extn_supported_versions_deserialize(
@@ -527,40 +597,30 @@ ctls_op_status_t ctls_extn_supported_versions_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
     ctls_extn_supported_version_t const *supported_versions) {
+    return ctls_extn_enum_serialize(buffer,
+                                    offset,
+                                    CTLS_EXTN_TYPE_SUPPORTED_VERSIONS,
+                                    CTLS_HELPER_IS_TWO_BYTE,
+                                    *supported_versions);
 }
 
 ctls_op_status_t ctls_extn_psk_key_exchange_modes_deserialize(
     ctls_extn_psk_key_exchange_mode_t const *source,
     ctls_extn_psk_key_exchange_mode_t *psk_key_exchange_modes) {
-    CTLS_CHECK_NULL(source);
-    CTLS_CHECK_NULL(psk_key_exchange_modes);
-
-    *psk_key_exchange_modes = *source;
-
-    return (ctls_op_status_t){
-        . source = CTLS_ERROR_SOURCE_INTERNAL,
-        . code = CTLS_OP_STATUS_SUCCESS,
-        . external_code = CTLS_OP_STATUS_SUCCESS
-    };
+    return ctls_extn_enum_deserialize(source,
+                                      psk_key_exchange_modes,
+                                      CTLS_HELPER_IS_ONE_BYTE);
 }
 
 ctls_op_status_t ctls_extn_psk_key_exchange_modes_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
     ctls_extn_psk_key_exchange_mode_t const *psk_key_exchange_modes) {
-    CTLS_CHECK_NULL(buffer);
-    CTLS_CHECK_NULL(offset);
-    CTLS_CHECK_NULL(psk_key_exchange_modes);
-
-    ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_PSK_KEY_EXCHANGE_MODES);
-    ctls_write_u8(buffer, offset, sizeof(*psk_key_exchange_modes));
-    ctls_write_u8(buffer, offset, *psk_key_exchange_modes);
-
-    return (ctls_op_status_t){
-        . source = CTLS_ERROR_SOURCE_INTERNAL,
-        . code = CTLS_OP_STATUS_INVALID,
-        . external_code = CTLS_OP_STATUS_INVALID
-    };
+    return ctls_extn_enum_serialize(buffer,
+                                    offset,
+                                    CTLS_EXTN_TYPE_PSK_KEY_EXCHANGE_MODES,
+                                    CTLS_HELPER_IS_ONE_BYTE,
+                                    *psk_key_exchange_modes);
 }
 
 ctls_op_status_t ctls_extn_certificate_authorities_deserialize(
@@ -621,16 +681,9 @@ ctls_op_status_t ctls_extn_certificate_authorities_serialize(
 ctls_op_status_t ctls_extn_post_handshake_auth_deserialize(
     ctls_extn_post_handshake_auth_t const *source,
     ctls_extn_post_handshake_auth_t *post_handshake_auth) {
-    CTLS_CHECK_NULL(source);
-    CTLS_CHECK_NULL(post_handshake_auth);
-
-    *post_handshake_auth = *source;
-
-    return (ctls_op_status_t){
-        . source = CTLS_ERROR_SOURCE_INTERNAL,
-        . code = CTLS_OP_STATUS_INVALID,
-        . external_code = CTLS_OP_STATUS_INVALID
-    };
+    return ctls_extn_enum_deserialize(source,
+                                      post_handshake_auth,
+                                      CTLS_HELPER_IS_ONE_BYTE);
 }
 
 ctls_op_status_t ctls_extn_post_handshake_auth_serialize(

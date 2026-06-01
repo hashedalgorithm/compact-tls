@@ -8,6 +8,11 @@
 #include <stdint.h>
 #include "types.h"
 
+typedef enum {
+    CTLS_HELPER_IS_ONE_BYTE = 0,
+    CTLS_HELPER_IS_TWO_BYTE = 1
+} ctls_helper_is_one_byte_t;
+
 struct ctls_hshk_buffer_block {
     uint8_t *buffer;
     ctls_size_t buffer_length;
@@ -140,6 +145,14 @@ struct ctls_extn_certificate {
     ctls_extn_signed_certificate_timestamp_t signed_certificate_timestamp;
 };
 
+ctls_op_status_t ctls_extn_enum_deserialize(void const *source,
+                                            void *destination,
+                                            ctls_helper_is_one_byte_t isOneByte);
+ctls_op_status_t ctls_extn_enum_serialize(uint8_t *buffer,
+                                          ctls_size_t *offset,
+                                          ctls_extn_type_t extn_type,
+                                          ctls_helper_is_one_byte_t isOneByte,
+                                          uint16_t value);
 ctls_op_status_t ctls_extn_server_name_deserialize(uint8_t *buffer,
                                                    ctls_size_t const *buffer_length,
                                                    ctls_data_form_t form,
