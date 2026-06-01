@@ -713,14 +713,35 @@ ctls_op_status_t ctls_extn_post_handshake_auth_serialize(
 
 ctls_op_status_t ctls_extn_key_share_deserialize(uint8_t *buffer,
                                                  ctls_size_t *offset,
+                                                 ctls_helper_entity_ownership_t const
+                                                 entity_ownership,
                                                  ctls_extn_key_share_t *key_share) {
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+
     CTLS_CHECK_NULL(buffer);
     CTLS_CHECK_NULL(offset);
     CTLS_CHECK_NULL(key_share);
+    CTLS_CHECK_NULL(hshk_data);
+
+    if (entity_ownership != CTLS_HELPER_ENTITY_OWNERSHIP_CLIENT && entity_ownership !=
+        CTLS_HELPER_ENTITY_OWNERSHIP_SERVER)
+        return (ctls_op_status_t){
+            . source = CTLS_ERROR_SOURCE_INTERNAL,
+            . code = CTLS_OP_STATUS_INVALID,
+            . external_code = CTLS_OP_STATUS_INVALID
+        };
 
     key_share->extension_type = CTLS_EXTN_TYPE_KEY_SHARE;
-    ctls_read_bytes(key_share->key_share, CTLS_SIZE_KEY_SHARE, buffer, offset);
 
+    ctls_read_bytes(entity_ownership == CTLS_HELPER_ENTITY_OWNERSHIP_SERVER
+                        ? hshk_data->server_public_ephemeral_key
+                        : hshk_data->client_public_ephemeral_key,
+                    CTLS_SIZE_KEY_SHARE,
+                    buffer,
+                    offset);
+    key_share->key_share = entity_ownership == CTLS_HELPER_ENTITY_OWNERSHIP_SERVER
+                               ? hshk_data->server_public_ephemeral_key
+                               : hshk_data->client_public_ephemeral_key;
 
     return (ctls_op_status_t){
         . source = CTLS_ERROR_SOURCE_INTERNAL,

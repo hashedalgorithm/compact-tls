@@ -13,6 +13,11 @@ typedef enum {
     CTLS_HELPER_IS_TWO_BYTE = 1
 } ctls_helper_is_one_byte_t;
 
+typedef enum {
+    CTLS_HELPER_ENTITY_OWNERSHIP_CLIENT = 0,
+    CTLS_HELPER_ENTITY_OWNERSHIP_SERVER = 0,
+} ctls_helper_entity_ownership_t;
+
 struct ctls_hshk_buffer_block {
     uint8_t *buffer;
     ctls_size_t buffer_length;
@@ -282,6 +287,8 @@ ctls_op_status_t ctls_extn_post_handshake_auth_serialize(
 
 ctls_op_status_t ctls_extn_key_share_deserialize(uint8_t *buffer,
                                                  ctls_size_t *offset,
+                                                 ctls_helper_entity_ownership_t
+                                                 entity_ownership,
                                                  ctls_extn_key_share_t *key_share);
 ctls_op_status_t ctls_extn_key_share_serialize(uint8_t *buffer,
                                                ctls_size_t *offset,
