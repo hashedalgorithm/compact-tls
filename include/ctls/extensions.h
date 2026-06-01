@@ -314,8 +314,7 @@ ctls_op_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
 ctls_op_status_t ctls_extn_encrypted_extensions_create(
     ctls_hsmg_encrypted_extensions_t *encrypted_extensions);
 ctls_op_status_t ctls_extn_encrypted_extensions_to_struct(
-    ctls_extn_encrypted_extensions_t *encrypted_extensions,
-    ctls_size_t *offset);
+    ctls_extn_encrypted_extensions_t *encrypted_extensions);
 ctls_op_status_t ctls_extn_encrypted_extensions_to_wire(uint8_t *buffer,
                                                         ctls_size_t *offset,
                                                         ctls_extn_encrypted_extensions_t
