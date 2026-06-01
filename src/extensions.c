@@ -1300,8 +1300,7 @@ ctls_op_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
 ctls_op_status_t ctls_extn_server_hello_to_struct(
     ctls_extn_server_hello_t *server_hello_extensions,
     uint8_t *buffer,
-    ctls_size_t *offset,
-    ctls_size_t buffer_size) {
+    ctls_size_t *offset) {
     ctls_template_t const *template = ctls_template_get();
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
 

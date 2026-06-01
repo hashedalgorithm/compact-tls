@@ -151,8 +151,8 @@ ctls_op_status_t ctls_extn_enum_serialize(uint8_t *buffer,
                                           ctls_extn_type_t extn_type,
                                           ctls_helper_is_one_byte_t isOneByte,
                                           uint16_t value);
-ctls_op_status_t ctls_extn_is_initialized(ctls_extn_type_t const extn_type,
-                                          ctls_hsmg_type_t const hsmg_type,
+ctls_op_status_t ctls_extn_is_initialized(ctls_extn_type_t extn_type,
+                                          ctls_hsmg_type_t hsmg_type,
                                           uint8_t *is_initialized);
 
 ctls_op_status_t ctls_extn_server_name_deserialize(uint8_t *buffer,
@@ -306,8 +306,7 @@ ctls_op_status_t ctls_extn_server_hello_create(void);
 ctls_op_status_t ctls_extn_server_hello_to_struct(
     ctls_extn_server_hello_t *server_hello_extensions,
     uint8_t *buffer,
-    ctls_size_t *offset,
-    ctls_size_t buffer_size);
+    ctls_size_t *offset);
 ctls_op_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
                                                 ctls_size_t *offset,
                                                 ctls_extn_server_hello_t const *
