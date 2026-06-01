@@ -151,6 +151,10 @@ ctls_op_status_t ctls_extn_enum_serialize(uint8_t *buffer,
                                           ctls_extn_type_t extn_type,
                                           ctls_helper_is_one_byte_t isOneByte,
                                           uint16_t value);
+ctls_op_status_t ctls_extn_is_initialized(ctls_extn_type_t const extn_type,
+                                          ctls_hsmg_type_t const hsmg_type,
+                                          uint8_t *is_initialized);
+
 ctls_op_status_t ctls_extn_server_name_deserialize(uint8_t *buffer,
                                                    ctls_size_t const *buffer_length,
                                                    ctls_data_form_t form,

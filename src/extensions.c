@@ -62,6 +62,125 @@ ctls_op_status_t ctls_extn_enum_serialize(uint8_t *buffer,
     };
 }
 
+ctls_op_status_t ctls_extn_is_initialized(ctls_extn_type_t const extn_type,
+                                          ctls_hsmg_type_t const hsmg_type,
+                                          uint8_t *is_initialized) {
+    ctls_template_t const *template = ctls_template_get();
+    CTLS_CHECK_NULL(template);
+
+    ctls_tmpl_predefined_extensions_t const *predefined_extensions;
+    switch (hsmg_type) {
+        case CTLS_HSMG_TYPE_CLIENT_HELLO:
+            predefined_extensions = &template->client_hello_extension.
+                    predefined_extensions;
+            break;
+        case CTLS_HSMG_TYPE_SERVER_HELLO:
+            predefined_extensions = &template->server_hello_extension.
+                    predefined_extensions;
+            break;
+        case CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS:
+            predefined_extensions = &template->encrypted_extension.predefined_extensions;
+            break;
+        case CTLS_HSMG_TYPE_CERTIFICATE_REQUEST:
+            predefined_extensions = &template->certificate_request_extension.
+                    predefined_extensions;
+            break;
+        default: return (ctls_op_status_t){
+                .source = CTLS_ERROR_SOURCE_INTERNAL,
+                .code = CTLS_OP_STATUS_INVALID,
+                .external_code = CTLS_OP_STATUS_INVALID
+            };
+    }
+
+    CTLS_CHECK_NULL(predefined_extensions);
+    switch (extn_type) {
+        case CTLS_EXTN_TYPE_SERVER_NAME:
+            *is_initialized =
+                    CTLS_IS_TEMPLATE_BYTES_INITIALIZED(predefined_extensions->server_name.
+                                                       data,
+                                                       predefined_extensions->server_name.
+                                                       length);
+            break;
+        case CTLS_EXTN_TYPE_MAX_FRAGMENT_LENGTH:
+            *is_initialized = predefined_extensions->maximum_fragment_length != 0;
+            break;
+        case CTLS_EXTN_TYPE_STATUS_REQUEST:
+            *is_initialized =
+                    CTLS_IS_TEMPLATE_BYTES_INITIALIZED(predefined_extensions->
+                                                       certificate_status_request.data,
+                                                       predefined_extensions->
+                                                       certificate_status_request.length);
+            break;
+        case CTLS_EXTN_TYPE_SUPPORTED_GROUPS:
+            *is_initialized = template->dhe_group.dhe_group !=
+                              CTLS_EXTN_DHE_GROUP_SENTINEL;
+            break;
+        case CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS:
+            *is_initialized = template->signature_algorithm.signature_algorithm_type !=
+                              CTLS_EXTN_SIGNATURE_ALGORITHM_SENTINEL;
+            break;
+        case CTLS_EXTN_TYPE_HEARTBEAT:
+            *is_initialized = predefined_extensions->heartbeat_mode !=
+                              CTLS_EXTN_HEARTBEAT_MODE_SENTINEL;
+            break;
+        case CTLS_EXTN_TYPE_APPLICATION_LAYER_PROTOCOL_NEGOTIATION:
+            *is_initialized =
+                    CTLS_IS_TEMPLATE_BYTES_INITIALIZED(predefined_extensions->alpn.data,
+                                                       predefined_extensions->alpn.
+                                                       length);
+            break;
+        case CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP:
+            *is_initialized =
+                    CTLS_IS_TEMPLATE_BYTES_INITIALIZED(predefined_extensions->
+                                                       signed_certificate_timestamp.data,
+                                                       predefined_extensions->
+                                                       signed_certificate_timestamp.
+                                                       length);
+            break;
+        case CTLS_EXTN_TYPE_CLIENT_CERTIFICATE_TYPE:
+            *is_initialized = predefined_extensions->client_certificate_type !=
+                              CTLS_EXTN_CERTIFICATE_TYPE_SENTINEL;
+            break;
+        case CTLS_EXTN_TYPE_SERVER_CERTIFICATE_TYPE:
+            *is_initialized = predefined_extensions->server_certificate_type !=
+                              CTLS_EXTN_CERTIFICATE_TYPE_SENTINEL;
+            break;
+        case CTLS_EXTN_TYPE_SUPPORTED_VERSIONS:
+            *is_initialized = template->protocol_version !=
+                              CTLS_HSMG_PROTOCOL_VERSION_SENTINEL;
+            break;
+        case CTLS_EXTN_TYPE_PSK_KEY_EXCHANGE_MODES:
+            *is_initialized = predefined_extensions->psk_key_exchange_modes !=
+                              CTLS_EXTN_PSK_KEY_EXCHANGE_MODE_SENTINEL;
+            break;
+        case CTLS_EXTN_TYPE_CERTIFICATE_AUTHORITIES:
+            *is_initialized =
+                    CTLS_IS_TEMPLATE_BYTES_INITIALIZED(predefined_extensions->
+                                                       certificate_authorities.data,
+                                                       predefined_extensions->
+                                                       certificate_authorities.length);
+            break;
+        case CTLS_EXTN_TYPE_POST_HANDSHAKE_AUTH:
+            *is_initialized = predefined_extensions->post_handshake_auth != 0;
+            break;
+        case CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS_CERT:
+            *is_initialized = predefined_extensions->signature_algorithm_cert !=
+                              CTLS_EXTN_SIGNATURE_ALGORITHM_SENTINEL;
+            break;
+        default:
+            return (ctls_op_status_t){
+                .source = CTLS_ERROR_SOURCE_INTERNAL,
+                .code = CTLS_OP_STATUS_INVALID,
+                .external_code = CTLS_OP_STATUS_INVALID
+            };
+    }
+    return (ctls_op_status_t){
+        .source = CTLS_ERROR_SOURCE_INTERNAL,
+        .code = CTLS_OP_STATUS_SUCCESS,
+        .external_code = CTLS_OP_STATUS_SUCCESS
+    };
+}
+
 
 /*
  * struct {
@@ -789,12 +908,12 @@ ctls_op_status_t ctls_extn_client_hello_create(
     uint8_t const size_of_expected_extensions =
             ctls_expected_extensions_size_get(&template->client_hello_extension.
                                               expected_extensions);
-
+    uint8_t is_initialized = 0;
     // server_name
-    if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(template->client_hello_extension.
-                                           predefined_extensions.server_name. data,
-                                           template->client_hello_extension.
-                                           predefined_extensions.server_name. length)) {
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_SERVER_NAME,
+                             CTLS_HSMG_TYPE_CLIENT_HELLO,
+                             &is_initialized);
+    if (is_initialized) {
         ctls_extn_server_name_deserialize(template->client_hello_extension.
                                           predefined_extensions.server_name.data,
                                           &template->client_hello_extension.
@@ -803,9 +922,12 @@ ctls_op_status_t ctls_extn_client_hello_create(
                                           &client_hello_extensions->server_name);
     }
 
+
     // max_fragment_length
-    if (template->client_hello_extension.predefined_extensions.maximum_fragment_length ==
-        0) {
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_MAX_FRAGMENT_LENGTH,
+                             CTLS_HSMG_TYPE_CLIENT_HELLO,
+                             &is_initialized);
+    if (is_initialized) {
         ctls_extn_max_fragment_length_deserialize(&template->client_hello_extension.
                                                   predefined_extensions.
                                                   maximum_fragment_length,
@@ -814,146 +936,137 @@ ctls_op_status_t ctls_extn_client_hello_create(
     }
 
     // certificate_status_request
-    if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(template->client_hello_extension.
-                                           predefined_extensions.
-                                           certificate_status_request.data,
-                                           template->client_hello_extension.
-                                           predefined_extensions.
-                                           certificate_status_request.length)) {
-        ctls_extn_certificate_status_request_deserialize(template->client_hello_extension.
-                                                         predefined_extensions.
-                                                         certificate_status_request.data,
-                                                         &template->client_hello_extension
-                                                         .predefined_extensions.
-                                                         certificate_status_request.
-                                                         length,
-                                                         CTLS_DATA_FORM_OPAQUE,
-                                                         &client_hello_extensions->
-                                                         certificate_status_request);
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_STATUS_REQUEST,
+                             CTLS_HSMG_TYPE_CLIENT_HELLO, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_certificate_status_request_deserialize(
+                template->client_hello_extension.predefined_extensions.
+                certificate_status_request.data,
+                &template->client_hello_extension.predefined_extensions.
+                certificate_status_request.length,
+                CTLS_DATA_FORM_OPAQUE,
+                &client_hello_extensions->certificate_status_request);
     }
 
     // supported_groups
-    ctls_extn_supported_groups_deserialize(&template->dhe_group.dhe_group,
-                                           &client_hello_extensions->supported_groups);
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_SUPPORTED_GROUPS,
+                             CTLS_HSMG_TYPE_CLIENT_HELLO, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_supported_groups_deserialize(&template->dhe_group.dhe_group,
+                                               &client_hello_extensions->supported_groups);
+    }
+
     // signature_algorithms
-    ctls_extn_signature_algorithm_deserialize(&template->signature_algorithm.
-                                              signature_algorithm_type,
-                                              &client_hello_extensions->
-                                              signature_algorithm);
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS,
+                             CTLS_HSMG_TYPE_CLIENT_HELLO, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_signature_algorithm_deserialize(
+                &template->signature_algorithm.signature_algorithm_type,
+                &client_hello_extensions->signature_algorithm);
+    }
 
     // heartbeat
-    if (template->client_hello_extension.predefined_extensions.heartbeat_mode != 0) {
-        ctls_extn_heartbeat_mode_deserialize(&template->client_hello_extension.
-                                             predefined_extensions.heartbeat_mode,
-                                             &client_hello_extensions->heartbeat_mode);
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_HEARTBEAT,
+                             CTLS_HSMG_TYPE_CLIENT_HELLO, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_heartbeat_mode_deserialize(
+                &template->client_hello_extension.predefined_extensions.heartbeat_mode,
+                &client_hello_extensions->heartbeat_mode);
     }
 
     // alpn
-    if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(template->client_hello_extension.
-                                           predefined_extensions.alpn.data,
-                                           template->client_hello_extension.
-                                           predefined_extensions.alpn. length)) {
-        ctls_extn_alpn_deserialize(template->client_hello_extension.predefined_extensions.
-                                   alpn.data,
-                                   &template->client_hello_extension.predefined_extensions
-                                   .alpn.length,
-                                   CTLS_DATA_FORM_OPAQUE,
-                                   &client_hello_extensions->alpn);
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_APPLICATION_LAYER_PROTOCOL_NEGOTIATION,
+                             CTLS_HSMG_TYPE_CLIENT_HELLO, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_alpn_deserialize(
+                template->client_hello_extension.predefined_extensions.alpn.data,
+                &template->client_hello_extension.predefined_extensions.alpn.length,
+                CTLS_DATA_FORM_OPAQUE,
+                &client_hello_extensions->alpn);
     }
 
     // signed_certificate_timestamp
-    if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(template->client_hello_extension.
-                                           predefined_extensions.
-                                           signed_certificate_timestamp.data,
-                                           template->client_hello_extension.
-                                           predefined_extensions.
-                                           signed_certificate_timestamp.length)) {
-        ctls_extn_signed_certificate_timestamp_deserialize(template->
-                                                           client_hello_extension.
-                                                           predefined_extensions.
-                                                           signed_certificate_timestamp.
-                                                           data,
-                                                           &template->
-                                                           client_hello_extension.
-                                                           predefined_extensions.
-                                                           signed_certificate_timestamp.
-                                                           length,
-                                                           CTLS_DATA_FORM_OPAQUE,
-                                                           &client_hello_extensions->
-                                                           signed_certificate_timestamp);
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP,
+                             CTLS_HSMG_TYPE_CLIENT_HELLO, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_signed_certificate_timestamp_deserialize(
+                template->client_hello_extension.predefined_extensions.
+                signed_certificate_timestamp.data,
+                &template->client_hello_extension.predefined_extensions.
+                signed_certificate_timestamp.length,
+                CTLS_DATA_FORM_OPAQUE,
+                &client_hello_extensions->signed_certificate_timestamp);
     }
 
     // client_certificate_type
-    if (template->client_hello_extension.predefined_extensions.client_certificate_type !=
-        0) {
-        ctls_extn_client_certificate_type_deserialize(&template->client_hello_extension.
-                                                      predefined_extensions.
-                                                      client_certificate_type,
-                                                      &client_hello_extensions->
-                                                      client_certificate_type);
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_CLIENT_CERTIFICATE_TYPE,
+                             CTLS_HSMG_TYPE_CLIENT_HELLO, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_client_certificate_type_deserialize(
+                &template->client_hello_extension.predefined_extensions.
+                client_certificate_type,
+                &client_hello_extensions->client_certificate_type);
     }
 
     // server_certificate_type
-    if (template->client_hello_extension.predefined_extensions.server_certificate_type !=
-        0) {
-        ctls_extn_server_certificate_type_deserialize(&template->client_hello_extension.
-                                                      predefined_extensions.
-                                                      server_certificate_type,
-                                                      &client_hello_extensions->
-                                                      server_certificate_type);
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_SERVER_CERTIFICATE_TYPE,
+                             CTLS_HSMG_TYPE_CLIENT_HELLO, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_server_certificate_type_deserialize(
+                &template->client_hello_extension.predefined_extensions.
+                server_certificate_type,
+                &client_hello_extensions->server_certificate_type);
     }
 
     // supported_versions
-    ctls_extn_supported_versions_deserialize(&template->protocol_version,
-                                             &client_hello_extensions->
-                                             supported_versions);
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_SUPPORTED_VERSIONS,
+                             CTLS_HSMG_TYPE_CLIENT_HELLO, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_supported_versions_deserialize(&template->protocol_version,
+                                                 &client_hello_extensions->
+                                                 supported_versions);
+    }
 
     // psk_key_exchange_modes
-    if (template->client_hello_extension.predefined_extensions.psk_key_exchange_modes !=
-        0) {
-        ctls_extn_psk_key_exchange_modes_deserialize(&template->client_hello_extension.
-                                                     predefined_extensions.
-                                                     psk_key_exchange_modes,
-                                                     &client_hello_extensions->
-                                                     psk_key_exchange_modes);
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_PSK_KEY_EXCHANGE_MODES,
+                             CTLS_HSMG_TYPE_CLIENT_HELLO, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_psk_key_exchange_modes_deserialize(
+                &template->client_hello_extension.predefined_extensions.
+                psk_key_exchange_modes,
+                &client_hello_extensions->psk_key_exchange_modes);
     }
 
     // certificate_authorities
-    if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(template->client_hello_extension.
-                                           predefined_extensions.certificate_authorities.
-                                           data,
-                                           template->client_hello_extension.
-                                           predefined_extensions.certificate_authorities.
-                                           length)) {
-        ctls_extn_certificate_authorities_deserialize(template->client_hello_extension.
-                                                      predefined_extensions.
-                                                      certificate_authorities.data,
-                                                      &template->client_hello_extension.
-                                                      predefined_extensions.
-                                                      certificate_authorities.length,
-                                                      CTLS_DATA_FORM_OPAQUE,
-                                                      &client_hello_extensions->
-                                                      certificate_authorities);
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_CERTIFICATE_AUTHORITIES,
+                             CTLS_HSMG_TYPE_CLIENT_HELLO, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_certificate_authorities_deserialize(
+                template->client_hello_extension.predefined_extensions.
+                certificate_authorities.data,
+                &template->client_hello_extension.predefined_extensions.
+                certificate_authorities.length,
+                CTLS_DATA_FORM_OPAQUE,
+                &client_hello_extensions->certificate_authorities);
     }
 
     // post_handshake_auth
-    if (template->client_hello_extension.predefined_extensions.post_handshake_auth != 0) {
-        ctls_extn_post_handshake_auth_deserialize(&template->client_hello_extension.
-                                                  predefined_extensions.
-                                                  post_handshake_auth,
-                                                  &client_hello_extensions->
-                                                  post_handshake_auth);
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_POST_HANDSHAKE_AUTH,
+                             CTLS_HSMG_TYPE_CLIENT_HELLO, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_post_handshake_auth_deserialize(
+                &template->client_hello_extension.predefined_extensions.post_handshake_auth,
+                &client_hello_extensions->post_handshake_auth);
     }
 
-
     // signature_algorithm_cert
-    if (template->client_hello_extension.predefined_extensions.signature_algorithm_cert !=
-        0) {
-        ctls_extn_signature_algorithm_cert_deserialize(&template->client_hello_extension.
-                                                       predefined_extensions.
-                                                       signature_algorithm_cert,
-                                                       &client_hello_extensions->
-                                                       signature_algorithm_cert);
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS_CERT,
+                             CTLS_HSMG_TYPE_CLIENT_HELLO, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_signature_algorithm_cert_deserialize(
+                &template->client_hello_extension.predefined_extensions.
+                signature_algorithm_cert,
+                &client_hello_extensions->signature_algorithm_cert);
     }
 
     for (uint8_t i = 0; i < size_of_expected_extensions; i++) {
@@ -1219,83 +1332,71 @@ ctls_op_status_t ctls_extn_encrypted_extensions_to_struct(
     CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL(encrypted_extensions);
 
-    ctls_op_status_t result;
+    uint8_t is_initialized = 0;
     // server_name
-    if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(template->encrypted_extension.
-                                           predefined_extensions.server_name. data,
-                                           template->encrypted_extension.
-                                           predefined_extensions.server_name. length)) {
-        result = ctls_extn_server_name_deserialize(template->encrypted_extension.
-                                                   predefined_extensions.server_name.data,
-                                                   &template->encrypted_extension.
-                                                   predefined_extensions.server_name.
-                                                   length,
-                                                   CTLS_DATA_FORM_OPAQUE,
-                                                   &encrypted_extensions->server_name);
-        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_SERVER_NAME,
+                             CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_server_name_deserialize(
+                template->encrypted_extension.predefined_extensions.server_name.data,
+                &template->encrypted_extension.predefined_extensions.server_name.length,
+                CTLS_DATA_FORM_OPAQUE,
+                &encrypted_extensions->server_name);
     }
-
 
     // max_fragment_length
-    if (template->encrypted_extension.predefined_extensions.maximum_fragment_length ==
-        0) {
-        result = ctls_extn_max_fragment_length_deserialize(&template->encrypted_extension.
-                                                           predefined_extensions.
-                                                           maximum_fragment_length,
-                                                           &encrypted_extensions->
-                                                           maximum_fragment_length);
-        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_MAX_FRAGMENT_LENGTH,
+                             CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_max_fragment_length_deserialize(
+                &template->encrypted_extension.predefined_extensions.maximum_fragment_length,
+                &encrypted_extensions->maximum_fragment_length);
     }
 
-
     // supported_groups
-    if (template->dhe_group.dhe_group != CTLS_EXTN_DHE_GROUP_SENTINEL) {
-        result = ctls_extn_supported_groups_deserialize(&template->dhe_group.dhe_group,
-                                                        &encrypted_extensions->
-                                                        supported_groups);
-        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_SUPPORTED_GROUPS,
+                             CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_supported_groups_deserialize(&template->dhe_group.dhe_group,
+                                               &encrypted_extensions->supported_groups);
     }
 
     // heartbeat
-    if (template->encrypted_extension.predefined_extensions.heartbeat_mode != 0) {
-        result = ctls_extn_heartbeat_mode_deserialize(&template->encrypted_extension.
-                                                      predefined_extensions.
-                                                      heartbeat_mode,
-                                                      &encrypted_extensions->
-                                                      heartbeat_mode);
-        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_HEARTBEAT,
+                             CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_heartbeat_mode_deserialize(
+                &template->encrypted_extension.predefined_extensions.heartbeat_mode,
+                &encrypted_extensions->heartbeat_mode);
     }
 
     // alpn
-    if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(template->encrypted_extension.
-                                           predefined_extensions.alpn.data,
-                                           template->encrypted_extension.
-                                           predefined_extensions.alpn. length)) {
-        result = ctls_extn_alpn_deserialize(template->encrypted_extension.
-                                            predefined_extensions.alpn.data,
-                                            &template->encrypted_extension.
-                                            predefined_extensions.alpn.length,
-                                            CTLS_DATA_FORM_OPAQUE,
-                                            &encrypted_extensions->alpn);
-        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_APPLICATION_LAYER_PROTOCOL_NEGOTIATION,
+                             CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_alpn_deserialize(
+                template->encrypted_extension.predefined_extensions.alpn.data,
+                &template->encrypted_extension.predefined_extensions.alpn.length,
+                CTLS_DATA_FORM_OPAQUE,
+                &encrypted_extensions->alpn);
     }
 
     // client_certificate_type
-    if (template->encrypted_extension.predefined_extensions.client_certificate_type !=
-        0) {
-        result = ctls_extn_client_certificate_type_deserialize(&template->
-            encrypted_extension.predefined_extensions.client_certificate_type,
-            &encrypted_extensions->client_certificate_type);
-        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_CLIENT_CERTIFICATE_TYPE,
+                             CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_client_certificate_type_deserialize(
+                &template->encrypted_extension.predefined_extensions.client_certificate_type,
+                &encrypted_extensions->client_certificate_type);
     }
 
     // server_certificate_type
-    if (template->encrypted_extension.predefined_extensions.server_certificate_type !=
-        0) {
-        result = ctls_extn_server_certificate_type_deserialize(&template->
-            encrypted_extension.predefined_extensions.server_certificate_type,
-            &encrypted_extensions->server_certificate_type);
-        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_SERVER_CERTIFICATE_TYPE,
+                             CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_server_certificate_type_deserialize(
+                &template->encrypted_extension.predefined_extensions.server_certificate_type,
+                &encrypted_extensions->server_certificate_type);
     }
 
 
@@ -1415,77 +1516,64 @@ ctls_op_status_t ctls_extn_certificate_request_to_struct(
     CTLS_CHECK_NULL(certificate_request_extensions);
     CTLS_CHECK_NULL(template);
 
-    ctls_op_status_t result;
+    uint8_t is_initialized = 0;
 
     // certificate_status_request
-    if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(template->certificate_request_extension.
-                                           predefined_extensions.
-                                           certificate_status_request.data,
-                                           template->certificate_request_extension.
-                                           predefined_extensions.
-                                           certificate_status_request.length)) {
-        result = ctls_extn_certificate_status_request_deserialize(template->
-            certificate_request_extension.predefined_extensions.
-            certificate_status_request.data,
-            &template->certificate_request_extension.predefined_extensions.
-            certificate_status_request.length,
-            CTLS_DATA_FORM_OPAQUE,
-            &certificate_request_extensions->certificate_status_request);
-        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_STATUS_REQUEST,
+                             CTLS_HSMG_TYPE_CERTIFICATE_REQUEST, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_certificate_status_request_deserialize(
+                template->certificate_request_extension.predefined_extensions.
+                certificate_status_request.data,
+                &template->certificate_request_extension.predefined_extensions.
+                certificate_status_request.length,
+                CTLS_DATA_FORM_OPAQUE,
+                &certificate_request_extensions->certificate_status_request);
     }
 
     // signature_algorithms
-    if (template->signature_algorithm.signature_algorithm_type !=
-        CTLS_EXTN_SIGNATURE_ALGORITHM_SENTINEL) {
-        result = ctls_extn_signature_algorithm_deserialize(&template->signature_algorithm.
-                                                           signature_algorithm_type,
-                                                           &certificate_request_extensions
-                                                           ->signature_algorithm);
-        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS,
+                             CTLS_HSMG_TYPE_CERTIFICATE_REQUEST, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_signature_algorithm_deserialize(
+                &template->signature_algorithm.signature_algorithm_type,
+                &certificate_request_extensions->signature_algorithm);
     }
 
     // signed_certificate_timestamp
-    if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(template->certificate_request_extension.
-                                           predefined_extensions.
-                                           signed_certificate_timestamp.data,
-                                           template->certificate_request_extension.
-                                           predefined_extensions.
-                                           signed_certificate_timestamp. length)) {
-        result = ctls_extn_signed_certificate_timestamp_deserialize(template->
-            certificate_request_extension.predefined_extensions.
-            signed_certificate_timestamp.data,
-            &template->certificate_request_extension.predefined_extensions.
-            signed_certificate_timestamp.length,
-            CTLS_DATA_FORM_OPAQUE,
-            &certificate_request_extensions->signed_certificate_timestamp);
-        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP,
+                             CTLS_HSMG_TYPE_CERTIFICATE_REQUEST, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_signed_certificate_timestamp_deserialize(
+                template->certificate_request_extension.predefined_extensions.
+                signed_certificate_timestamp.data,
+                &template->certificate_request_extension.predefined_extensions.
+                signed_certificate_timestamp.length,
+                CTLS_DATA_FORM_OPAQUE,
+                &certificate_request_extensions->signed_certificate_timestamp);
     }
 
     // certificate_authorities
-    if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(template->certificate_request_extension.
-                                           predefined_extensions.certificate_authorities.
-                                           data,
-                                           template->certificate_request_extension.
-                                           predefined_extensions.certificate_authorities.
-                                           length)) {
-        result = ctls_extn_certificate_authorities_deserialize(template->
-            certificate_request_extension.predefined_extensions.
-            certificate_authorities.data,
-            &template->certificate_request_extension.predefined_extensions.
-            certificate_authorities.length,
-            CTLS_DATA_FORM_OPAQUE,
-            &certificate_request_extensions->certificate_authorities);
-        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_CERTIFICATE_AUTHORITIES,
+                             CTLS_HSMG_TYPE_CERTIFICATE_REQUEST, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_certificate_authorities_deserialize(
+                template->certificate_request_extension.predefined_extensions.
+                certificate_authorities.data,
+                &template->certificate_request_extension.predefined_extensions.
+                certificate_authorities.length,
+                CTLS_DATA_FORM_OPAQUE,
+                &certificate_request_extensions->certificate_authorities);
     }
 
     // signature_algorithm_cert
-    if (template->certificate_request_extension.predefined_extensions.
-        signature_algorithm_cert != 0) {
-        result = ctls_extn_signature_algorithm_cert_deserialize(&template->
-            certificate_request_extension.predefined_extensions.
-            signature_algorithm_cert,
-            &certificate_request_extensions->signature_algorithm_cert);
-        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
+    ctls_extn_is_initialized(CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS_CERT,
+                             CTLS_HSMG_TYPE_CERTIFICATE_REQUEST, &is_initialized);
+    if (is_initialized) {
+        ctls_extn_signature_algorithm_cert_deserialize(
+                &template->certificate_request_extension.predefined_extensions.
+                signature_algorithm_cert,
+                &certificate_request_extensions->signature_algorithm_cert);
     }
 
     return (ctls_op_status_t){
