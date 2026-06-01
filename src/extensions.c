@@ -1172,34 +1172,18 @@ ctls_op_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
         // supported versions
-        ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SUPPORTED_VERSIONS);
-        ctls_write_u16(buffer,
-                       offset,
-                       sizeof(server_hello_extensions->supported_versions.version));
-        ctls_write_u16(buffer,
-                       offset,
-                       server_hello_extensions->supported_versions.version);
-
+        ctls_op_status_t result = ctls_extn_supported_versions_serialize(buffer,
+            offset,
+            &server_hello_extensions->supported_versions);
+        if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
         // key share
-        if (server_hello_extensions->key_share_entity.form != CTLS_DATA_FORM_SENTINEL) {
-            ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_KEY_SHARE);
-            ctls_write_u16(buffer,
-                           offset,
-                           server_hello_extensions->key_share_entity.key_share.
-                           buffer_length);
-            ctls_write_bytes(buffer,
-                             offset,
-                             server_hello_extensions->key_share_entity.key_share.
-                             buffer_length,
-                             server_hello_extensions->key_share_entity.key_share.buffer);
-        }
-
-        return (ctls_op_status_t){
-            . source = CTLS_ERROR_SOURCE_INTERNAL,
-            . code = CTLS_OP_STATUS_SUCCESS,
-            . external_code = CTLS_OP_STATUS_SUCCESS,
-        };
+        result = ctls_extn_key_share_serialize(buffer,
+                                               offset,
+                                               wire_format,
+                                               &server_hello_extensions->
+                                               key_share_entity);
+        return result;
     }
 
     return (ctls_op_status_t){
@@ -1220,27 +1204,17 @@ ctls_op_status_t ctls_extn_server_hello_to_struct(
     CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL(hshk_data);
 
-    server_hello_extensions->supported_versions.form = CTLS_DATA_FORM_PARSED;
-    server_hello_extensions->supported_versions.extension_type =
-            CTLS_EXTN_TYPE_SUPPORTED_VERSIONS;
-    server_hello_extensions->supported_versions.version = template->protocol_version;
+    ctls_op_status_t result =
+            ctls_extn_supported_versions_deserialize(&template->protocol_version,
+                                                     &server_hello_extensions->
+                                                     supported_versions);
+    if (result.code != CTLS_OP_STATUS_SUCCESS) return result;
 
-    server_hello_extensions->key_share_entity.form = CTLS_DATA_FORM_PARSED;
-    server_hello_extensions->key_share_entity.key_share.buffer_length = template->
-            dhe_group.key_share_length;
-
-    ctls_read_bytes(hshk_data->server_public_ephemeral_key,
-                    CTLS_SIZE_KEY_SHARE,
-                    buffer,
-                    offset);
-    server_hello_extensions->key_share_entity.key_share.buffer = hshk_data->
-            server_public_ephemeral_key;
-
-    return (ctls_op_status_t){
-        . source = CTLS_ERROR_SOURCE_INTERNAL,
-        . code = CTLS_OP_STATUS_SUCCESS,
-        . external_code = CTLS_OP_STATUS_SUCCESS,
-    };
+    result = ctls_extn_key_share_deserialize(buffer,
+                                             offset,
+                                             CTLS_HELPER_ENTITY_OWNERSHIP_SERVER,
+                                             &server_hello_extensions->key_share_entity);
+    return result;
 }
 
 ctls_op_status_t ctls_extn_encrypted_extensions_create(
@@ -1534,9 +1508,9 @@ ctls_op_status_t ctls_extn_certificate_request_to_struct(
     }
 
     return (ctls_op_status_t){
-        .source = CTLS_ERROR_SOURCE_INTERNAL,
-        .code = CTLS_OP_STATUS_SUCCESS,
-        .external_code = CTLS_OP_STATUS_SUCCESS,
+        . source = CTLS_ERROR_SOURCE_INTERNAL,
+        . code = CTLS_OP_STATUS_SUCCESS,
+        . external_code = CTLS_OP_STATUS_SUCCESS,
     };
 }
 
@@ -1611,15 +1585,15 @@ ctls_op_status_t ctls_extn_certificate_request_to_wire(uint8_t *buffer,
         }
 
         return (ctls_op_status_t){
-            .source = CTLS_ERROR_SOURCE_INTERNAL,
-            .code = CTLS_OP_STATUS_SUCCESS,
-            .external_code = CTLS_OP_STATUS_SUCCESS,
+            . source = CTLS_ERROR_SOURCE_INTERNAL,
+            . code = CTLS_OP_STATUS_SUCCESS,
+            . external_code = CTLS_OP_STATUS_SUCCESS,
         };
     }
 
     return (ctls_op_status_t){
-        .source = CTLS_ERROR_SOURCE_INTERNAL,
-        .code = CTLS_OP_STATUS_INVALID,
-        .external_code = CTLS_OP_STATUS_INVALID,
+        . source = CTLS_ERROR_SOURCE_INTERNAL,
+        . code = CTLS_OP_STATUS_INVALID,
+        . external_code = CTLS_OP_STATUS_INVALID,
     };
 }
