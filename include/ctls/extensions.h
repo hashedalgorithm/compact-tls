@@ -286,7 +286,7 @@ ctls_op_status_t ctls_extn_key_share_deserialize(uint8_t *buffer,
                                                  ctls_size_t *offset,
                                                  ctls_helper_entity_ownership_t
                                                  entity_ownership,
-                                                 ctls_extn_key_share_t key_share);
+                                                 ctls_extn_key_share_t *key_share);
 ctls_op_status_t ctls_extn_key_share_serialize(uint8_t *buffer,
                                                ctls_size_t *offset,
                                                ctls_wire_format_t wire_format,
