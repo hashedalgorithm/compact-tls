@@ -35,6 +35,7 @@
 #define CTLS_COUNT_SUPPORTED_GROUPS  3U
 #define CTLS_COUNT_SIGNATURE_ALGORITHM  3U
 #define CTLS_SIZE_MAX_DISTINGUISHED_NAME 128U
+#define CTLS_COUNT_CERTIFICATE_ENTRY 3U
 
 /* config_octet — RFC 9147 §4, used verbatim by cTLS-10 §2.2
  *
@@ -435,6 +436,9 @@ typedef struct ctls_hsmg_encrypted_extensions ctls_hsmg_encrypted_extensions_t;
 typedef struct ctls_extn_certificate_request ctls_extn_certificate_request_t;
 typedef struct ctls_hsmg_certificate_request ctls_hsmg_certificate_request_t;
 
+typedef struct ctls_extn_certificate ctls_extn_certificate_t;
+typedef struct ctls_hsmg_certificate_entry ctls_hsmg_certificate_entry_t;
+typedef struct ctls_hsmg_certificate ctls_hsmg_certificate_t;
 
 
 typedef struct ctls_hsmg_certificate_verify ctls_hsmg_certificate_verify_t;

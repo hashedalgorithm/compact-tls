@@ -141,12 +141,17 @@ ctls_status_t ctls_transcript_hash_update(ctls_record_t const *record) {
                                                    record,
                                                    CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
             break;
-        case CTLS_HSMG_TYPE_CERTIFICATE:
+        case CTLS_HSMG_TYPE_CERTIFICATE_REQUEST:
             ctls_recd_certificate_request_to_wire(buffer,
                                                   &offset,
                                                   record,
                                                   CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
             break;
+        case CTLS_HSMG_TYPE_CERTIFICATE:
+            ctls_recd_certificate_to_wire(buffer,
+                                          &offset,
+                                          record,
+                                          CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
         case CTLS_HSMG_TYPE_CERTIFICATE_VERIFY:
             ctls_recd_certificate_verify_to_wire();
             break;
@@ -156,7 +161,6 @@ ctls_status_t ctls_transcript_hash_update(ctls_record_t const *record) {
         case CTLS_HSMG_TYPE_NEW_SESSION_TICKET:
         case CTLS_HSMG_TYPE_END_OF_EARLY_DATA:
         case CTLS_HSMG_TYPE_HELLO_RETRY_REQUEST:
-        case CTLS_HSMG_TYPE_CERTIFICATE_REQUEST:
         case CTLS_HSMG_TYPE_KEY_UPDATE:
         case CTLS_HSMG_TYPE_MESSAGE_HASH:
         case CTLS_HSMG_TYPE_SENTINEL: default: return CTLS_STATUS_HSMG_UNKNOWN_MSG_TYPE;

@@ -461,12 +461,63 @@ ctls_status_t ctls_recd_certificate_request_to_wire(uint8_t *buffer,
     return CTLS_STATUS_RECD_INVALID_WIRE_FORMAT;
 }
 
+ctls_status_t ctls_recd_certificate_create(void) {
+    return CTLS_STATUS_NOT_IMPLEMENTED;
 }
 
-ctls_op_status_t ctls_recd_certificate_verify_create() {
+ctls_status_t ctls_recd_certificate_to_struct(ctls_record_t *record,
+                                              uint8_t const *buffer) {
+    CTLS_CHECK_NULL_STRUCT(record);
+    CTLS_CHECK_NULL_BUFFER(buffer);
+
+    uint8_t plaintext[CTLS_SIZE_WIRE_BUFFER];
+    size_t plaintext_offset = 0;
+    ctls_size_t offset = 0;
+
+    record->type = CTLS_RECORD_TYPE_ENCRYPTED;
+    ctls_status_t result = ctls_unified_header_deserialize(&record->unified_header,
+                                                           buffer,
+                                                           &offset,
+                                                           CTLS_SIZE_WIRE_BUFFER);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_decrypt(&record->unified_header.sequence_number,
+                          buffer,
+                          offset,
+                          plaintext,
+                          plaintext_offset,
+                          plaintext,
+                          &plaintext_offset);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    return ctls_hsmg_certificate_to_struct(&record->record_body, plaintext);
 }
 
-ctls_op_status_t ctls_recd_certificate_verify_to_struct() {
+ctls_status_t ctls_recd_certificate_to_wire(uint8_t *buffer,
+                                                       ctls_size_t *offset,
+                                                       ctls_record_t const *record,
+                                                       ctls_wire_format_t wire_format) {
+    CTLS_CHECK_NULL_STRUCT(record);
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_OFFSET(offset);
+
+    if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
+    };
+    if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
+        ctls_unified_header_serialize(&record->unified_header, buffer, offset);
+
+        ctls_status_t const result = ctls_hsmg_certificate_to_wire(buffer,
+            offset,
+            &record->record_body,
+            CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
+        if (result != CTLS_STATUS_SUCCESS) return result;
+
+        return CTLS_STATUS_SUCCESS;
+    }
+
+    return CTLS_STATUS_RECD_INVALID_WIRE_FORMAT;
+
+}
 }
 
 ctls_op_status_t ctls_recd_certificate_verify_to_wire() {

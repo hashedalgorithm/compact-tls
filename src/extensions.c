@@ -1520,14 +1520,79 @@ ctls_status_t ctls_extn_certificate_create(void) {
 }
 
 ctls_status_t ctls_extn_certificate_to_struct(
-    ctls_extn_certificate_request_t *certificate_request_extensions) {
-    return CTLS_STATUS_NOT_IMPLEMENTED;
+    ctls_extn_certificate_t *certificate_extensions) {
+    ctls_template_t const *template = ctls_template_get();
+
+    CTLS_CHECK_NULL_STRUCT(certificate_extensions);
+    CTLS_CHECK_NULL(template);
+
+    uint8_t is_initialized = 0;
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
+    result = ctls_extn_is_initialized(CTLS_EXTN_TYPE_STATUS_REQUEST,
+                                      CTLS_HSMG_TYPE_CERTIFICATE,
+                                      &is_initialized);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    if (is_initialized) {
+        result = ctls_extn_certificate_status_request_deserialize(template->
+            certificate_request_extension.predefined_extensions.
+            certificate_status_request.data,
+            &template->certificate_request_extension.predefined_extensions.
+            certificate_status_request.length,
+            CTLS_DATA_FORM_OPAQUE,
+            &certificate_extensions->certificate_status_request);
+        if (result != CTLS_STATUS_SUCCESS) return result;
+    }
+
+
+    result = ctls_extn_is_initialized(CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP,
+                                      CTLS_HSMG_TYPE_CERTIFICATE_REQUEST,
+                                      &is_initialized);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    if (is_initialized) {
+        result = ctls_extn_signed_certificate_timestamp_deserialize(template->
+            certificate_request_extension.predefined_extensions.
+            signed_certificate_timestamp.data,
+            &template->certificate_request_extension.predefined_extensions.
+            signed_certificate_timestamp.length,
+            CTLS_DATA_FORM_OPAQUE,
+            &certificate_extensions->signed_certificate_timestamp);
+        if (result != CTLS_STATUS_SUCCESS) return result;
+    }
+
+
+    return result;
 }
 
 ctls_status_t ctls_extn_certificate_to_wire(uint8_t *buffer,
                                             ctls_size_t *offset,
-                                            ctls_extn_certificate_request_t const *
-                                            certificate_request,
+                                            ctls_extn_certificate_t const *
+                                            certificate_extensions,
                                             ctls_wire_format_t wire_format) {
-    return CTLS_STATUS_NOT_IMPLEMENTED;
+    if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
+    }
+    if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
+        ctls_status_t result;
+
+        if (certificate_extensions->certificate_status_request.form !=
+            CTLS_DATA_FORM_SENTINEL) {
+            result = ctls_extn_certificate_status_request_serialize(buffer,
+                offset,
+                &certificate_extensions->certificate_status_request);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+        }
+
+        if (certificate_extensions->signed_certificate_timestamp.form !=
+            CTLS_DATA_FORM_SENTINEL) {
+            result = ctls_extn_signed_certificate_timestamp_serialize(buffer,
+                offset,
+                &certificate_extensions->signed_certificate_timestamp);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+        }
+
+        return CTLS_STATUS_SUCCESS;
+    }
+
+    return CTLS_STATUS_EXTN_INVALID_WIRE_FORMAT;
 }

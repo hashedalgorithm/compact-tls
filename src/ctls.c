@@ -168,12 +168,31 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
         ctls_transcript_hash_update(&context->record);
     }
 
+    recv_len = 0;
+    memset(buffer, 0, CTLS_SIZE_WIRE_BUFFER);
+    result = context->transport.recd_receive(buffer, &recv_len, sizeof(buffer));
+    if (result != CTLS_STATUS_SUCCESS) {
+        context->state = CTLS_HSHK_STATE_ERROR;
+        return CTLS_STATUS_TRANSPORT_RECV_FAILED;
+    }
 
-    return (ctls_op_status_t){
-        .source = CTLS_ERROR_SOURCE_INTERNAL,
-        .code = CTLS_OP_STATUS_SUCCESS,
-        .external_code = CTLS_OP_STATUS_SUCCESS,
-    };
+    ctls_recd_buffer_clear(&context->record);
+    result = ctls_record_deserialize(&context->record,
+                                     CTLS_HSMG_TYPE_CERTIFICATE,
+                                     buffer,
+                                     recv_len);
+    if (result != CTLS_STATUS_SUCCESS) {
+        context->state = CTLS_HSHK_STATE_ERROR;
+        return result;
+    }
+
+    result = ctls_transcript_hash_update(&context->record);
+    if (result != CTLS_STATUS_SUCCESS) {
+        context->state = CTLS_HSHK_STATE_ERROR;
+        return result;
+    }
+
+
 }
 
 

@@ -337,7 +337,14 @@ ctls_status_t ctls_extn_certificate_request_to_wire(uint8_t *buffer,
                                                     *certificate_request,
                                                     ctls_wire_format_t wire_format);
 
-
+ctls_status_t ctls_extn_certificate_create(void);
+ctls_status_t ctls_extn_certificate_to_struct(
+    ctls_extn_certificate_t *certificate_extensions);
+ctls_status_t ctls_extn_certificate_to_wire(uint8_t *buffer,
+                                            ctls_size_t *offset,
+                                            ctls_extn_certificate_t const *
+                                            certificate_extensions,
+                                            ctls_wire_format_t wire_format);
 
 
 #endif

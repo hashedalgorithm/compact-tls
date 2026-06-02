@@ -32,6 +32,16 @@ struct ctls_hsmg_certificate_request {
     ctls_hshk_buffer_block_t certificate_request_context;
     ctls_extn_certificate_request_t extensions;
 };
+
+struct ctls_hsmg_certificate_entry {
+    uint16_t certificate_id;
+    ctls_extn_certificate_t extensions;
+};
+struct ctls_hsmg_certificate {
+    ctls_hshk_buffer_block_t certificate_request_context;
+    ctls_hsmg_certificate_entry_t certificate_entries[CTLS_COUNT_CERTIFICATE_ENTRY];
+    uint8_t certificate_count;
+};
 struct ctls_hsmg_certificate_verify {
 };
 struct ctls_hsmg_finished {
@@ -50,6 +60,7 @@ typedef union {
     ctls_hsmg_server_hello_t server_hello;
     ctls_hsmg_encrypted_extensions_t encrypted_extensions;
     ctls_hsmg_certificate_request_t certificate_request;
+    ctls_hsmg_certificate_t certificate;
     ctls_hsmg_certificate_verify_t certificate_verify;
     ctls_hsmg_finished_t finished;
     ctls_hsmg_application_data_t application_data;
@@ -98,10 +109,14 @@ ctls_status_t ctls_hsmg_certificate_request_create(void);
 ctls_status_t ctls_hsmg_certificate_request_to_struct(ctls_handshake_message_t *hsmg,
                                                          uint8_t *buffer);
 ctls_status_t ctls_hsmg_certificate_request_to_wire(uint8_t *buffer,
-                                                       ctls_size_t *offset,
-                                                       ctls_handshake_message_t const *
-                                                       hsmg,
-                                                       ctls_wire_format_t wire_format);
+
+ctls_status_t ctls_hsmg_certificate_create(void);
+ctls_status_t ctls_hsmg_certificate_to_struct(ctls_handshake_message_t *hsmg,
+                                              uint8_t *buffer);
+ctls_status_t ctls_hsmg_certificate_to_wire(uint8_t *buffer,
+                                            ctls_size_t *offset,
+                                            ctls_handshake_message_t const *hsmg,
+                                            ctls_wire_format_t wire_format);
 
 ctls_op_status_t ctls_hsmg_certificate_verify_create(void);
 ctls_op_status_t ctls_hsmg_certificate_verify_to_struct(void);

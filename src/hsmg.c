@@ -350,14 +350,123 @@ ctls_status_t ctls_hsmg_certificate_request_to_wire(uint8_t *buffer,
     return CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT;
 }
 
+ctls_status_t ctls_hsmg_certificate_create(void) {
+    return CTLS_STATUS_NOT_IMPLEMENTED;
+}
+
+ctls_status_t ctls_hsmg_certificate_to_struct(ctls_handshake_message_t *hsmg,
+                                              uint8_t *buffer) {
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+
+    CTLS_CHECK_NULL_STRUCT(hsmg);
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL(hshk_data);
+
+    ctls_size_t offset = 0;
+
+    hsmg->message_type = ctls_read_u8(buffer, &offset);
+
+    ctls_size_t const certificate_request_context_length = ctls_read_u8(buffer, &offset);
+    if (certificate_request_context_length > 0) {
+        ctls_read_bytes(hshk_data->certificate_request_context,
+                        certificate_request_context_length,
+                        buffer,
+                        &offset);
+    } else ctls_read_u8(buffer, &offset);
+
+    ctls_size_t const certificate_entries_length = ctls_read_u24(buffer, &offset);
+    ctls_size_t certificate_entries_index = 0;
+    ctls_size_t const certificate_entries_absolute_length =
+            offset + certificate_entries_length;
+
+    while (offset < certificate_entries_absolute_length) {
+        offset += 2; // certificate data length
+        hsmg->handshake_message_body.certificate.certificate_entries[
+            certificate_entries_index].certificate_id = ctls_read_u16(buffer, &offset);
+
+        ctls_size_t const certificate_extensions_length = ctls_read_u24(buffer, &offset);
+        if (certificate_extensions_length <= 0) {
+            continue;
+        }
+
+        ctls_status_t const result =
+                ctls_extn_certificate_to_struct(&hsmg->handshake_message_body.certificate.
+                                                certificate_entries[
+                                                    certificate_entries_index].
+                                                extensions);
+        if (result != CTLS_STATUS_SUCCESS) return result;
+
+        certificate_entries_index++;
     }
 
+    hsmg->handshake_message_body.certificate.certificate_count =
+            certificate_entries_index;
 
-    return (ctls_op_status_t){
-        .source = CTLS_ERROR_SOURCE_INTERNAL,
-        .code = CTLS_OP_STATUS_INVALID,
-        .external_code = CTLS_OP_STATUS_INVALID
-    };
+    return CTLS_STATUS_SUCCESS;
+}
+
+ctls_status_t ctls_hsmg_certificate_to_wire(uint8_t *buffer,
+                                            ctls_size_t *offset,
+                                            ctls_handshake_message_t const *hsmg,
+                                            ctls_wire_format_t wire_format) {
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_OFFSET(offset);
+
+
+    if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
+    }
+    if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
+        ctls_write_u8(buffer, offset, hsmg->message_type);
+        ctls_write_u8(buffer,
+                      offset,
+                      hsmg->handshake_message_body.certificate.certificate_request_context
+                      .buffer_length);
+
+        if (hsmg->handshake_message_body.certificate.certificate_request_context.
+            buffer_length > 0) {
+            ctls_write_bytes(buffer,
+                             offset,
+                             hsmg->handshake_message_body.certificate.
+                             certificate_request_context.buffer_length,
+                             hsmg->handshake_message_body.certificate.
+                             certificate_request_context.buffer);
+        }
+
+        ctls_size_t certificates_length_offset = *offset;
+        *offset += 2;
+
+        for (uint8_t i = 0; i < hsmg->handshake_message_body.certificate.certificate_count
+             ; i++) {
+            ctls_write_u16(buffer,
+                           offset,
+                           sizeof(hsmg->handshake_message_body.certificate.
+                               certificate_entries[i].certificate_id));
+            ctls_write_u16(buffer,
+                           offset,
+                           hsmg->handshake_message_body.certificate.certificate_entries[i]
+                           .certificate_id);
+            ctls_size_t certificate_extensions_length_offset = *offset;
+            *offset += 2;
+            ctls_status_t const result = ctls_extn_certificate_to_wire(buffer,
+                offset,
+                &hsmg->handshake_message_body.certificate.certificate_entries[i].
+                extensions,
+                CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+
+            ctls_write_u16(buffer,
+                           &certificate_extensions_length_offset,
+                           *offset - certificate_extensions_length_offset);
+        }
+
+        ctls_write_u16(buffer,
+                       &certificates_length_offset,
+                       *offset - certificates_length_offset);
+
+        return CTLS_STATUS_SUCCESS;
+    }
+
+    return CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT;
 }
 
 ctls_op_status_t ctls_hsmg_certificate_verify_create() {
