@@ -123,13 +123,13 @@ ctls_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
     CTLS_CHECK_NULL_STRUCT(record);
 
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
-        if (sizeof(record->content_type) + *offset > buffer_size)
-            return CTLS_STATUS_BUFFER_OVERFLOW;
+        if (sizeof(record->content_type) + *offset > buffer_size) return
+                CTLS_STATUS_BUFFER_OVERFLOW;
 
         ctls_write_u8(buffer, offset, record->content_type);
 
-        if ((sizeof(record->profile_id) + sizeof(uint8_t)) + *offset > buffer_size)
-            return CTLS_STATUS_BUFFER_OVERFLOW;
+        if ((sizeof(record->profile_id) + sizeof(uint8_t)) + *offset > buffer_size) return
+                CTLS_STATUS_BUFFER_OVERFLOW;
 
         ctls_write_u8(buffer, offset, sizeof(record->profile_id));
         ctls_write_u8(buffer, offset, record->profile_id);

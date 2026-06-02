@@ -35,66 +35,65 @@ struct ctls_record {
 
 
 ctls_status_t ctls_unified_header_build(ctls_unified_header_t *unified_header,
-                                           uint16_t sequence_number,
-                                           uint16_t length,
-                                           uint64_t const *epoch);
-ctls_status_t ctls_unified_header_serialize(
-    ctls_unified_header_t const *unified_header,
-    uint8_t *buffer,
-    ctls_size_t *offset);
+                                        uint16_t sequence_number,
+                                        uint16_t length,
+                                        uint64_t const *epoch);
+ctls_status_t ctls_unified_header_serialize(ctls_unified_header_t const *unified_header,
+                                            uint8_t *buffer,
+                                            ctls_size_t *offset);
 ctls_status_t ctls_unified_header_deserialize(ctls_unified_header_t *unified_header,
-                                                 uint8_t const *buffer,
-                                                 ctls_size_t *offset,
-                                                 ctls_size_t buffer_size);
+                                              uint8_t const *buffer,
+                                              ctls_size_t *offset,
+                                              ctls_size_t buffer_size);
 
 ctls_status_t ctls_write_body_length(uint8_t *buffer,
-                                        ctls_size_t *offset,
-                                        ctls_size_t body_length);
+                                     ctls_size_t *offset,
+                                     ctls_size_t body_length);
 
 ctls_status_t ctls_record_serialize(ctls_record_t const *record,
-                                       uint8_t *buffer,
-                                       ctls_size_t buffer_size,
-                                       ctls_size_t *buffer_length);
+                                    uint8_t *buffer,
+                                    ctls_size_t buffer_size,
+                                    ctls_size_t *buffer_length);
 ctls_status_t ctls_record_deserialize(ctls_record_t *record,
-                                         ctls_hsmg_type_t hsmg_type,
-                                         uint8_t *buffer,
-                                         ctls_size_t buffer_length);
+                                      ctls_hsmg_type_t hsmg_type,
+                                      uint8_t *buffer,
+                                      ctls_size_t buffer_length);
 
 ctls_status_t ctls_recd_client_hello_create(ctls_record_t *record);
 ctls_status_t ctls_recd_client_hello_to_struct();
 ctls_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
-                                                ctls_size_t *offset,
-                                                ctls_size_t buffer_size,
-                                                ctls_record_t const *record,
-                                                ctls_wire_format_t wire_format);
+                                             ctls_size_t *offset,
+                                             ctls_size_t buffer_size,
+                                             ctls_record_t const *record,
+                                             ctls_wire_format_t wire_format);
 
 ctls_status_t ctls_recd_server_hello_create(void);
 ctls_status_t ctls_recd_server_hello_to_struct(ctls_record_t *record,
-                                                  uint8_t *buffer,
-                                                  ctls_size_t *offset,
-                                                  ctls_size_t buffer_size);
+                                               uint8_t *buffer,
+                                               ctls_size_t *offset,
+                                               ctls_size_t buffer_size);
 ctls_status_t ctls_recd_server_hello_to_wire(uint8_t *buffer,
-                                                ctls_size_t *offset,
-                                                ctls_size_t buffer_size,
-                                                ctls_record_t const *record,
-                                                ctls_wire_format_t wire_format);
+                                             ctls_size_t *offset,
+                                             ctls_size_t buffer_size,
+                                             ctls_record_t const *record,
+                                             ctls_wire_format_t wire_format);
 
 ctls_status_t ctls_recd_encrypted_extensions_create(void);
 ctls_status_t ctls_recd_encrypted_extensions_to_struct(ctls_record_t *record,
-                                                          uint8_t *buffer,
-                                                          ctls_size_t buffer_size);
+                                                       uint8_t *buffer,
+                                                       ctls_size_t buffer_size);
 ctls_status_t ctls_recd_encrypted_extensions_to_wire(uint8_t *buffer,
-                                                        ctls_size_t *offset,
-                                                        ctls_record_t const *record,
-                                                        ctls_wire_format_t wire_format);
+                                                     ctls_size_t *offset,
+                                                     ctls_record_t const *record,
+                                                     ctls_wire_format_t wire_format);
 
 ctls_status_t ctls_recd_certificate_request_create(void);
 ctls_status_t ctls_recd_certificate_request_to_struct(ctls_record_t *record,
-                                                         uint8_t const *buffer);
+                                                      uint8_t const *buffer);
 ctls_status_t ctls_recd_certificate_request_to_wire(uint8_t *buffer,
-                                                       ctls_size_t *offset,
-                                                       ctls_record_t const *record,
-                                                       ctls_wire_format_t wire_format);
+                                                    ctls_size_t *offset,
+                                                    ctls_record_t const *record,
+                                                    ctls_wire_format_t wire_format);
 
 ctls_status_t ctls_recd_certificate_create(void);
 ctls_status_t ctls_recd_certificate_to_struct(ctls_record_t *record,
@@ -104,9 +103,12 @@ ctls_status_t ctls_recd_certificate_to_wire(uint8_t *buffer,
                                             ctls_record_t const *record,
                                             ctls_wire_format_t wire_format);
 
+ctls_status_t ctls_recd_certificate_verify_create(void);
+ctls_status_t ctls_recd_certificate_verify_to_struct(void);
+ctls_status_t ctls_recd_certificate_verify_to_wire(void);
 
-ctls_op_status_t ctls_recd_finished_create(void);
-ctls_op_status_t ctls_recd_finished_to_struct(void);
-ctls_op_status_t ctls_recd_finished_to_wire(void);
+ctls_status_t ctls_recd_finished_create(void);
+ctls_status_t ctls_recd_finished_to_struct(void);
+ctls_status_t ctls_recd_finished_to_wire(void);
 
 #endif
