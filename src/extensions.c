@@ -225,8 +225,8 @@ ctls_status_t ctls_extn_server_name_serialize(uint8_t *buffer,
     CTLS_CHECK_NULL_OFFSET(offset);
     CTLS_CHECK_NULL_STRUCT(server_name);
 
-    if (server_name->form == CTLS_DATA_FORM_SENTINEL) return
-            CTLS_STATUS_EXTN_INVALID_FORM;
+    if (server_name->form == CTLS_DATA_FORM_SENTINEL)
+        return CTLS_STATUS_EXTN_INVALID_FORM;
 
     ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SERVER_NAME);
     if (server_name->form == CTLS_DATA_FORM_OPAQUE) {
@@ -304,8 +304,8 @@ ctls_status_t ctls_extn_certificate_status_request_deserialize(
                 ctls_read_u8(buffer, &offset);
 
         if (certificate_status_request->status_request.certificate_status_type !=
-            CTLS_EXTN_CERTIFICATE_STATUS_TYPE_OSCP) return
-                CTLS_STATUS_EXTN_INVALID_STATUS_TYPE;
+            CTLS_EXTN_CERTIFICATE_STATUS_TYPE_OSCP)
+            return CTLS_STATUS_EXTN_INVALID_STATUS_TYPE;
 
         offset += 2;
         offset += 2;
@@ -327,8 +327,8 @@ ctls_status_t ctls_extn_certificate_status_request_serialize(
     CTLS_CHECK_NULL_OFFSET(offset);
     CTLS_CHECK_NULL_STRUCT(certificate_status_request);
 
-    if (certificate_status_request->form == CTLS_DATA_FORM_SENTINEL) return
-            CTLS_STATUS_EXTN_INVALID_FORM;
+    if (certificate_status_request->form == CTLS_DATA_FORM_SENTINEL)
+        return CTLS_STATUS_EXTN_INVALID_FORM;
 
     ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_STATUS_REQUEST);
     if (certificate_status_request->form == CTLS_DATA_FORM_OPAQUE) {
@@ -563,8 +563,8 @@ ctls_status_t ctls_extn_signed_certificate_timestamp_serialize(
     CTLS_CHECK_NULL_OFFSET(offset);
     CTLS_CHECK_NULL_STRUCT(signed_certificate_timestamp);
 
-    if (signed_certificate_timestamp->form == CTLS_DATA_FORM_SENTINEL) return
-            CTLS_STATUS_EXTN_INVALID_FORM;
+    if (signed_certificate_timestamp->form == CTLS_DATA_FORM_SENTINEL)
+        return CTLS_STATUS_EXTN_INVALID_FORM;
 
     ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP);
     if (signed_certificate_timestamp->form == CTLS_DATA_FORM_OPAQUE) {
@@ -716,8 +716,8 @@ ctls_status_t ctls_extn_certificate_authorities_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
     ctls_extn_certificate_authorities_t const *certificate_authorities) {
-    if (certificate_authorities->form == CTLS_DATA_FORM_SENTINEL)
-        return CTLS_STATUS_EXTN_INVALID_FORM;
+    if (certificate_authorities->form == CTLS_DATA_FORM_SENTINEL) return
+            CTLS_STATUS_EXTN_INVALID_FORM;
 
     ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_CERTIFICATE_AUTHORITIES);
     if (certificate_authorities->form == CTLS_DATA_FORM_OPAQUE) {
@@ -775,8 +775,8 @@ ctls_status_t ctls_extn_key_share_deserialize(uint8_t *buffer,
     CTLS_CHECK_NULL(hshk_data);
 
     if (entity_ownership != CTLS_HELPER_ENTITY_OWNERSHIP_CLIENT && entity_ownership !=
-        CTLS_HELPER_ENTITY_OWNERSHIP_SERVER) return
-            CTLS_STATUS_EXTN_INVALID_ENTITY_OWNERSHIP;
+        CTLS_HELPER_ENTITY_OWNERSHIP_SERVER)
+        return CTLS_STATUS_EXTN_INVALID_ENTITY_OWNERSHIP;
 
     ctls_read_bytes(entity_ownership == CTLS_HELPER_ENTITY_OWNERSHIP_SERVER
                         ? hshk_data->server_public_ephemeral_key
