@@ -25,119 +25,192 @@ ctls_status_t ctls_template_set(uint8_t const profile_id, ctls_context_t *contex
 
 ctls_status_t ctls_tmpl_extension_to_wire(uint8_t *buffer,
                                           ctls_size_t *offset,
+                                          ctls_hsmg_type_t type,
                                           ctls_tmpl_extension_t const *extensions) {
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
     CTLS_CHECK_NULL(extensions);
 
+    uint8_t is_initialized = 0;
     ctls_size_t predefined_extensions_length_offset = *offset;
     (*offset) += 2;
 
-    if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(extensions->predefined_extensions.server_name.data,
-                                           extensions->predefined_extensions.server_name.length)) {
-        ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SERVER_NAME);
-        ctls_write_u16(buffer, offset, extensions->predefined_extensions.server_name.length);
-        ctls_write_bytes(buffer, offset, extensions->predefined_extensions.server_name.length,
-                         extensions->predefined_extensions.server_name.data);
+    ctls_status_t result = ctls_extn_is_initialized(CTLS_EXTN_TYPE_SERVER_NAME,
+                                                    type,
+                                                    &is_initialized);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    if (is_initialized) {
+        result = ctls_extn_opaque_serialize(buffer,
+                                            offset,
+                                            extensions->predefined_extensions.server_name.
+                                            data,
+                                            extensions->predefined_extensions.server_name.
+                                            length,
+                                            CTLS_EXTN_TYPE_SERVER_NAME);
+        if (result != CTLS_STATUS_SUCCESS) return result;
     }
 
-    if (extensions->predefined_extensions.maximum_fragment_length != 0) {
-        ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_MAX_FRAGMENT_LENGTH);
-        ctls_write_u16(buffer,
-                       offset,
-                       sizeof(extensions->predefined_extensions.maximum_fragment_length));
-        ctls_write_u16(buffer,
-                       offset,
-                       extensions->predefined_extensions.maximum_fragment_length);
+    result = ctls_extn_is_initialized(CTLS_EXTN_TYPE_MAX_FRAGMENT_LENGTH,
+                                      type,
+                                      &is_initialized);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    if (is_initialized) {
+        result = ctls_extn_opaque_serialize(buffer,
+                                            offset,
+                                            (uint8_t *) &extensions->predefined_extensions
+                                            .maximum_fragment_length,
+                                            sizeof(extensions->predefined_extensions.
+                                                maximum_fragment_length),
+                                            CTLS_EXTN_TYPE_MAX_FRAGMENT_LENGTH);
+        if (result != CTLS_STATUS_SUCCESS) return result;
     }
 
-    if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(extensions->predefined_extensions.
-                                           certificate_status_request.data,
-                                           extensions->predefined_extensions.
-                                           certificate_status_request.length)) {
-        ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_STATUS_REQUEST);
-        ctls_write_u16(buffer,
-                       offset,
-                       extensions->predefined_extensions.certificate_status_request.
-                       length);
-        ctls_write_bytes(buffer,
-                         offset,
-                         extensions->predefined_extensions.certificate_status_request.
-                         length,
-                         extensions->predefined_extensions.certificate_status_request.
-                         data);
+    result = ctls_extn_is_initialized(CTLS_EXTN_TYPE_STATUS_REQUEST,
+                                      type,
+                                      &is_initialized);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    if (is_initialized) {
+        result = ctls_extn_opaque_serialize(buffer,
+                                            offset,
+                                            extensions->predefined_extensions.
+                                            certificate_status_request.data,
+                                            extensions->predefined_extensions.
+                                            certificate_status_request.length,
+                                            CTLS_EXTN_TYPE_STATUS_REQUEST);
+        if (result != CTLS_STATUS_SUCCESS) return result;
     }
 
-    if (extensions->predefined_extensions.heartbeat_mode != 0) {
-        ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_HEARTBEAT);
-        ctls_write_u16(buffer,
-                       offset,
-                       sizeof(extensions->predefined_extensions.heartbeat_mode));
-        ctls_write_u16(buffer, offset, extensions->predefined_extensions.heartbeat_mode);
+    result = ctls_extn_is_initialized(CTLS_EXTN_TYPE_HEARTBEAT, type, &is_initialized);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    if (is_initialized) {
+        result = ctls_extn_opaque_serialize(buffer,
+                                            offset,
+                                            (uint8_t *) &extensions->predefined_extensions
+                                            .heartbeat_mode,
+                                            sizeof(extensions->predefined_extensions.
+                                                heartbeat_mode),
+                                            CTLS_EXTN_TYPE_HEARTBEAT);
+        if (result != CTLS_STATUS_SUCCESS) return result;
     }
 
-    if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(extensions->predefined_extensions.alpn.data,
-                                           extensions->predefined_extensions.alpn.
-                                           length)) {
-        ctls_write_u16(buffer,
-                       offset,
-                       CTLS_EXTN_TYPE_APPLICATION_LAYER_PROTOCOL_NEGOTIATION);
-        ctls_write_u16(buffer, offset, extensions->predefined_extensions.alpn.length);
-        ctls_write_bytes(buffer,
-                         offset,
-                         extensions->predefined_extensions.alpn.length,
-                         extensions->predefined_extensions.alpn.data);
+    result =
+            ctls_extn_is_initialized(CTLS_EXTN_TYPE_APPLICATION_LAYER_PROTOCOL_NEGOTIATION,
+                                     type,
+                                     &is_initialized);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    if (is_initialized) {
+        result = ctls_extn_opaque_serialize(buffer,
+                                            offset,
+                                            extensions->predefined_extensions.alpn.data,
+                                            extensions->predefined_extensions.alpn.length,
+                                            CTLS_EXTN_TYPE_APPLICATION_LAYER_PROTOCOL_NEGOTIATION);
+        if (result != CTLS_STATUS_SUCCESS) return result;
     }
 
-    if (extensions->predefined_extensions.client_certificate_type != 0) {
-        ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_CLIENT_CERTIFICATE_TYPE);
-        ctls_write_u16(buffer,
-                       offset,
-                       sizeof(extensions->predefined_extensions.client_certificate_type));
-        ctls_write_u16(buffer,
-                       offset,
-                       extensions->predefined_extensions.client_certificate_type);
+    result = ctls_extn_is_initialized(CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP,
+                                      type,
+                                      &is_initialized);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    if (is_initialized) {
+        result = ctls_extn_opaque_serialize(buffer,
+                                            offset,
+                                            extensions->predefined_extensions.
+                                            signed_certificate_timestamp.data,
+                                            extensions->predefined_extensions.
+                                            signed_certificate_timestamp.length,
+                                            CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP);
+        if (result != CTLS_STATUS_SUCCESS) return result;
     }
 
-    if (extensions->predefined_extensions.server_certificate_type != 0) {
-        ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SERVER_CERTIFICATE_TYPE);
-        ctls_write_u16(buffer,
-                       offset,
-                       sizeof(extensions->predefined_extensions.server_certificate_type));
-        ctls_write_u16(buffer,
-                       offset,
-                       extensions->predefined_extensions.server_certificate_type);
+    result = ctls_extn_is_initialized(CTLS_EXTN_TYPE_CLIENT_CERTIFICATE_TYPE,
+                                      type,
+                                      &is_initialized);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    if (is_initialized) {
+        result = ctls_extn_opaque_serialize(buffer,
+                                            offset,
+                                            (uint8_t *) &extensions->predefined_extensions
+                                            .client_certificate_type,
+                                            sizeof(extensions->predefined_extensions.
+                                                client_certificate_type),
+                                            CTLS_EXTN_TYPE_CLIENT_CERTIFICATE_TYPE);
+        if (result != CTLS_STATUS_SUCCESS) return result;
     }
 
-    if (extensions->predefined_extensions.psk_key_exchange_modes != 0) {
-        ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_PSK_KEY_EXCHANGE_MODES);
-        ctls_write_u16(buffer,
-                       offset,
-                       sizeof(extensions->predefined_extensions.psk_key_exchange_modes));
-        ctls_write_u16(buffer,
-                       offset,
-                       extensions->predefined_extensions.psk_key_exchange_modes);
+    result = ctls_extn_is_initialized(CTLS_EXTN_TYPE_SERVER_CERTIFICATE_TYPE,
+                                      type,
+                                      &is_initialized);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    if (is_initialized) {
+        result = ctls_extn_opaque_serialize(buffer,
+                                            offset,
+                                            (uint8_t *) &extensions->predefined_extensions
+                                            .server_certificate_type,
+                                            sizeof(extensions->predefined_extensions.
+                                                server_certificate_type),
+                                            CTLS_EXTN_TYPE_SERVER_CERTIFICATE_TYPE);
+        if (result != CTLS_STATUS_SUCCESS) return result;
     }
 
-    if (extensions->predefined_extensions.post_handshake_auth != 0) {
-        ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_POST_HANDSHAKE_AUTH);
-        ctls_write_u16(buffer,
-                       offset,
-                       sizeof(extensions->predefined_extensions.post_handshake_auth));
-        ctls_write_u8(buffer,
-                      offset,
-                      extensions->predefined_extensions.post_handshake_auth);
+    result = ctls_extn_is_initialized(CTLS_EXTN_TYPE_PSK_KEY_EXCHANGE_MODES,
+                                      type,
+                                      &is_initialized);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    if (is_initialized) {
+        result = ctls_extn_opaque_serialize(buffer,
+                                            offset,
+                                            (uint8_t *) &extensions->predefined_extensions
+                                            .psk_key_exchange_modes,
+                                            sizeof(extensions->predefined_extensions.
+                                                psk_key_exchange_modes),
+                                            CTLS_EXTN_TYPE_PSK_KEY_EXCHANGE_MODES);
+        if (result != CTLS_STATUS_SUCCESS) return result;
     }
 
-    if (extensions->predefined_extensions.signature_algorithm_cert != 0) {
-        ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS_CERT);
-        ctls_write_u16(buffer,
-                       offset,
-                       sizeof(extensions->predefined_extensions.
-                           signature_algorithm_cert));
-        ctls_write_u16(buffer,
-                       offset,
-                       extensions->predefined_extensions.signature_algorithm_cert);
+    result = ctls_extn_is_initialized(CTLS_EXTN_TYPE_CERTIFICATE_AUTHORITIES,
+                                      type,
+                                      &is_initialized);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    if (is_initialized) {
+        result = ctls_extn_opaque_serialize(buffer,
+                                            offset,
+                                            extensions->predefined_extensions.
+                                            certificate_authorities.data,
+                                            extensions->predefined_extensions.
+                                            certificate_authorities.length,
+                                            CTLS_EXTN_TYPE_CERTIFICATE_AUTHORITIES);
+        if (result != CTLS_STATUS_SUCCESS) return result;
+    }
+
+    result = ctls_extn_is_initialized(CTLS_EXTN_TYPE_POST_HANDSHAKE_AUTH,
+                                      type,
+                                      &is_initialized);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    if (is_initialized) {
+        result = ctls_extn_opaque_serialize(buffer,
+                                            offset,
+                                            (uint8_t *) &extensions->predefined_extensions
+                                            .post_handshake_auth,
+                                            sizeof(extensions->predefined_extensions.
+                                                post_handshake_auth),
+                                            CTLS_EXTN_TYPE_POST_HANDSHAKE_AUTH);
+        if (result != CTLS_STATUS_SUCCESS) return result;
+    }
+
+    result = ctls_extn_is_initialized(CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS_CERT,
+                                      type,
+                                      &is_initialized);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    if (is_initialized) {
+        result = ctls_extn_opaque_serialize(buffer,
+                                            offset,
+                                            (uint8_t *) &extensions->predefined_extensions
+                                            .signature_algorithm_cert,
+                                            sizeof(extensions->predefined_extensions.
+                                                signature_algorithm_cert),
+                                            CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS_CERT);
+        if (result != CTLS_STATUS_SUCCESS) return result;
     }
 
     ctls_write_u16(buffer,
@@ -148,8 +221,8 @@ ctls_status_t ctls_tmpl_extension_to_wire(uint8_t *buffer,
     *offset += 2;
     for (size_t i = 0; i < sizeof(extensions->expected_extensions) / sizeof(extensions->
                            expected_extensions[0]); i++) {
-        if (extensions->expected_extensions[i] == CTLS_EXTN_TYPE_KEY_SHARE) return
-                CTLS_STATUS_TMPL_INVALID_EXTENSION;
+        if (extensions->expected_extensions[i] == CTLS_EXTN_TYPE_KEY_SHARE)
+            return CTLS_STATUS_TMPL_INVALID_EXTENSION;
 
         ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_KEY_SHARE);
     }
@@ -161,8 +234,8 @@ ctls_status_t ctls_tmpl_extension_to_wire(uint8_t *buffer,
     *offset += 2;
     for (size_t i = 0; i < sizeof(extensions->self_delimiting_aextensions) / sizeof(
                            extensions->self_delimiting_aextensions[0]); i++) {
-        if (extensions->self_delimiting_aextensions[i] == CTLS_EXTN_TYPE_KEY_SHARE) return
-                CTLS_STATUS_TMPL_INVALID_EXTENSION;
+        if (extensions->self_delimiting_aextensions[i] == CTLS_EXTN_TYPE_KEY_SHARE)
+            return CTLS_STATUS_TMPL_INVALID_EXTENSION;
 
         ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_KEY_SHARE);
     }
