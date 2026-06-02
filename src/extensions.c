@@ -153,6 +153,28 @@ ctls_status_t ctls_extn_is_initialized(ctls_extn_type_t const extn_type,
     return CTLS_STATUS_SUCCESS;
 }
 
+ctls_status_t ctls_extn_opaque_serialize(uint8_t *destination_buffer,
+                                         ctls_size_t *destination_offset,
+                                         uint8_t const *source_buffer,
+                                         ctls_size_t source_length,
+                                         ctls_extn_type_t const extension_type) {
+    CTLS_CHECK_NULL_BUFFER(destination_buffer);
+    CTLS_CHECK_NULL_OFFSET(destination_offset);
+    CTLS_CHECK_NULL_BUFFER(source_buffer);
+
+    if (extension_type != CTLS_EXTN_TYPE_SENTINEL) {
+        ctls_write_u16(destination_buffer, destination_offset, extension_type);
+    }
+    ctls_write_u16(destination_buffer, destination_offset, source_length);
+    ctls_write_bytes(destination_buffer,
+                     destination_offset,
+                     source_length,
+                     source_buffer);
+
+
+    return CTLS_STATUS_SUCCESS;
+}
+
 
 ctls_status_t ctls_extn_server_name_deserialize(uint8_t *buffer,
                                                 ctls_size_t const *buffer_length,
@@ -197,45 +219,46 @@ ctls_status_t ctls_extn_server_name_deserialize(uint8_t *buffer,
 
 ctls_status_t ctls_extn_server_name_serialize(uint8_t *buffer,
                                               ctls_size_t *offset,
-                                              ctls_extn_server_name_t const *server_name) {
+                                              ctls_extn_server_name_t const *
+                                              server_name) {
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
     CTLS_CHECK_NULL_STRUCT(server_name);
 
-    if (server_name->form != CTLS_DATA_FORM_OPAQUE && server_name->form !=
-        CTLS_DATA_FORM_PARSED) return CTLS_STATUS_EXTN_INVALID_FORM;
+    if (server_name->form == CTLS_DATA_FORM_SENTINEL) return
+            CTLS_STATUS_EXTN_INVALID_FORM;
 
     ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SERVER_NAME);
     if (server_name->form == CTLS_DATA_FORM_OPAQUE) {
-        ctls_write_u16(buffer, offset, server_name->opaque.buffer_length);
+        return ctls_extn_opaque_serialize(buffer,
+                                          offset,
+                                          server_name->opaque.buffer,
+                                          server_name->opaque.buffer_length,
+                                          CTLS_EXTN_TYPE_SENTINEL);
+    }
+
+    if (server_name->list_count <= 0) {
+        ctls_write_u16(buffer, offset, 0);
+        return CTLS_STATUS_SUCCESS;
+    }
+    ctls_size_t extensions_length_offset = *offset;
+    *offset += 2;
+
+    for (ctls_size_t i = 0; i < server_name->list_count; i++) {
+        ctls_write_u8(buffer, offset, server_name->server_name_list[i].name_type);
+        ctls_write_u16(buffer,
+                       offset,
+                       server_name->server_name_list[i].server_name.buffer_length);
         ctls_write_bytes(buffer,
                          offset,
-                         server_name->opaque.buffer_length,
-                         server_name->opaque.buffer);
+                         server_name->server_name_list[i].server_name.buffer_length,
+                         server_name->server_name_list[i].server_name.buffer);
     }
-    if (server_name->form == CTLS_DATA_FORM_PARSED) {
-        if (server_name->list_count <= 0) {
-            ctls_write_u16(buffer, offset, 0);
-            return CTLS_STATUS_SUCCESS;
-        }
-        ctls_size_t extensions_length_offset = *offset;
-        *offset += 2;
 
-        for (ctls_size_t i = 0; i < server_name->list_count; i++) {
-            ctls_write_u8(buffer, offset, server_name->server_name_list[i].name_type);
-            ctls_write_u16(buffer,
-                           offset,
-                           server_name->server_name_list[i].server_name.buffer_length);
-            ctls_write_bytes(buffer,
-                             offset,
-                             server_name->server_name_list[i].server_name.buffer_length,
-                             server_name->server_name_list[i].server_name.buffer);
-        }
+    ctls_write_u16(buffer,
+                   &extensions_length_offset,
+                   *offset - extensions_length_offset - 2);
 
-        ctls_write_u16(buffer,
-                       &extensions_length_offset,
-                       *offset - extensions_length_offset - 2);
-    }
 
     return CTLS_STATUS_SUCCESS;
 }
@@ -304,39 +327,43 @@ ctls_status_t ctls_extn_certificate_status_request_serialize(
     CTLS_CHECK_NULL_OFFSET(offset);
     CTLS_CHECK_NULL_STRUCT(certificate_status_request);
 
+    if (certificate_status_request->form == CTLS_DATA_FORM_SENTINEL) return
+            CTLS_STATUS_EXTN_INVALID_FORM;
+
     ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_STATUS_REQUEST);
     if (certificate_status_request->form == CTLS_DATA_FORM_OPAQUE) {
-        ctls_write_u16(buffer, offset, certificate_status_request->opaque.buffer_length);
-        ctls_write_bytes(buffer,
-                         offset,
-                         certificate_status_request->opaque.buffer_length,
-                         certificate_status_request->opaque.buffer);
+        return ctls_extn_opaque_serialize(buffer,
+                                          offset,
+                                          certificate_status_request->opaque.buffer,
+                                          certificate_status_request->opaque.
+                                          buffer_length,
+                                          CTLS_EXTN_TYPE_SENTINEL);
     }
-    if (certificate_status_request->form == CTLS_DATA_FORM_PARSED) {
-        ctls_write_u8(buffer,
-                      offset,
-                      certificate_status_request->status_request.certificate_status_type);
 
-        ctls_size_t responder_list_length_offset = *offset;
-        *offset += 2;
+    ctls_write_u8(buffer,
+                  offset,
+                  certificate_status_request->status_request.certificate_status_type);
 
-        ctls_write_u16(buffer,
-                       offset,
-                       sizeof(certificate_status_request->status_request.
-                           ocsp_status_request.responder_id));
-        ctls_write_u8(buffer,
-                      offset,
-                      certificate_status_request->status_request.ocsp_status_request.
-                      responder_id);
-        ctls_write_u8(buffer,
-                      offset,
-                      certificate_status_request->status_request.ocsp_status_request.
-                      request_extensions);
+    ctls_size_t responder_list_length_offset = *offset;
+    *offset += 2;
 
-        ctls_write_u16(buffer,
-                       &responder_list_length_offset,
-                       *offset - responder_list_length_offset);
-    }
+    ctls_write_u16(buffer,
+                   offset,
+                   sizeof(certificate_status_request->status_request.ocsp_status_request.
+                       responder_id));
+    ctls_write_u8(buffer,
+                  offset,
+                  certificate_status_request->status_request.ocsp_status_request.
+                  responder_id);
+    ctls_write_u8(buffer,
+                  offset,
+                  certificate_status_request->status_request.ocsp_status_request.
+                  request_extensions);
+
+    ctls_write_u16(buffer,
+                   &responder_list_length_offset,
+                   *offset - responder_list_length_offset);
+
 
     return CTLS_STATUS_SUCCESS;
 }
@@ -452,33 +479,38 @@ ctls_status_t ctls_extn_alpn_deserialize(uint8_t *buffer,
 ctls_status_t ctls_extn_alpn_serialize(uint8_t *buffer,
                                        ctls_size_t *offset,
                                        ctls_extn_alpn_t const *alpn) {
+    if (alpn->form == CTLS_DATA_FORM_SENTINEL) return CTLS_STATUS_EXTN_INVALID_FORM;
+
     ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_APPLICATION_LAYER_PROTOCOL_NEGOTIATION);
 
     if (alpn->form == CTLS_DATA_FORM_OPAQUE) {
-        ctls_write_u16(buffer, offset, alpn->opaque.buffer_length);
-        ctls_write_bytes(buffer, offset, alpn->opaque.buffer_length, alpn->opaque.buffer);
+        return ctls_extn_opaque_serialize(buffer,
+                                          offset,
+                                          alpn->opaque.buffer,
+                                          alpn->opaque.buffer_length,
+                                          CTLS_EXTN_TYPE_SENTINEL);
     }
-    if (alpn->form == CTLS_DATA_FORM_PARSED) {
-        if (alpn->list_count <= 0) {
-            ctls_write_u16(buffer, offset, 0);
-            return CTLS_STATUS_SUCCESS;
-        }
 
-        ctls_size_t extensions_length_offset = *offset;
-        *offset += 2;
-
-        for (uint8_t i = 0; i < alpn->list_count; i++) {
-            ctls_write_u8(buffer, offset, alpn->alpn_list[i].protocol_name_length);
-            ctls_write_bytes(buffer,
-                             offset,
-                             alpn->alpn_list[i].protocol_name_length,
-                             alpn->alpn_list[i].protocol_name);
-        }
-
-        ctls_write_u16(buffer,
-                       &extensions_length_offset,
-                       *offset - extensions_length_offset - 2);
+    if (alpn->list_count <= 0) {
+        ctls_write_u16(buffer, offset, 0);
+        return CTLS_STATUS_SUCCESS;
     }
+
+    ctls_size_t extensions_length_offset = *offset;
+    *offset += 2;
+
+    for (uint8_t i = 0; i < alpn->list_count; i++) {
+        ctls_write_u8(buffer, offset, alpn->alpn_list[i].protocol_name_length);
+        ctls_write_bytes(buffer,
+                         offset,
+                         alpn->alpn_list[i].protocol_name_length,
+                         alpn->alpn_list[i].protocol_name);
+    }
+
+    ctls_write_u16(buffer,
+                   &extensions_length_offset,
+                   *offset - extensions_length_offset - 2);
+
 
     return CTLS_STATUS_SUCCESS;
 }
@@ -531,52 +563,49 @@ ctls_status_t ctls_extn_signed_certificate_timestamp_serialize(
     CTLS_CHECK_NULL_OFFSET(offset);
     CTLS_CHECK_NULL_STRUCT(signed_certificate_timestamp);
 
+    if (signed_certificate_timestamp->form == CTLS_DATA_FORM_SENTINEL) return
+            CTLS_STATUS_EXTN_INVALID_FORM;
+
+    ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP);
     if (signed_certificate_timestamp->form == CTLS_DATA_FORM_OPAQUE) {
-        ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP);
-        ctls_write_u16(buffer,
-                       offset,
-                       signed_certificate_timestamp->opaque.buffer_length);
-        ctls_write_bytes(buffer,
-                         offset,
-                         signed_certificate_timestamp->opaque.buffer_length,
-                         signed_certificate_timestamp->opaque.buffer);
+        return ctls_extn_opaque_serialize(buffer,
+                                          offset,
+                                          signed_certificate_timestamp->opaque.buffer,
+                                          signed_certificate_timestamp->opaque.
+                                          buffer_length,
+                                          CTLS_EXTN_TYPE_SENTINEL);
     }
-    if (signed_certificate_timestamp->form == CTLS_DATA_FORM_PARSED) {
-        ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP);
 
-        ctls_size_t length_offset = *offset;
-        *offset += 2;
+    ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP);
 
-        ctls_write_u8(buffer,
-                      offset,
-                      signed_certificate_timestamp->signed_certificate_timestamp.
-                      sct_version);
-        ctls_write_bytes(buffer,
-                         offset,
-                         CTLS_SIZE_SCT_LOG_ID,
-                         signed_certificate_timestamp->signed_certificate_timestamp.
-                         log_id);
-        ctls_write_u64(buffer,
-                       offset,
-                       signed_certificate_timestamp->signed_certificate_timestamp.
-                       timestamp);
-        ctls_write_u8(buffer,
-                      offset,
-                      signed_certificate_timestamp->signed_certificate_timestamp.
-                      extensions);
-        ctls_write_u16(buffer,
-                       offset,
-                       signed_certificate_timestamp->signed_certificate_timestamp.
-                       signature_algorithm);
-        ctls_write_bytes(buffer,
-                         offset,
-                         signed_certificate_timestamp->signed_certificate_timestamp.
-                         certificate.buffer_length,
-                         signed_certificate_timestamp->signed_certificate_timestamp.
-                         certificate.buffer);
+    ctls_size_t length_offset = *offset;
+    *offset += 2;
 
-        ctls_write_u16(buffer, &length_offset, *offset - length_offset - 2);
-    }
+    ctls_write_u8(buffer,
+                  offset,
+                  signed_certificate_timestamp->signed_certificate_timestamp.sct_version);
+    ctls_write_bytes(buffer,
+                     offset,
+                     CTLS_SIZE_SCT_LOG_ID,
+                     signed_certificate_timestamp->signed_certificate_timestamp.log_id);
+    ctls_write_u64(buffer,
+                   offset,
+                   signed_certificate_timestamp->signed_certificate_timestamp.timestamp);
+    ctls_write_u8(buffer,
+                  offset,
+                  signed_certificate_timestamp->signed_certificate_timestamp.extensions);
+    ctls_write_u16(buffer,
+                   offset,
+                   signed_certificate_timestamp->signed_certificate_timestamp.
+                   signature_algorithm);
+    ctls_write_bytes(buffer,
+                     offset,
+                     signed_certificate_timestamp->signed_certificate_timestamp.
+                     certificate.buffer_length,
+                     signed_certificate_timestamp->signed_certificate_timestamp.
+                     certificate.buffer);
+
+    ctls_write_u16(buffer, &length_offset, *offset - length_offset - 2);
 
     return CTLS_STATUS_SUCCESS;
 }
@@ -687,23 +716,24 @@ ctls_status_t ctls_extn_certificate_authorities_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
     ctls_extn_certificate_authorities_t const *certificate_authorities) {
+    if (certificate_authorities->form == CTLS_DATA_FORM_SENTINEL)
+        return CTLS_STATUS_EXTN_INVALID_FORM;
+
     ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_CERTIFICATE_AUTHORITIES);
     if (certificate_authorities->form == CTLS_DATA_FORM_OPAQUE) {
-        ctls_write_u16(buffer, offset, certificate_authorities->opaque.buffer_length);
-        ctls_write_bytes(buffer,
-                         offset,
-                         certificate_authorities->opaque.buffer_length,
-                         certificate_authorities->opaque.buffer);
+        return ctls_extn_opaque_serialize(buffer,
+                                          offset,
+                                          certificate_authorities->opaque.buffer,
+                                          certificate_authorities->opaque.buffer_length,
+                                          CTLS_EXTN_TYPE_SENTINEL);
     }
-    if (certificate_authorities->form == CTLS_DATA_FORM_PARSED) {
-        ctls_write_u16(buffer,
-                       offset,
-                       certificate_authorities->distinguished_name_length);
-        ctls_write_bytes(buffer,
-                         offset,
-                         certificate_authorities->distinguished_name_length,
-                         certificate_authorities->distinguished_name);
-    }
+
+    ctls_write_u16(buffer, offset, certificate_authorities->distinguished_name_length);
+    ctls_write_bytes(buffer,
+                     offset,
+                     certificate_authorities->distinguished_name_length,
+                     certificate_authorities->distinguished_name);
+
 
     return CTLS_STATUS_SUCCESS;
 }
@@ -1496,7 +1526,8 @@ ctls_status_t ctls_extn_certificate_to_struct(
 
 ctls_status_t ctls_extn_certificate_to_wire(uint8_t *buffer,
                                             ctls_size_t *offset,
-                                            ctls_extn_certificate_request_t const *certificate_request,
+                                            ctls_extn_certificate_request_t const *
+                                            certificate_request,
                                             ctls_wire_format_t wire_format) {
     return CTLS_STATUS_NOT_IMPLEMENTED;
 }

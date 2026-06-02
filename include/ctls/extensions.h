@@ -155,6 +155,11 @@ ctls_status_t ctls_extn_is_initialized(ctls_extn_type_t extn_type,
                                           ctls_hsmg_type_t hsmg_type,
                                           uint8_t *is_initialized);
 
+ctls_status_t ctls_extn_opaque_serialize(uint8_t *destination_buffer,
+                                         ctls_size_t *destination_offset,
+                                         uint8_t const *source_buffer,
+                                         ctls_size_t source_length,
+                                         ctls_extn_type_t extension_type);
 ctls_status_t ctls_extn_server_name_deserialize(uint8_t *buffer,
                                                    ctls_size_t const *buffer_length,
                                                    ctls_data_form_t form,
