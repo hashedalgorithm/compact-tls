@@ -28,8 +28,8 @@ ctls_status_t ctls_validate_template() {
 
     if (template->cipher_suite == 0) return CTLS_STATUS_TMPL_INVALID_CIPHER_SUITE;
     if (template->dhe_group.dhe_group == 0) return CTLS_STATUS_TMPL_INVALID_DHE_GROUP;
-    if (template->signature_algorithm.signature_algorithm_type == 0)
-        return CTLS_STATUS_TMPL_INVALID_SIG_ALGORITHM;
+    if (template->signature_algorithm.signature_algorithm_type == 0) return
+            CTLS_STATUS_TMPL_INVALID_SIG_ALGORITHM;
 
     return CTLS_STATUS_SUCCESS;
 }
@@ -143,7 +143,8 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
 
     ctls_transcript_hash_update(&context->record);
 
-    if (context->template->mutual_auth == 1) {
+    if (context->template->mutual_auth == 1 && context->template->signature_algorithm.
+        signature_algorithm_type == CTLS_EXTN_SIGNATURE_ALGORITHM_SENTINEL) {
         recv_len = 0;
         memset(buffer, 0, CTLS_SIZE_WIRE_BUFFER);
         result = context->transport.recd_receive(buffer, &recv_len, sizeof(buffer));

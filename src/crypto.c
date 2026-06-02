@@ -12,7 +12,8 @@ ctls_status_t ctls_psa_error_map(psa_status_t const status) {
         case PSA_ERROR_BUFFER_TOO_SMALL: return CTLS_STATUS_BUFFER_TOO_SMALL;
         case PSA_ERROR_INVALID_ARGUMENT: return CTLS_STATUS_CRYPTO_INVALID_ARG;
         case PSA_ERROR_NOT_SUPPORTED: return CTLS_STATUS_CRYPTO_NOT_SUPPORTED;
-        case PSA_ERROR_INSUFFICIENT_ENTROPY: return CTLS_STATUS_CRYPTO_INSUFFICIENT_ENTROPY;
+        case PSA_ERROR_INSUFFICIENT_ENTROPY: return
+                    CTLS_STATUS_CRYPTO_INSUFFICIENT_ENTROPY;
         default: return CTLS_STATUS_CRYPTO_UNKNOWN;
     }
 }

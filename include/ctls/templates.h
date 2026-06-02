@@ -83,12 +83,12 @@ extern const ctls_template_t ctls_template_1;
 
 ctls_status_t ctls_template_set(uint8_t profile_id, ctls_context_t *context);
 ctls_status_t ctls_template_element_to_wire(uint8_t *buffer,
-                                               ctls_size_t *offset,
-                                               ctls_template_t const *template,
-                                               ctls_tmpl_type_t type);
+                                            ctls_size_t *offset,
+                                            ctls_template_t const *template,
+                                            ctls_tmpl_type_t type);
 ctls_status_t ctls_tmpl_extension_to_wire(uint8_t *buffer,
-                                             ctls_size_t *offset,
-                                             ctls_tmpl_extension_t const *extensions);
+                                          ctls_size_t *offset,
+                                          ctls_tmpl_extension_t const *extensions);
 ctls_status_t ctls_template_to_wire(uint8_t *buffer);
 
 

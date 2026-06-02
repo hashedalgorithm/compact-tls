@@ -80,19 +80,19 @@ ctls_crypto_t *ctls_crypto_get(void);
 ctls_hshk_buffer_t *ctls_hshk_buffer_get(void);
 
 ctls_status_t ctls_context_init(ctls_context_t *context,
-                                   ctls_transport_t const *transport);
+                                ctls_transport_t const *transport);
 ctls_status_t ctls_handshake_state_update(ctls_hshk_state_t *location,
-                                             ctls_hshk_state_t state);
+                                          ctls_hshk_state_t state);
 void ctls_wire_buffer_clear(uint8_t *buffer);
 ctls_status_t ctls_recd_buffer_clear(ctls_record_t *record_buffer);
 ctls_status_t ctls_validate_template();
 ctls_status_t ctls_connect(ctls_context_t *context);
 ctls_status_t ctls_read(ctls_context_t const *context,
-                           uint8_t *buffer,
-                           size_t buffer_length);
+                        uint8_t *buffer,
+                        size_t buffer_length);
 ctls_status_t ctls_write(ctls_context_t const *context,
-                            uint8_t *buffer,
-                            size_t buffer_length);
+                         uint8_t *buffer,
+                         size_t buffer_length);
 
 
 #endif

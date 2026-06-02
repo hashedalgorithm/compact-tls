@@ -43,98 +43,131 @@ ctls_status_t ctls_tmpl_extension_to_wire(uint8_t *buffer,
 
     if (extensions->predefined_extensions.maximum_fragment_length != 0) {
         ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_MAX_FRAGMENT_LENGTH);
-        ctls_write_u16(buffer, offset,
+        ctls_write_u16(buffer,
+                       offset,
                        sizeof(extensions->predefined_extensions.maximum_fragment_length));
-        ctls_write_u16(buffer, offset, extensions->predefined_extensions.maximum_fragment_length);
+        ctls_write_u16(buffer,
+                       offset,
+                       extensions->predefined_extensions.maximum_fragment_length);
     }
 
-    if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(extensions->predefined_extensions.certificate_status_request.data,
-                                           extensions->predefined_extensions.certificate_status_request.length)) {
+    if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(extensions->predefined_extensions.
+                                           certificate_status_request.data,
+                                           extensions->predefined_extensions.
+                                           certificate_status_request.length)) {
         ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_STATUS_REQUEST);
-        ctls_write_u16(buffer, offset,
-                       extensions->predefined_extensions.certificate_status_request.length);
-        ctls_write_bytes(buffer, offset,
-                         extensions->predefined_extensions.certificate_status_request.length,
-                         extensions->predefined_extensions.certificate_status_request.data);
+        ctls_write_u16(buffer,
+                       offset,
+                       extensions->predefined_extensions.certificate_status_request.
+                       length);
+        ctls_write_bytes(buffer,
+                         offset,
+                         extensions->predefined_extensions.certificate_status_request.
+                         length,
+                         extensions->predefined_extensions.certificate_status_request.
+                         data);
     }
 
     if (extensions->predefined_extensions.heartbeat_mode != 0) {
         ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_HEARTBEAT);
-        ctls_write_u16(buffer, offset,
+        ctls_write_u16(buffer,
+                       offset,
                        sizeof(extensions->predefined_extensions.heartbeat_mode));
         ctls_write_u16(buffer, offset, extensions->predefined_extensions.heartbeat_mode);
     }
 
     if (CTLS_IS_TEMPLATE_BYTES_INITIALIZED(extensions->predefined_extensions.alpn.data,
-                                           extensions->predefined_extensions.alpn.length)) {
-        ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_APPLICATION_LAYER_PROTOCOL_NEGOTIATION);
+                                           extensions->predefined_extensions.alpn.
+                                           length)) {
+        ctls_write_u16(buffer,
+                       offset,
+                       CTLS_EXTN_TYPE_APPLICATION_LAYER_PROTOCOL_NEGOTIATION);
         ctls_write_u16(buffer, offset, extensions->predefined_extensions.alpn.length);
-        ctls_write_bytes(buffer, offset, extensions->predefined_extensions.alpn.length,
+        ctls_write_bytes(buffer,
+                         offset,
+                         extensions->predefined_extensions.alpn.length,
                          extensions->predefined_extensions.alpn.data);
     }
 
     if (extensions->predefined_extensions.client_certificate_type != 0) {
         ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_CLIENT_CERTIFICATE_TYPE);
-        ctls_write_u16(buffer, offset,
+        ctls_write_u16(buffer,
+                       offset,
                        sizeof(extensions->predefined_extensions.client_certificate_type));
-        ctls_write_u16(buffer, offset, extensions->predefined_extensions.client_certificate_type);
+        ctls_write_u16(buffer,
+                       offset,
+                       extensions->predefined_extensions.client_certificate_type);
     }
 
     if (extensions->predefined_extensions.server_certificate_type != 0) {
         ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SERVER_CERTIFICATE_TYPE);
-        ctls_write_u16(buffer, offset,
+        ctls_write_u16(buffer,
+                       offset,
                        sizeof(extensions->predefined_extensions.server_certificate_type));
-        ctls_write_u16(buffer, offset, extensions->predefined_extensions.server_certificate_type);
+        ctls_write_u16(buffer,
+                       offset,
+                       extensions->predefined_extensions.server_certificate_type);
     }
 
     if (extensions->predefined_extensions.psk_key_exchange_modes != 0) {
         ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_PSK_KEY_EXCHANGE_MODES);
-        ctls_write_u16(buffer, offset,
+        ctls_write_u16(buffer,
+                       offset,
                        sizeof(extensions->predefined_extensions.psk_key_exchange_modes));
-        ctls_write_u16(buffer, offset, extensions->predefined_extensions.psk_key_exchange_modes);
+        ctls_write_u16(buffer,
+                       offset,
+                       extensions->predefined_extensions.psk_key_exchange_modes);
     }
 
     if (extensions->predefined_extensions.post_handshake_auth != 0) {
         ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_POST_HANDSHAKE_AUTH);
-        ctls_write_u16(buffer, offset,
+        ctls_write_u16(buffer,
+                       offset,
                        sizeof(extensions->predefined_extensions.post_handshake_auth));
-        ctls_write_u8(buffer, offset, extensions->predefined_extensions.post_handshake_auth);
+        ctls_write_u8(buffer,
+                      offset,
+                      extensions->predefined_extensions.post_handshake_auth);
     }
 
     if (extensions->predefined_extensions.signature_algorithm_cert != 0) {
         ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_SIGNATURE_ALGORITHMS_CERT);
-        ctls_write_u16(buffer, offset,
-                       sizeof(extensions->predefined_extensions.signature_algorithm_cert));
-        ctls_write_u16(buffer, offset, extensions->predefined_extensions.signature_algorithm_cert);
+        ctls_write_u16(buffer,
+                       offset,
+                       sizeof(extensions->predefined_extensions.
+                           signature_algorithm_cert));
+        ctls_write_u16(buffer,
+                       offset,
+                       extensions->predefined_extensions.signature_algorithm_cert);
     }
 
-    ctls_write_u16(buffer, &predefined_extensions_length_offset,
+    ctls_write_u16(buffer,
+                   &predefined_extensions_length_offset,
                    *offset - predefined_extensions_length_offset);
 
     ctls_size_t expected_extensions_length = *offset;
     *offset += 2;
-    for (size_t i = 0;
-         i < sizeof(extensions->expected_extensions) / sizeof(extensions->expected_extensions[0]);
-         i++) {
-        if (extensions->expected_extensions[i] == CTLS_EXTN_TYPE_KEY_SHARE)
-            return CTLS_STATUS_TMPL_INVALID_EXTENSION;
+    for (size_t i = 0; i < sizeof(extensions->expected_extensions) / sizeof(extensions->
+                           expected_extensions[0]); i++) {
+        if (extensions->expected_extensions[i] == CTLS_EXTN_TYPE_KEY_SHARE) return
+                CTLS_STATUS_TMPL_INVALID_EXTENSION;
 
         ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_KEY_SHARE);
     }
-    ctls_write_u16(buffer, &expected_extensions_length,
+    ctls_write_u16(buffer,
+                   &expected_extensions_length,
                    *offset - expected_extensions_length);
 
     ctls_size_t self_delimited_extensions_length = *offset;
     *offset += 2;
-    for (size_t i = 0;
-         i < sizeof(extensions->self_delimiting_aextensions) / sizeof(extensions->self_delimiting_aextensions[0]);
-         i++) {
-        if (extensions->self_delimiting_aextensions[i] == CTLS_EXTN_TYPE_KEY_SHARE)
-            return CTLS_STATUS_TMPL_INVALID_EXTENSION;
+    for (size_t i = 0; i < sizeof(extensions->self_delimiting_aextensions) / sizeof(
+                           extensions->self_delimiting_aextensions[0]); i++) {
+        if (extensions->self_delimiting_aextensions[i] == CTLS_EXTN_TYPE_KEY_SHARE) return
+                CTLS_STATUS_TMPL_INVALID_EXTENSION;
 
         ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_KEY_SHARE);
     }
-    ctls_write_u16(buffer, &self_delimited_extensions_length,
+    ctls_write_u16(buffer,
+                   &self_delimited_extensions_length,
                    *offset - self_delimited_extensions_length);
 
     ctls_write_u8(buffer, offset, extensions->allow_additional);
@@ -166,18 +199,22 @@ ctls_status_t ctls_template_element_to_wire(uint8_t *buffer,
             break;
         case CTLS_TMPL_TYPE_DH_GROUP:
             ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_DH_GROUP);
-            ctls_write_u32(buffer, offset,
-                           sizeof(tmpl->dhe_group.dhe_group) +
-                           sizeof(tmpl->dhe_group.key_share_length));
+            ctls_write_u32(buffer,
+                           offset,
+                           sizeof(tmpl->dhe_group.dhe_group) + sizeof(tmpl->dhe_group.
+                               key_share_length));
             ctls_write_u16(buffer, offset, tmpl->dhe_group.dhe_group);
             ctls_write_u16(buffer, offset, tmpl->dhe_group.key_share_length);
             break;
         case CTLS_TMPL_TYPE_SIGNATURE_ALGORITHM:
             ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_SIGNATURE_ALGORITHM);
-            ctls_write_u32(buffer, offset,
+            ctls_write_u32(buffer,
+                           offset,
                            sizeof(tmpl->signature_algorithm.signature_algorithm_type) +
                            sizeof(tmpl->signature_algorithm.signature_length));
-            ctls_write_u16(buffer, offset, tmpl->signature_algorithm.signature_algorithm_type);
+            ctls_write_u16(buffer,
+                           offset,
+                           tmpl->signature_algorithm.signature_algorithm_type);
             ctls_write_u16(buffer, offset, tmpl->signature_algorithm.signature_length);
             break;
         case CTLS_TMPL_TYPE_RANDOM:
@@ -197,25 +234,39 @@ ctls_status_t ctls_template_element_to_wire(uint8_t *buffer,
             break;
         case CTLS_TMPL_TYPE_CLIENT_HELLO_EXTENSIONS:
             ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_CLIENT_HELLO_EXTENSIONS);
-            ctls_tmpl_extension_to_wire(buffer, offset, &tmpl->client_hello_extension);
+            ctls_tmpl_extension_to_wire(buffer,
+                                        offset,
+                                        CTLS_HSMG_TYPE_CLIENT_HELLO,
+                                        &tmpl->client_hello_extension);
             break;
         case CTLS_TMPL_TYPE_SERVER_HELLO_EXTENSIONS:
             ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_SERVER_HELLO_EXTENSIONS);
-            ctls_tmpl_extension_to_wire(buffer, offset, &tmpl->server_hello_extension);
+            ctls_tmpl_extension_to_wire(buffer,
+                                        offset,
+                                        CTLS_HSMG_TYPE_SERVER_HELLO,
+                                        &tmpl->server_hello_extension);
             break;
         case CTLS_TMPL_TYPE_ENCRYPTED_EXTENSIONS:
             ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_ENCRYPTED_EXTENSIONS);
-            ctls_tmpl_extension_to_wire(buffer, offset, &tmpl->encrypted_extension);
+            ctls_tmpl_extension_to_wire(buffer,
+                                        offset,
+                                        CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS,
+                                        &tmpl->encrypted_extension);
             break;
         case CTLS_TMPL_TYPE_CERTIFICATE_REQUEST_EXTENSIONS:
             ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_CERTIFICATE_REQUEST_EXTENSIONS);
-            ctls_tmpl_extension_to_wire(buffer, offset, &tmpl->certificate_request_extension);
+            ctls_tmpl_extension_to_wire(buffer,
+                                        offset,
+                                        CTLS_HSMG_TYPE_CERTIFICATE_REQUEST,
+                                        &tmpl->certificate_request_extension);
             break;
         case CTLS_TMPL_TYPE_KNOWN_CERTIFICATES:
             for (int i = 0; i < sizeof(tmpl->known_certificates); i++) {
-                ctls_write_u8(buffer, offset,
+                ctls_write_u8(buffer,
+                              offset,
                               tmpl->known_certificates.entries[i].certificate_id);
-                ctls_write_bytes(buffer, offset,
+                ctls_write_bytes(buffer,
+                                 offset,
                                  tmpl->known_certificates.entries[i].certificate_length,
                                  tmpl->known_certificates.entries[i].certificate);
             }
