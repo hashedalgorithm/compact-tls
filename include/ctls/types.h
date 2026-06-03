@@ -488,7 +488,7 @@ typedef struct ctls_hshk_buffer_block ctls_hshk_buffer_block_t;
 
 typedef ctls_status_t (*ctls_recd_send)(uint8_t *buffer, ctls_size_t buffer_length);
 typedef ctls_status_t (*ctls_recd_receive)(uint8_t *buffer,
-                                              ctls_size_t *buffer_length,
-                                              ctls_size_t buffer_size);
+                                           ctls_size_t *buffer_length,
+                                           ctls_size_t buffer_size);
 
 #endif
