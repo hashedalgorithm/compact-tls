@@ -86,10 +86,20 @@ ctls_status_t ctls_nonce_generate(uint8_t *buffer,
                                      uint16_t const *sequence_number,
                                      uint8_t const *iv_key);
 ctls_status_t ctls_decrypt(uint16_t const *seq_num,
-                              uint8_t const *aad,
-                              size_t aad_len,
-                              const uint8_t *ciphertext,
-                              size_t ciphertext_len,
-                              uint8_t *buffer,
-                              size_t *bytes_written);
+                           uint8_t const *aad,
+                           size_t aad_len,
+                           const uint8_t *ciphertext,
+                           size_t ciphertext_len,
+                           uint8_t *buffer,
+                           size_t *bytes_written);
+
+ctls_status_t ctls_cert_public_key_import(uint8_t const *cert_der,
+                                          size_t cert_der_length,
+                                          psa_key_id_t *key_id);
+ctls_status_t ctls_signed_bytes_context_string_build(uint8_t *buffer,
+                                                     ctls_size_t *offset,
+                                                     uint8_t const *transcript_hash);
+ctls_status_t ctls_signed_bytes_generate(uint8_t *buffer, size_t *bytes_written);
+ctls_status_t ctls_signed_bytes_verify(uint8_t const *signed_bytes,
+                                       size_t signed_bytes_length);
 #endif //CTLS_CRYPTO_H

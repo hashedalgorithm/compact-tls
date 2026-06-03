@@ -1076,3 +1076,189 @@ cleanup:
     psa_reset_key_attributes(&attr);
     return err;
 }
+
+ctls_status_t ctls_cert_public_key_import(uint8_t const *cert_der,
+                                          size_t cert_der_length,
+                                          psa_key_id_t *key_id) {
+    ctls_crypto_t const *crypto = ctls_crypto_get();
+
+    CTLS_CHECK_NULL_STRUCT(crypto);
+    CTLS_CHECK_NULL_BUFFER(cert_der);
+    CTLS_CHECK_NULL(key_id);
+
+    /* Ed25519 SubjectPublicKeyInfo in DER:
+     * 30 05 06 03 2b 65 70  -- AlgorithmIdentifier (OID 1.3.101.112)
+     * 03 21 00              -- BIT STRING, 33 bytes, 0 unused bits
+     * <32 bytes>            -- raw Ed25519 public key */
+    static const uint8_t SPKI_PATTERN[] = {
+        0x30,
+        0x05,
+        0x06,
+        0x03,
+        0x2b,
+        0x65,
+        0x70,
+        0x03,
+        0x21,
+        0x00
+    };
+    static const size_t SPKI_PATTERN_LEN = sizeof(SPKI_PATTERN);
+    static const size_t ED25519_KEY_LEN = 32U;
+
+    size_t key_offset = cert_der_length;
+    for (size_t i = 0; i + SPKI_PATTERN_LEN + ED25519_KEY_LEN <= cert_der_length; i++) {
+        if (memcmp(&cert_der[i], SPKI_PATTERN, SPKI_PATTERN_LEN) == 0) {
+            key_offset = i + SPKI_PATTERN_LEN;
+            break;
+        }
+    }
+    if (key_offset == cert_der_length) return CTLS_STATUS_CRYPTO_UNKNOWN;
+
+    *key_id = PSA_KEY_ID_NULL;
+    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+    psa_set_key_type(&attr, PSA_KEY_TYPE_ECC_PUBLIC_KEY(crypto->ecdhe_key_pair_type));
+    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_VERIFY_MESSAGE);
+    psa_set_key_algorithm(&attr, PSA_ALG_PURE_EDDSA);
+    psa_set_key_bits(&attr, 255U);
+
+    psa_status_t const psa_st = psa_import_key(&attr,
+                                               &cert_der[key_offset],
+                                               ED25519_KEY_LEN,
+                                               key_id);
+    psa_reset_key_attributes(&attr);
+    return ctls_psa_error_map(psa_st);
+}
+
+ctls_status_t ctls_signed_bytes_context_string_build(uint8_t *buffer,
+                                                     ctls_size_t *offset,
+                                                     uint8_t const *transcript_hash) {
+    /* Build content to sign:
+    * 64 x 0x20 || context_string || 0x00 || transcript_hash */
+    //content[64U + 34U + 1U + 32U]; /* max context string is 34 bytes */
+
+#if CTLS_CLIENT
+    static const char CLIENT_CONTEXT_STRING[] = "TLS 1.3, client CertificateVerify";
+    size_t context_string_length = sizeof(CLIENT_CONTEXT_STRING) - 1U;
+    const char *context_string = CLIENT_CONTEXT_STRING;
+#endif
+
+#if CTLS_SERVER
+    static const char SERVER_CONTEXT_STRING[] = "TLS 1.3, server CertificateVerify";
+    size_t context_string_length = sizeof(SERVER_CONTEXT_STRING) - 1U; const char *
+            context_string = SERVER_CONTEXT_STRING
+#endif
+
+    memset(buffer, 0x20, 64U);
+    offset += 64U;
+    ctls_write_bytes(buffer, offset, context_string_length, (uint8_t *) context_string);
+    ctls_write_u8(buffer, offset, 0x00);
+    ctls_write_bytes(buffer, offset, CTLS_SIZE_TRANSCRIPT_HASH, transcript_hash);
+
+    return CTLS_STATUS_SUCCESS;
+}
+
+ctls_status_t ctls_signed_bytes_generate(uint8_t *buffer, size_t *bytes_written) {
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+    ctls_crypto_t *crypto = ctls_crypto_get();
+
+    CTLS_CHECK_NULL_STRUCT(hshk_data);
+    CTLS_CHECK_NULL_STRUCT(crypto);
+    CTLS_CHECK_NULL_BUFFER(hshk_data->transcript_hash);
+    /* context strings [RFC 8446 §4.4.3] */
+
+    uint8_t content[64U + 34U + 1U + 32U]; /* max context string is 34 bytes */
+    ctls_size_t offset = 0U;
+    ctls_signed_bytes_context_string_build(content, &offset, hshk_data->transcript_hash);
+
+    psa_status_t psa_st = PSA_SUCCESS;
+    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+    psa_key_id_t key_id = PSA_KEY_ID_NULL;
+
+    /* Import PKCS#8 DER private key */
+    psa_set_key_type(&attr, PSA_KEY_TYPE_ECC_KEY_PAIR(crypto->ecdhe_key_pair_type));
+    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_SIGN_MESSAGE);
+    psa_set_key_algorithm(&attr, PSA_ALG_PURE_EDDSA);
+    psa_set_key_bits(&attr, 255U);
+
+#if CTLS_CLIENT
+    psa_st = psa_import_key(&attr, client_key_der, client_key_der_length, &key_id);
+#endif
+
+#if CTLS_SERVER
+    psa_st = psa_import_key(&attr, server_key_der, server_key_der_length, &key_id);
+#endif
+
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    psa_st = psa_sign_message(key_id,
+                              PSA_ALG_PURE_EDDSA,
+                              /* Ed25519 — change to PSA_ALG_ECDSA(PSA_ALG_SHA_256)
+                                                                 if using P-256 */
+                              content,
+                              offset,
+                              buffer,
+                              64U,
+                              bytes_written);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+    return CTLS_STATUS_SUCCESS;
+
+cleanup: memset(content, 0, sizeof(content));
+    if (key_id != PSA_KEY_ID_NULL) { psa_destroy_key(key_id); }
+    psa_reset_key_attributes(&attr);
+    return CTLS_STATUS_CRYPTO_UNKNOWN;
+}
+
+
+ctls_status_t ctls_signed_bytes_verify(uint8_t const *signed_bytes,
+                                       size_t const signed_bytes_length) {
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+    ctls_crypto_t *crypto = ctls_crypto_get();
+
+    CTLS_CHECK_NULL_STRUCT(hshk_data);
+    CTLS_CHECK_NULL_STRUCT(crypto);
+    /* context strings [RFC 8446 §4.4.3] */
+
+    psa_status_t psa_st = PSA_SUCCESS;
+    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+    psa_key_id_t key_id = PSA_KEY_ID_NULL;
+
+
+    uint8_t content[64U + 34U + 1U + 32U]; /* max context string is 34 bytes */
+    ctls_size_t offset = 0U;
+    ctls_signed_bytes_context_string_build(content, &offset, hshk_data->transcript_hash);
+
+#if CTLS_CLIENT
+    ctls_status_t result = ctls_cert_public_key_import(client_cert_der,
+                                                       client_cert_der_length,
+                                                       &key_id);
+#endif
+
+#if CTLS_SERVER
+    ctls_status_t result = ctls_cert_public_key_import(server_cert_der,
+                                                       server_cert_der_length,
+                                                       &key_id);
+#endif
+
+    /* Import raw Ed25519 public key */
+    psa_set_key_type(&attr, PSA_KEY_TYPE_ECC_PUBLIC_KEY(crypto->ecdhe_key_pair_type));
+    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_VERIFY_MESSAGE);
+    psa_set_key_algorithm(&attr, PSA_ALG_PURE_EDDSA);
+    psa_set_key_bits(&attr, 255U);
+
+    psa_st = psa_verify_message(key_id,
+                                PSA_ALG_PURE_EDDSA,
+                                content,
+                                offset,
+                                signed_bytes,
+                                signed_bytes_length);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+    return CTLS_STATUS_SUCCESS;
+
+cleanup:
+    if (key_id != PSA_KEY_ID_NULL) { psa_destroy_key(key_id); }
+    psa_reset_key_attributes(&attr);
+    memset(content, 0, sizeof(content));
+    return CTLS_STATUS_CRYPTO_UNKNOWN;
+}
+
+

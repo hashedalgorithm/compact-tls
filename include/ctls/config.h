@@ -21,6 +21,7 @@
 #define CTLS_SIZE_KEY_SHARE  32U
 #define CTLS_SIZE_CERTIFICATE_REQUEST_CONTEXT 32U
 #define CTLS_SIZE_SCT_LOG_ID 32U
+#define CTLS_SIZE_SIGNED_BYTES  64U
 
 
 /* Using a wrong profile with wrong parameters results in connection
