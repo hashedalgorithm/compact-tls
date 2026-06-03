@@ -18,6 +18,7 @@ add_executable(compact_tls
         include/certs/ctls_certs.h
         include/ctls/bytes.h
         include/ctls/config.h
+        include/ctls/core.h
         include/ctls/crypto.h
         include/ctls/ctls.h
         include/ctls/extensions.h
@@ -25,6 +26,7 @@ add_executable(compact_tls
         include/ctls/record.h
         include/ctls/templates.h
         include/ctls/types.h
+        src/core.c
         src/crypto.c
         src/ctls.c
         src/extensions.c
@@ -34,6 +36,5 @@ add_executable(compact_tls
 )
 target_link_libraries(compact_tls
         MbedTLS::tfpsacrypto
-        MbedTLS::mbedtls
 )
 
