@@ -73,82 +73,117 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     uint8_t buffer[CTLS_SIZE_WIRE_BUFFER];
     ctls_size_t buffer_offset = 0;
 
+    // Client Hello
     ctls_status_t result = ctls_recd_client_hello_create(&context->record);
-    if (result != CTLS_STATUS_SUCCESS) {
-        context->state = CTLS_HSHK_STATE_ERROR;
-        return result;
-    }
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     result = ctls_record_serialize(&context->record, buffer, &buffer_offset);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     result = context->transport.recd_send(buffer, buffer_offset);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    result = ctls_transcript_hash_update(&context->record);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
     context->state = CTLS_HSHK_STATE_WAIT_SERVER_HELLO;
+
     // Server Hello
     result = ctls_wire_buffer_clear(buffer, &buffer_offset);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
     result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
     result = ctls_record_deserialize(&context->record,
                                      CTLS_HSMG_TYPE_SERVER_HELLO,
-                                     buffer,
-                                     recv_len);
-    if (result != CTLS_STATUS_SUCCESS) {
-        context->state = CTLS_HSHK_STATE_ERROR;
-        return result;
-    }
+                                     buffer);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
-    ctls_transcript_hash_update(&context->record);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    result = ctls_transcript_hash_update(&context->record);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     context->state = CTLS_HSHK_STATE_KEY_SCHEDULED;
 
-    result = ctls_key_schedule(&context->crypto, &context->hshk_data);
+    // Key schedule
+    result = ctls_key_schedule();
     if (result != CTLS_STATUS_SUCCESS) return result;
-
 
     context->state = CTLS_HSHK_STATE_WAIT_ENCRYPTED_EXTENSIONS;
     result = ctls_wire_buffer_clear(buffer, &buffer_offset);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
     result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
     context->state = CTLS_HSHK_STATE_WAIT_CERTIFICATE;
 
     // Encrypted Extensions
     result = ctls_record_deserialize(&context->record,
                                      CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS,
-                                     buffer,
-                                     recv_len);
-    if (result != CTLS_STATUS_SUCCESS) {
-        context->state = CTLS_HSHK_STATE_ERROR;
-        return result;
-    }
+                                     buffer);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
-    ctls_transcript_hash_update(&context->record);
+
+    result = ctls_transcript_hash_update(&context->record);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    /*
+     * TODO - EE, CR, CERT, CV all combined and sent in
+     * should handle it later
+     * For now implements normal TLS 1.3 flow
+     */
 
     if (context->template->mutual_auth == 1 && context->template->signature_algorithm.
         signature_algorithm_type == CTLS_EXTN_SIGNATURE_ALGORITHM_SENTINEL) {
         result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
+        if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
         context->state = CTLS_HSHK_STATE_WAIT_CERTIFICATE_VERIFY;
-        ctls_recd_buffer_clear(&context->record);
+
         result = ctls_record_deserialize(&context->record,
                                          CTLS_HSMG_TYPE_CERTIFICATE_REQUEST,
-                                         buffer,
-                                         recv_len);
-        if (result != CTLS_STATUS_SUCCESS) {
-            context->state = CTLS_HSHK_STATE_ERROR;
-            return result;
-        }
+                                         buffer);
+        if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
         context->state = CTLS_HSHK_STATE_WAIT_CERTIFICATE;
+        result = ctls_core_certificate_request_internal_op(&context->record);
+        if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+        result = ctls_transcript_hash_update(&context->record);
+        if (result != CTLS_STATUS_SUCCESS) goto onerror;
+    }
+
+    // Certificate
     result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
     result = ctls_record_deserialize(&context->record,
                                      CTLS_HSMG_TYPE_CERTIFICATE,
+                                     buffer);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+
+    result = ctls_transcript_hash_update(&context->record);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+
+    result = ctls_transcript_hash_update(&context->record);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
     result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
     result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
 
     result = ctls_transcript_hash_update(&context->record);
-    if (result != CTLS_STATUS_SUCCESS) {
-        context->state = CTLS_HSHK_STATE_ERROR;
-        return result;
-    }
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
+    return CTLS_STATUS_SUCCESS;
 
+onerror:
+    context->state = CTLS_HSHK_STATE_ERROR;
+    ctls_recd_buffer_clear(&context->record);
+    ctls_wire_buffer_clear(buffer, &buffer_offset);
+    return result;
 }
 
 
