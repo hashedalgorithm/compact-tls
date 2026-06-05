@@ -3,8 +3,8 @@
 //
 
 
-#ifndef CTLS__H
-#define CTLS__H
+#ifndef CTLS_H
+#define CTLS_H
 
 #include <stdint.h>
 #include "crypto.h"
