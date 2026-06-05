@@ -1,6 +1,8 @@
 #include "ctls/types.h"
 #include "ctls/ctls.h"
 #include "psa/crypto.h"
+
+#include <string.h>
 #include "ctls/bytes.h"
 #include "ctls/templates.h"
 
