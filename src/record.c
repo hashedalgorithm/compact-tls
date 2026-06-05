@@ -106,12 +106,11 @@ ctls_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
                                              ctls_wire_format_t const wire_format) {
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
-    CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL_STRUCT(record);
 
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
-        if (sizeof(record->content_type) + *offset > CTLS_SIZE_WIRE_BUFFER)
-            return CTLS_STATUS_BUFFER_OVERFLOW;
+        if (sizeof(record->content_type) + *offset > CTLS_SIZE_WIRE_BUFFER) return
+                CTLS_STATUS_BUFFER_OVERFLOW;
 
         ctls_write_u8(buffer, offset, record->content_type);
 
@@ -149,11 +148,11 @@ ctls_status_t ctls_record_serialize(ctls_record_t const *record,
                                     uint8_t *buffer,
                                     ctls_size_t *offset) {
     CTLS_CHECK_NULL_STRUCT(record);
-    CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL_BUFFER(buffer);
-    CTLS_CHECK_NULL(buffer_length);
+    CTLS_CHECK_NULL_OFFSET(offset);
 
-    ctls_size_t offset = 0;
+    ctls_status_t result = ctls_wire_buffer_clear(buffer, offset);
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
     if (record->type == CTLS_RECORD_TYPE_PLAINTEXT) {
         switch (record->record_body.message_type) {
@@ -173,18 +172,20 @@ ctls_status_t ctls_record_serialize(ctls_record_t const *record,
     if (record->type == CTLS_RECORD_TYPE_ENCRYPTED) {
     }
 
-    return CTLS_STATUS_SUCCESS;
+    return result;
 }
 
 ctls_status_t ctls_record_deserialize(ctls_record_t *record,
                                       ctls_hsmg_type_t const hsmg_type,
-                                      uint8_t *buffer) {
+                                      uint8_t const *buffer) {
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_STRUCT(record);
-    CTLS_CHECK_NULL(template);
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
     ctls_size_t offset = 0;
+
+    result = ctls_recd_buffer_clear(record);
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
     switch (hsmg_type) {
         case CTLS_HSMG_TYPE_CLIENT_HELLO:
@@ -251,9 +252,7 @@ ctls_status_t ctls_recd_server_hello_to_struct(ctls_record_t *record,
                                                uint8_t const *buffer,
                                                ctls_size_t *offset) {
     CTLS_CHECK_NULL_STRUCT(record);
-    CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL_BUFFER(buffer);
-    CTLS_CHECK_NULL(hshk_data);
     CTLS_CHECK_NULL_OFFSET(offset);
 
     record->content_type = ctls_read_u8(buffer, offset);
@@ -301,9 +300,7 @@ ctls_status_t ctls_recd_encrypted_extensions_create(void) {
 ctls_status_t ctls_recd_encrypted_extensions_to_struct(ctls_record_t *record,
                                                        uint8_t const *buffer) {
     CTLS_CHECK_NULL_STRUCT(record);
-    CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL_BUFFER(buffer);
-    CTLS_CHECK_NULL(hshk_data);
 
     uint8_t plaintext[CTLS_SIZE_WIRE_BUFFER];
     size_t plaintext_offset = 0;
@@ -332,10 +329,7 @@ ctls_status_t ctls_recd_encrypted_extensions_to_wire(uint8_t *buffer,
                                                      ctls_record_t const *record,
                                                      ctls_wire_format_t const
                                                      wire_format) {
-    ctls_template_t const *template = ctls_template_get();
-
     CTLS_CHECK_NULL_STRUCT(record);
-    CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
 
@@ -361,12 +355,10 @@ ctls_status_t ctls_recd_certificate_request_create(void) {
 ctls_status_t ctls_recd_certificate_request_to_struct(ctls_record_t *record,
                                                       uint8_t const *buffer) {
     ctls_template_t const *template = ctls_template_get();
-    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
 
     CTLS_CHECK_NULL_STRUCT(record);
     CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL_BUFFER(buffer);
-    CTLS_CHECK_NULL(hshk_data);
 
     if (template->mutual_auth == 0) return CTLS_STATUS_RECD_NO_MUTUAL_AUTH;
 
@@ -395,11 +387,9 @@ ctls_status_t ctls_recd_certificate_request_to_struct(ctls_record_t *record,
 ctls_status_t ctls_recd_certificate_request_to_wire(uint8_t *buffer,
                                                     ctls_size_t *offset,
                                                     ctls_record_t const *record,
-                                                    ctls_wire_format_t wire_format) {
-    ctls_template_t const *template = ctls_template_get();
-
+                                                    ctls_wire_format_t const
+                                                    wire_format) {
     CTLS_CHECK_NULL_STRUCT(record);
-    CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
 
@@ -454,7 +444,7 @@ ctls_status_t ctls_recd_certificate_to_struct(ctls_record_t *record,
 ctls_status_t ctls_recd_certificate_to_wire(uint8_t *buffer,
                                             ctls_size_t *offset,
                                             ctls_record_t const *record,
-                                            ctls_wire_format_t wire_format) {
+                                            ctls_wire_format_t const wire_format) {
     CTLS_CHECK_NULL_STRUCT(record);
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
@@ -477,9 +467,6 @@ ctls_status_t ctls_recd_certificate_to_wire(uint8_t *buffer,
 }
 
 ctls_status_t ctls_recd_certificate_verify_create(ctls_record_t *record) {
-    ctls_template_t const *template = ctls_template_get();
-
-    CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL_STRUCT(record);
 
     ctls_status_t const result = ctls_recd_buffer_clear(record);
@@ -522,7 +509,7 @@ ctls_status_t ctls_recd_certificate_verify_to_struct(ctls_record_t *record,
 ctls_status_t ctls_recd_certificate_verify_to_wire(uint8_t *buffer,
                                                    ctls_size_t *offset,
                                                    ctls_record_t const *record,
-                                                   ctls_wire_format_t wire_format) {
+                                                   ctls_wire_format_t const wire_format) {
     CTLS_CHECK_NULL_STRUCT(record);
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);

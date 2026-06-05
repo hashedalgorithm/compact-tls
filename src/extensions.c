@@ -156,7 +156,7 @@ ctls_status_t ctls_extn_is_initialized(ctls_extn_type_t const extn_type,
 ctls_status_t ctls_extn_opaque_serialize(uint8_t *destination_buffer,
                                          ctls_size_t *destination_offset,
                                          uint8_t const *source_buffer,
-                                         ctls_size_t source_length,
+                                         ctls_size_t const source_length,
                                          ctls_extn_type_t const extension_type) {
     CTLS_CHECK_NULL_BUFFER(destination_buffer);
     CTLS_CHECK_NULL_OFFSET(destination_offset);
@@ -285,7 +285,7 @@ ctls_status_t ctls_extn_max_fragment_length_serialize(
 ctls_status_t ctls_extn_certificate_status_request_deserialize(
     uint8_t *buffer,
     ctls_size_t const *buffer_length,
-    ctls_data_form_t form,
+    ctls_data_form_t const form,
     ctls_extn_certificate_status_request_t *certificate_status_request) {
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL(buffer_length);
@@ -479,6 +479,10 @@ ctls_status_t ctls_extn_alpn_deserialize(uint8_t *buffer,
 ctls_status_t ctls_extn_alpn_serialize(uint8_t *buffer,
                                        ctls_size_t *offset,
                                        ctls_extn_alpn_t const *alpn) {
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_OFFSET(offset);
+    CTLS_CHECK_NULL_STRUCT(alpn);
+
     if (alpn->form == CTLS_DATA_FORM_SENTINEL) return CTLS_STATUS_EXTN_INVALID_FORM;
 
     ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_APPLICATION_LAYER_PROTOCOL_NEGOTIATION);
@@ -518,8 +522,12 @@ ctls_status_t ctls_extn_alpn_serialize(uint8_t *buffer,
 ctls_status_t ctls_extn_signed_certificate_timestamp_deserialize(
     uint8_t *buffer,
     ctls_size_t const *buffer_length,
-    ctls_data_form_t form,
+    ctls_data_form_t const form,
     ctls_extn_signed_certificate_timestamp_t *signed_certificate_timestamp) {
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL(buffer_length);
+    CTLS_CHECK_NULL_STRUCT(signed_certificate_timestamp);
+
     signed_certificate_timestamp->extension_type =
             CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP;
     signed_certificate_timestamp->form = form;
@@ -716,6 +724,10 @@ ctls_status_t ctls_extn_certificate_authorities_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
     ctls_extn_certificate_authorities_t const *certificate_authorities) {
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_OFFSET(offset);
+    CTLS_CHECK_NULL_STRUCT(certificate_authorities);
+
     if (certificate_authorities->form == CTLS_DATA_FORM_SENTINEL)
         return CTLS_STATUS_EXTN_INVALID_FORM;
 
@@ -762,7 +774,7 @@ ctls_status_t ctls_extn_post_handshake_auth_serialize(
     return CTLS_STATUS_SUCCESS;
 }
 
-ctls_status_t ctls_extn_key_share_deserialize(uint8_t *buffer,
+ctls_status_t ctls_extn_key_share_deserialize(uint8_t const *buffer,
                                               ctls_size_t *offset,
                                               ctls_helper_entity_ownership_t const
                                               entity_ownership,
@@ -797,7 +809,6 @@ ctls_status_t ctls_extn_key_share_serialize(uint8_t *buffer,
                                             ctls_extn_key_share_t key_share) {
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
-    CTLS_CHECK_NULL(key_share);
 
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
         ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_KEY_SHARE);
@@ -818,11 +829,10 @@ uint8_t ctls_expected_extensions_size_get(
 ctls_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions) {
     ctls_template_t const *template = ctls_template_get();
-    ctls_crypto_t const *crypto = ctls_crypto_get();
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
 
+    CTLS_CHECK_NULL_STRUCT(client_hello_extensions);
     CTLS_CHECK_NULL(template);
-    CTLS_CHECK_NULL(crypto);
     CTLS_CHECK_NULL(hshk_data);
 
     uint8_t const size_of_expected_extensions =
@@ -1052,9 +1062,14 @@ ctls_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
                                              ctls_size_t *offset,
                                              ctls_extn_client_hello_t const *
                                              client_hello_extensions,
-                                             ctls_wire_format_t wire_format) {
+                                             ctls_wire_format_t const wire_format) {
     ctls_template_t const *template = ctls_template_get();
+
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_OFFSET(offset);
+    CTLS_CHECK_NULL_STRUCT(client_hello_extensions);
     CTLS_CHECK_NULL(template);
+
 
     uint8_t const size_of_expected_extensions =
             ctls_expected_extensions_size_get(&template->client_hello_extension.
@@ -1177,7 +1192,7 @@ ctls_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
                                              ctls_size_t *offset,
                                              ctls_extn_server_hello_t const *
                                              server_hello_extensions,
-                                             ctls_wire_format_t wire_format) {
+                                             ctls_wire_format_t const wire_format) {
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
     CTLS_CHECK_NULL_STRUCT(server_hello_extensions);
@@ -1201,13 +1216,14 @@ ctls_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
 
 ctls_status_t ctls_extn_server_hello_to_struct(
     ctls_extn_server_hello_t *server_hello_extensions,
-    uint8_t *buffer,
+    uint8_t const *buffer,
     ctls_size_t *offset) {
     ctls_template_t const *template = ctls_template_get();
-    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
 
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_STRUCT(server_hello_extensions);
+    CTLS_CHECK_NULL_OFFSET(offset);
     CTLS_CHECK_NULL(template);
-    CTLS_CHECK_NULL(hshk_data);
 
     ctls_status_t result =
             ctls_extn_supported_versions_deserialize(&template->protocol_version,
@@ -1332,6 +1348,10 @@ ctls_status_t ctls_extn_encrypted_extensions_to_wire(uint8_t *buffer,
                                                      ctls_extn_encrypted_extensions_t
                                                      const *encrypted_extensions,
                                                      ctls_wire_format_t wire_format) {
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_OFFSET(offset);
+    CTLS_CHECK_NULL_STRUCT(encrypted_extensions);
+
     ctls_status_t result;
 
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
@@ -1474,7 +1494,12 @@ ctls_status_t ctls_extn_certificate_request_to_wire(uint8_t *buffer,
                                                     ctls_size_t *offset,
                                                     ctls_extn_certificate_request_t const
                                                     *certificate_request,
-                                                    ctls_wire_format_t wire_format) {
+                                                    ctls_wire_format_t const
+                                                    wire_format) {
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_OFFSET(offset);
+    CTLS_CHECK_NULL_STRUCT(certificate_request);
+
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
@@ -1569,7 +1594,11 @@ ctls_status_t ctls_extn_certificate_to_wire(uint8_t *buffer,
                                             ctls_size_t *offset,
                                             ctls_extn_certificate_t const *
                                             certificate_extensions,
-                                            ctls_wire_format_t wire_format) {
+                                            ctls_wire_format_t const wire_format) {
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_OFFSET(offset);
+    CTLS_CHECK_NULL_STRUCT(certificate_extensions);
+
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {

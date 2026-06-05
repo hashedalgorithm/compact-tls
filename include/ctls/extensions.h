@@ -286,7 +286,7 @@ ctls_status_t ctls_extn_post_handshake_auth_serialize(
     ctls_size_t *offset,
     ctls_extn_post_handshake_auth_t const *post_handshake_auth);
 
-ctls_status_t ctls_extn_key_share_deserialize(uint8_t *buffer,
+ctls_status_t ctls_extn_key_share_deserialize(uint8_t const *buffer,
                                               ctls_size_t *offset,
                                               ctls_helper_entity_ownership_t
                                               entity_ownership,
@@ -309,7 +309,7 @@ ctls_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
 ctls_status_t ctls_extn_server_hello_create(void);
 ctls_status_t ctls_extn_server_hello_to_struct(
     ctls_extn_server_hello_t *server_hello_extensions,
-    uint8_t *buffer,
+    uint8_t const *buffer,
     ctls_size_t *offset);
 ctls_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
                                              ctls_size_t *offset,
