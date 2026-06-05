@@ -66,7 +66,7 @@ ctls_status_t ctls_context_init(ctls_context_t *context,
 
 ctls_status_t ctls_handshake(ctls_context_t *context) {
     uint8_t buffer[CTLS_SIZE_WIRE_BUFFER];
-    ctls_size_t buffer_length = 0;
+    ctls_size_t buffer_offset = 0;
 
     ctls_status_t result = ctls_recd_client_hello_create(&context->record);
     if (result != CTLS_STATUS_SUCCESS) {
@@ -74,36 +74,13 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
         return result;
     }
 
-    result = ctls_record_serialize(&context->record,
-                                   buffer,
-                                   sizeof(buffer),
-                                   &buffer_length);
-    if (result != CTLS_STATUS_SUCCESS) {
-        ctls_wire_buffer_clear(buffer);
-        return result;
-    }
+    result = ctls_record_serialize(&context->record, buffer, &buffer_offset);
 
-    ctls_handshake_state_update(&context->state, CTLS_HSHK_STATE_ERROR);
-    ctls_wire_buffer_clear(buffer);
-
-    result = context->transport.recd_send(buffer, buffer_length);
-    if (result != CTLS_STATUS_SUCCESS) {
-        ctls_handshake_state_update(&context->state, CTLS_HSHK_STATE_ERROR);
-        return CTLS_STATUS_TRANSPORT_SEND_FAILED;
-    }
-
-    ctls_transcript_hash_update(&context->record);
-
+    result = context->transport.recd_send(buffer, buffer_offset);
     context->state = CTLS_HSHK_STATE_WAIT_SERVER_HELLO;
-    ctls_size_t recv_len = 0;
-    memset(buffer, 0, CTLS_SIZE_WIRE_BUFFER);
-    result = context->transport.recd_receive(buffer, &recv_len, sizeof(buffer));
-    if (result != CTLS_STATUS_SUCCESS) {
-        context->state = CTLS_HSHK_STATE_ERROR;
-        return CTLS_STATUS_TRANSPORT_RECV_FAILED;
-    }
-
-    ctls_recd_buffer_clear(&context->record);
+    // Server Hello
+    result = ctls_wire_buffer_clear(buffer, &buffer_offset);
+    result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
     result = ctls_record_deserialize(&context->record,
                                      CTLS_HSMG_TYPE_SERVER_HELLO,
                                      buffer,
@@ -122,16 +99,11 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
 
 
     context->state = CTLS_HSHK_STATE_WAIT_ENCRYPTED_EXTENSIONS;
-    recv_len = 0;
-    memset(buffer, 0, CTLS_SIZE_WIRE_BUFFER);
-    result = context->transport.recd_receive(buffer, &recv_len, sizeof(buffer));
-    if (result != CTLS_STATUS_SUCCESS) {
-        context->state = CTLS_HSHK_STATE_ERROR;
-        return CTLS_STATUS_TRANSPORT_RECV_FAILED;
-    }
-
+    result = ctls_wire_buffer_clear(buffer, &buffer_offset);
+    result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
     context->state = CTLS_HSHK_STATE_WAIT_CERTIFICATE;
-    ctls_recd_buffer_clear(&context->record);
+
+    // Encrypted Extensions
     result = ctls_record_deserialize(&context->record,
                                      CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS,
                                      buffer,
@@ -145,13 +117,7 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
 
     if (context->template->mutual_auth == 1 && context->template->signature_algorithm.
         signature_algorithm_type == CTLS_EXTN_SIGNATURE_ALGORITHM_SENTINEL) {
-        recv_len = 0;
-        memset(buffer, 0, CTLS_SIZE_WIRE_BUFFER);
-        result = context->transport.recd_receive(buffer, &recv_len, sizeof(buffer));
-        if (result != CTLS_STATUS_SUCCESS) {
-            context->state = CTLS_HSHK_STATE_ERROR;
-            return CTLS_STATUS_TRANSPORT_RECV_FAILED;
-        }
+        result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
 
         context->state = CTLS_HSHK_STATE_WAIT_CERTIFICATE_VERIFY;
         ctls_recd_buffer_clear(&context->record);
@@ -165,26 +131,11 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
         }
 
         context->state = CTLS_HSHK_STATE_WAIT_CERTIFICATE;
-        ctls_transcript_hash_update(&context->record);
-    }
-
-    recv_len = 0;
-    memset(buffer, 0, CTLS_SIZE_WIRE_BUFFER);
-    result = context->transport.recd_receive(buffer, &recv_len, sizeof(buffer));
-    if (result != CTLS_STATUS_SUCCESS) {
-        context->state = CTLS_HSHK_STATE_ERROR;
-        return CTLS_STATUS_TRANSPORT_RECV_FAILED;
-    }
-
-    ctls_recd_buffer_clear(&context->record);
+    result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
     result = ctls_record_deserialize(&context->record,
                                      CTLS_HSMG_TYPE_CERTIFICATE,
-                                     buffer,
-                                     recv_len);
-    if (result != CTLS_STATUS_SUCCESS) {
-        context->state = CTLS_HSHK_STATE_ERROR;
-        return result;
-    }
+    result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
+    result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
 
     result = ctls_transcript_hash_update(&context->record);
     if (result != CTLS_STATUS_SUCCESS) {
