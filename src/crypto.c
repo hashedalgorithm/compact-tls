@@ -153,7 +153,10 @@ ctls_status_t ctls_transcript_hash_update(ctls_record_t const *record) {
                                           record,
                                           CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
         case CTLS_HSMG_TYPE_CERTIFICATE_VERIFY:
-            ctls_recd_certificate_verify_to_wire();
+            ctls_recd_certificate_verify_to_wire(buffer,
+                                                 &offset,
+                                                 record,
+                                                 CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
             break;
         case CTLS_HSMG_TYPE_FINISHED:
             ctls_recd_finished_to_wire();

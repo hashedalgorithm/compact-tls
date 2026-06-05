@@ -463,16 +463,63 @@ ctls_status_t ctls_hsmg_certificate_to_wire(uint8_t *buffer,
     return CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT;
 }
 
-ctls_op_status_t ctls_hsmg_certificate_verify_create() {
+ctls_status_t ctls_hsmg_certificate_verify_create(void) {
+    return CTLS_STATUS_NOT_IMPLEMENTED;
 }
 
-ctls_op_status_t ctls_hsmg_certificate_verify_to_struct() {
+ctls_status_t ctls_hsmg_certificate_verify_to_struct(ctls_handshake_message_t *hsmg,
+                                                     uint8_t const *buffer) {
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+
+    CTLS_CHECK_NULL_STRUCT(hsmg);
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_OFFSET(hshk_data);
+
+    ctls_size_t offset = 0;
+
+    hsmg->message_type = ctls_read_u8(buffer, &offset);
+    hsmg->handshake_message_body.certificate_verify.signature_scheme =
+            ctls_read_u16(buffer, &offset);
+
+    ctls_size_t const signed_bytes_length = ctls_read_u16(buffer, &offset);
+    ctls_read_bytes(hshk_data->certificate_signed_bytes,
+                    signed_bytes_length,
+                    buffer,
+                    &offset);
+    hsmg->handshake_message_body.certificate_verify.signature = hshk_data->
+            certificate_signed_bytes;
+
+    return CTLS_STATUS_SUCCESS;
 }
 
-ctls_op_status_t ctls_hsmg_certificate_verify_to_wire() {
+ctls_status_t ctls_hsmg_certificate_verify_to_wire(uint8_t *buffer,
+                                                   ctls_size_t *offset,
+                                                   ctls_handshake_message_t const *hsmg,
+                                                   ctls_wire_format_t wire_format) {
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_OFFSET(offset);
+
+    if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
+    }
+    if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
+        ctls_write_u8(buffer, offset, hsmg->message_type);
+        ctls_write_u16(buffer,
+                       offset,
+                       hsmg->handshake_message_body.certificate_verify.signature_scheme);
+        ctls_write_u16(buffer,
+                       offset,
+                       hsmg->handshake_message_body.certificate_verify.signature_length);
+        ctls_write_bytes(buffer,
+                         offset,
+                         hsmg->handshake_message_body.certificate_verify.signature_length,
+                         hsmg->handshake_message_body.certificate_verify.signature);
+
+        return CTLS_STATUS_SUCCESS;
+    }
+
+    return CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT;
 }
 
-ctls_op_status_t ctls_hsmg_finished_create() {
 }
 
 ctls_op_status_t ctls_hsmg_finished_to_struct() {

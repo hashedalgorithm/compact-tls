@@ -43,6 +43,9 @@ struct ctls_hsmg_certificate {
     uint8_t certificate_count;
 };
 struct ctls_hsmg_certificate_verify {
+    ctls_signature_scheme_t signature_scheme;
+    uint8_t *signature;
+    uint8_t signature_length;
 };
 struct ctls_hsmg_finished {
 };
@@ -115,8 +118,12 @@ ctls_status_t ctls_hsmg_certificate_to_wire(uint8_t *buffer,
                                             ctls_wire_format_t wire_format);
 
 ctls_status_t ctls_hsmg_certificate_verify_create(void);
-ctls_status_t ctls_hsmg_certificate_verify_to_struct(void);
-ctls_status_t ctls_hsmg_certificate_verify_to_wire(void);
+ctls_status_t ctls_hsmg_certificate_verify_to_struct(ctls_handshake_message_t *hsmg,
+                                                     uint8_t const *buffer);
+ctls_status_t ctls_hsmg_certificate_verify_to_wire(uint8_t *buffer,
+                                                   ctls_size_t *offset,
+                                                   ctls_handshake_message_t const *hsmg,
+                                                   ctls_wire_format_t wire_format);
 
 ctls_status_t ctls_hsmg_finished_create(void);
 ctls_status_t ctls_hsmg_finished_to_struct(void);
