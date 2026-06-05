@@ -14,6 +14,7 @@ ctls_status_t ctls_unified_header_build(ctls_unified_header_t *unified_header,
                                         uint16_t const length,
                                         uint64_t const *epoch) {
     CTLS_CHECK_NULL_STRUCT(unified_header);
+    CTLS_CHECK_NULL_BUFFER(epoch);
 
     unified_header->config_octet.c_bit = 0;
     unified_header->config_octet.s_bit = (sequence_number > 0xFFu) ? 1u : 0u;
@@ -64,12 +65,11 @@ ctls_status_t ctls_unified_header_serialize(ctls_unified_header_t const *unified
 
 ctls_status_t ctls_unified_header_deserialize(ctls_unified_header_t *unified_header,
                                               uint8_t const *buffer,
-                                              ctls_size_t *offset,
-                                              ctls_size_t buffer_size) {
+                                              ctls_size_t *offset) {
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
     CTLS_CHECK_NULL_STRUCT(unified_header);
-    CTLS_CHECK_BOUNDS(*offset, 2, buffer_size);
+    CTLS_CHECK_BOUNDS(*offset, 2, CTLS_SIZE_WIRE_BUFFER);
 
     uint8_t const first_part = buffer[(*offset)++];
     uint8_t const second_part = buffer[(*offset)++];
@@ -100,43 +100,29 @@ ctls_status_t ctls_unified_header_deserialize(ctls_unified_header_t *unified_hea
     return CTLS_STATUS_SUCCESS;
 }
 
-ctls_status_t ctls_write_body_length(uint8_t *buffer,
-                                     ctls_size_t *offset,
-                                     ctls_size_t const body_length) {
-    CTLS_CHECK_NULL_BUFFER(buffer);
-    CTLS_CHECK_NULL_OFFSET(offset);
-
-    ctls_write_u16(buffer, offset, body_length);
-    return CTLS_STATUS_SUCCESS;
-}
-
 ctls_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
                                              ctls_size_t *offset,
-                                             ctls_size_t buffer_size,
                                              ctls_record_t const *record,
-                                             ctls_wire_format_t wire_format) {
-    ctls_template_t const *template = ctls_template_get();
-
+                                             ctls_wire_format_t const wire_format) {
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
     CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL_STRUCT(record);
 
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
-        if (sizeof(record->content_type) + *offset > buffer_size) return
-                CTLS_STATUS_BUFFER_OVERFLOW;
+        if (sizeof(record->content_type) + *offset > CTLS_SIZE_WIRE_BUFFER)
+            return CTLS_STATUS_BUFFER_OVERFLOW;
 
         ctls_write_u8(buffer, offset, record->content_type);
 
-        if ((sizeof(record->profile_id) + sizeof(uint8_t)) + *offset > buffer_size) return
-                CTLS_STATUS_BUFFER_OVERFLOW;
+        if ((sizeof(record->profile_id) + sizeof(uint8_t)) + *offset >
+            CTLS_SIZE_WIRE_BUFFER) return CTLS_STATUS_BUFFER_OVERFLOW;
 
         ctls_write_u8(buffer, offset, sizeof(record->profile_id));
         ctls_write_u8(buffer, offset, record->profile_id);
 
         return ctls_hsmg_client_hello_to_wire(buffer,
                                               offset,
-                                              &buffer_size,
                                               &record->record_body,
                                               CTLS_WIRE_FORMAT_DEFAULT);
     }
@@ -148,7 +134,6 @@ ctls_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
         *offset += 2;
         ctls_status_t const result = ctls_hsmg_client_hello_to_wire(buffer,
             offset,
-            &buffer_size,
             &record->record_body,
             CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
         if (result != CTLS_STATUS_SUCCESS) return result;
@@ -162,10 +147,7 @@ ctls_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
 
 ctls_status_t ctls_record_serialize(ctls_record_t const *record,
                                     uint8_t *buffer,
-                                    ctls_size_t const buffer_size,
-                                    ctls_size_t *buffer_length) {
-    ctls_template_t const *template = ctls_template_get();
-
+                                    ctls_size_t *offset) {
     CTLS_CHECK_NULL_STRUCT(record);
     CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL_BUFFER(buffer);
@@ -176,11 +158,10 @@ ctls_status_t ctls_record_serialize(ctls_record_t const *record,
     if (record->type == CTLS_RECORD_TYPE_PLAINTEXT) {
         switch (record->record_body.message_type) {
             case CTLS_HSMG_TYPE_CLIENT_HELLO:
-                ctls_recd_client_hello_to_wire(buffer,
-                                               &offset,
-                                               buffer_size,
-                                               record,
-                                               CTLS_WIRE_FORMAT_DEFAULT);
+                result = ctls_recd_client_hello_to_wire(buffer,
+                                                        offset,
+                                                        record,
+                                                        CTLS_WIRE_FORMAT_DEFAULT);
                 break;
             case CTLS_HSMG_TYPE_SERVER_HELLO:
                 /* TODO */
@@ -196,11 +177,8 @@ ctls_status_t ctls_record_serialize(ctls_record_t const *record,
 }
 
 ctls_status_t ctls_record_deserialize(ctls_record_t *record,
-                                      ctls_hsmg_type_t hsmg_type,
-                                      uint8_t *buffer,
-                                      ctls_size_t buffer_length) {
-    ctls_template_t const *template = ctls_template_get();
-
+                                      ctls_hsmg_type_t const hsmg_type,
+                                      uint8_t *buffer) {
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_STRUCT(record);
     CTLS_CHECK_NULL(template);
@@ -213,15 +191,10 @@ ctls_status_t ctls_record_deserialize(ctls_record_t *record,
             /* todo — server-side logic */
             break;
         case CTLS_HSMG_TYPE_SERVER_HELLO:
-            result = ctls_recd_server_hello_to_struct(record,
-                                                      buffer,
-                                                      &offset,
-                                                      buffer_length);
+            result = ctls_recd_server_hello_to_struct(record, buffer, &offset);
             break;
         case CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS:
-            result = ctls_recd_encrypted_extensions_to_struct(record,
-                buffer,
-                buffer_length);
+            result = ctls_recd_encrypted_extensions_to_struct(record, buffer);
             break;
         case CTLS_HSMG_TYPE_CERTIFICATE_REQUEST:
             result = ctls_recd_certificate_request_to_struct(record, buffer);
@@ -272,12 +245,8 @@ ctls_status_t ctls_recd_server_hello_create(void) {
 }
 
 ctls_status_t ctls_recd_server_hello_to_struct(ctls_record_t *record,
-                                               uint8_t *buffer,
-                                               ctls_size_t *offset,
-                                               ctls_size_t buffer_size) {
-    ctls_template_t const *template = ctls_template_get();
-    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
-
+                                               uint8_t const *buffer,
+                                               ctls_size_t *offset) {
     CTLS_CHECK_NULL_STRUCT(record);
     CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL_BUFFER(buffer);
@@ -289,21 +258,14 @@ ctls_status_t ctls_recd_server_hello_to_struct(ctls_record_t *record,
     record->unified_header.sequence_number = 0;
     record->unified_header.length = ctls_read_u16(buffer, offset);
 
-    return ctls_hsmg_server_hello_to_struct(&record->record_body,
-                                            buffer,
-                                            offset,
-                                            buffer_size);
+    return ctls_hsmg_server_hello_to_struct(&record->record_body, buffer, offset);
 }
 
 ctls_status_t ctls_recd_server_hello_to_wire(uint8_t *buffer,
                                              ctls_size_t *offset,
-                                             ctls_size_t buffer_size,
                                              ctls_record_t const *record,
-                                             ctls_wire_format_t wire_format) {
-    ctls_template_t const *template = ctls_template_get();
-
+                                             ctls_wire_format_t const wire_format) {
     CTLS_CHECK_NULL_STRUCT(record);
-    CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
 
@@ -317,7 +279,6 @@ ctls_status_t ctls_recd_server_hello_to_wire(uint8_t *buffer,
         *offset += 2;
         ctls_status_t const result = ctls_hsmg_server_hello_to_wire(buffer,
             offset,
-            &buffer_size,
             &record->record_body,
             CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
         if (result != CTLS_STATUS_SUCCESS) return result;
@@ -335,11 +296,7 @@ ctls_status_t ctls_recd_encrypted_extensions_create(void) {
 }
 
 ctls_status_t ctls_recd_encrypted_extensions_to_struct(ctls_record_t *record,
-                                                       uint8_t *buffer,
-                                                       ctls_size_t buffer_size) {
-    ctls_template_t const *template = ctls_template_get();
-    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
-
+                                                       uint8_t const *buffer) {
     CTLS_CHECK_NULL_STRUCT(record);
     CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL_BUFFER(buffer);
@@ -352,8 +309,7 @@ ctls_status_t ctls_recd_encrypted_extensions_to_struct(ctls_record_t *record,
     record->type = CTLS_RECORD_TYPE_ENCRYPTED;
     ctls_status_t result = ctls_unified_header_deserialize(&record->unified_header,
                                                            buffer,
-                                                           &offset,
-                                                           buffer_size);
+                                                           &offset);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     result = ctls_decrypt(&record->unified_header.sequence_number,
@@ -371,7 +327,8 @@ ctls_status_t ctls_recd_encrypted_extensions_to_struct(ctls_record_t *record,
 ctls_status_t ctls_recd_encrypted_extensions_to_wire(uint8_t *buffer,
                                                      ctls_size_t *offset,
                                                      ctls_record_t const *record,
-                                                     ctls_wire_format_t wire_format) {
+                                                     ctls_wire_format_t const
+                                                     wire_format) {
     ctls_template_t const *template = ctls_template_get();
 
     CTLS_CHECK_NULL_STRUCT(record);
@@ -417,8 +374,7 @@ ctls_status_t ctls_recd_certificate_request_to_struct(ctls_record_t *record,
     record->type = CTLS_RECORD_TYPE_ENCRYPTED;
     ctls_status_t result = ctls_unified_header_deserialize(&record->unified_header,
                                                            buffer,
-                                                           &offset,
-                                                           CTLS_SIZE_WIRE_BUFFER);
+                                                           &offset);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     result = ctls_decrypt(&record->unified_header.sequence_number,
@@ -477,8 +433,7 @@ ctls_status_t ctls_recd_certificate_to_struct(ctls_record_t *record,
     record->type = CTLS_RECORD_TYPE_ENCRYPTED;
     ctls_status_t result = ctls_unified_header_deserialize(&record->unified_header,
                                                            buffer,
-                                                           &offset,
-                                                           CTLS_SIZE_WIRE_BUFFER);
+                                                           &offset);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     result = ctls_decrypt(&record->unified_header.sequence_number,
@@ -494,9 +449,9 @@ ctls_status_t ctls_recd_certificate_to_struct(ctls_record_t *record,
 }
 
 ctls_status_t ctls_recd_certificate_to_wire(uint8_t *buffer,
-                                                       ctls_size_t *offset,
-                                                       ctls_record_t const *record,
-                                                       ctls_wire_format_t wire_format) {
+                                            ctls_size_t *offset,
+                                            ctls_record_t const *record,
+                                            ctls_wire_format_t wire_format) {
     CTLS_CHECK_NULL_STRUCT(record);
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
@@ -516,7 +471,6 @@ ctls_status_t ctls_recd_certificate_to_wire(uint8_t *buffer,
     }
 
     return CTLS_STATUS_RECD_INVALID_WIRE_FORMAT;
-
 }
 }
 
