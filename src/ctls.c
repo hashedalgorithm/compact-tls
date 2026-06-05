@@ -30,12 +30,17 @@ ctls_status_t ctls_validate_template() {
     if (template->dhe_group.dhe_group == 0) return CTLS_STATUS_TMPL_INVALID_DHE_GROUP;
     if (template->signature_algorithm.signature_algorithm_type == 0)
         return CTLS_STATUS_TMPL_INVALID_SIG_ALGORITHM;
-
     return CTLS_STATUS_SUCCESS;
 }
 
-void ctls_wire_buffer_clear(uint8_t *buffer) {
-    memset(buffer, 0, 256);
+ctls_status_t ctls_wire_buffer_clear(uint8_t *buffer, ctls_size_t *buffer_offest) {
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_OFFSET(buffer_offest);
+
+    memset(buffer, 0, CTLS_SIZE_WIRE_BUFFER);
+    *buffer_offest = 0;
+
+    return CTLS_STATUS_SUCCESS;
 }
 
 ctls_status_t ctls_context_init(ctls_context_t *context,
