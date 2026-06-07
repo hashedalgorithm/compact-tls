@@ -1,6 +1,7 @@
 #include <string.h>
 #include "ctls/ctls.h"
 #include "ctls/templates.h"
+#include "ctls/core.h"
 
 static ctls_template_t const *g_template;
 static ctls_hshk_data_t *g_hshk_data;
