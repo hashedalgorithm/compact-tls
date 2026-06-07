@@ -55,8 +55,10 @@ struct ctls_hshk_data {
     uint8_t server_handshake_key[CTLS_SIZE_AEAD_KEY];
     uint8_t server_handshake_iv_key[CTLS_SIZE_IV];
     uint8_t certificate_request_context[CTLS_SIZE_CERTIFICATE_REQUEST_CONTEXT];
-    uint8_t certificate_signed_bytes[CTLS_SIZE_SIGNED_BYTES];
-    uint8_t certificate_signed_bytes_length;
+    uint8_t client_certificate_signed_bytes[CTLS_SIZE_SIGNED_BYTES];
+    uint8_t server_certificate_signed_bytes[CTLS_SIZE_SIGNED_BYTES];
+    uint8_t client_certificate_signed_bytes_length;
+    uint8_t server_certificate_signed_bytes_length;
 };
 
 

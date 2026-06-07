@@ -287,7 +287,8 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_CRYPTO_UNSUPPORTED_CIPHER_SUITE ((ctls_status_t)0x006Fu)
 #define CTLS_STATUS_CRYPTO_UNSUPPORTED_DHE_GROUP    ((ctls_status_t)0x0070u)
 #define CTLS_STATUS_CRYPTO_RANDOM_FAILED            ((ctls_status_t)0x0071u)
-#define CTLS_STATUS_CRYPTO_UNKNOWN                  ((ctls_status_t)0x0072u)
+#define CTLS_STATUS_CRYPTO_SIGNATURE_FAILED         ((ctls_status_t)0x0072u)
+#define CTLS_STATUS_CRYPTO_UNKNOWN                  ((ctls_status_t)0x0073u)
 
 /* Extension Ser/Deser (0x00C8-0x012B) */
 #define CTLS_STATUS_EXTN_INVALID_SIZE_FLAG          ((ctls_status_t)0x00C8u)

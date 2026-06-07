@@ -41,6 +41,11 @@ ctls_status_t ctls_random_generate(uint8_t *buffer,
                                    ctls_size_t *bytes_written,
                                    uint8_t random_size);
 ctls_status_t ctls_key_schedule();
+ctls_status_t ctls_context_string_build(uint8_t *buffer,
+                                        ctls_size_t *offset,
+                                        uint8_t const *transcript_hash,
+                                        ctls_entity_t entity,
+                                        ctls_key_type_t key_type);
 ctls_status_t ctls_early_secret_generate(ctls_crypto_t *crypto, uint8_t *early_secret);
 ctls_status_t ctls_derived_secret_generate(ctls_crypto_t *crypto,
                                            ctls_hshk_data_t *hshk_data);
@@ -48,38 +53,15 @@ ctls_status_t ctls_shared_ephemeral_secret_generate(ctls_crypto_t const *crypto,
                                                     ctls_hshk_data_t *hshk_data);
 ctls_status_t ctls_handshake_secret_generate(ctls_crypto_t *crypto,
                                              ctls_hshk_data_t *hshk_data);
-ctls_status_t ctls_handshake_traffic_secrets_generate(ctls_crypto_t *crypto,
-                                                      ctls_hshk_data_t *hshk_data);
-ctls_status_t ctls_client_handshake_traffic_secret_generate(
-    ctls_crypto_t *crypto,
-    ctls_hshk_data_t *hshk_data);
-ctls_status_t ctls_server_handshake_traffic_secret_generate(ctls_crypto_t *crypto,
-    ctls_hshk_data_t *hshk_data);
-ctls_status_t ctls_handshake_keys_generate(ctls_crypto_t *crypto,
-                                           ctls_hshk_data_t *hshk_data);
-ctls_status_t ctls_client_handshake_key_generate(ctls_crypto_t *crypto,
-                                                 ctls_hshk_data_t *hshk_data,
-                                                 uint8_t const *handshake_key_info,
-                                                 ctls_size_t const *
-                                                 handshake_key_info_offset);
-ctls_status_t ctls_server_handshake_key_generate(ctls_crypto_t *crypto,
-                                                 ctls_hshk_data_t *hshk_data,
-                                                 uint8_t const *handshake_key_info,
-                                                 ctls_size_t const *
-                                                 handshake_key_info_offset);
-ctls_status_t ctls_handshake_iv_keys_generate(ctls_crypto_t *crypto,
-                                              ctls_hshk_data_t *hshk_data);
-ctls_status_t ctls_client_handshake_iv_key_generate(ctls_crypto_t *crypto,
-                                                    ctls_hshk_data_t *hshk_data,
-                                                    uint8_t const *iv_key_info,
-                                                    ctls_size_t const *
-                                                    iv_key_info_offset);
-ctls_status_t ctls_server_handshake_iv_key_generate(ctls_crypto_t *crypto,
-                                                    ctls_hshk_data_t *hshk_data,
-                                                    uint8_t const *iv_key_info,
-                                                    ctls_size_t const *
-                                                    iv_key_info_offset);
-
+ctls_status_t ctls_handshake_traffic_secret_generate(ctls_crypto_t *crypto,
+                                                     ctls_hshk_data_t *hshk_data,
+                                                     ctls_entity_t entity);
+ctls_status_t ctls_handshake_key_generate(ctls_crypto_t *crypto,
+                                          ctls_hshk_data_t *hshk_data,
+                                          ctls_entity_t entity);
+ctls_status_t ctls_handshake_iv_key_generate(ctls_crypto_t *crypto,
+                                             ctls_hshk_data_t *hshk_data,
+                                             ctls_entity_t entity);
 ctls_status_t ctls_nonce_generate(uint8_t *buffer,
                                   uint16_t const *sequence_number,
                                   uint8_t const *iv_key);
@@ -94,10 +76,6 @@ ctls_status_t ctls_decrypt(uint16_t const *seq_num,
 ctls_status_t ctls_cert_public_key_import(uint8_t const *cert_der,
                                           size_t cert_der_length,
                                           psa_key_id_t *key_id);
-ctls_status_t ctls_signed_bytes_context_string_build(uint8_t *buffer,
-                                                     ctls_size_t *offset,
-                                                     uint8_t const *transcript_hash);
-ctls_status_t ctls_signed_bytes_generate(uint8_t *buffer, size_t *bytes_written);
-ctls_status_t ctls_signed_bytes_verify(uint8_t const *signed_bytes,
-                                       size_t signed_bytes_length);
+ctls_status_t ctls_signed_bytes_generate(ctls_entity_t entity);
+ctls_status_t ctls_signed_bytes_verify(ctls_entity_t entity);
 #endif //CTLS_CRYPTO_H
