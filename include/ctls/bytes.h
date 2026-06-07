@@ -56,6 +56,14 @@ static inline void ctls_write_bytes(uint8_t *destination_buffer,
     *destination_offset += write_size;
 }
 
+static inline void ctls_write_char_bytes(uint8_t *destination_buffer,
+                                         ctls_size_t *destination_offset,
+                                         ctls_size_t write_size,
+                                         char const *source_buffer) {
+    memcpy(destination_buffer + *destination_offset, source_buffer, write_size);
+    *destination_offset += write_size;
+}
+
 // read primitives — big-endian, network byte order
 static inline uint8_t ctls_read_u8(uint8_t const *buffer, ctls_size_t *offset) {
     return buffer[(*offset)++];
