@@ -191,7 +191,22 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     result = ctls_transcript_hash_update(&context->record);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
+    // Finished
     result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    result = ctls_record_deserialize(&context->record,
+                                     CTLS_HSMG_TYPE_FINISHED,
+                                     buffer,
+                                     CTLS_ENTITY_SERVER);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    result = ctls_core_certificate_verify_internal_op(&context->record);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    result = ctls_transcript_hash_update(&context->record);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
     result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
 
     result = ctls_transcript_hash_update(&context->record);
