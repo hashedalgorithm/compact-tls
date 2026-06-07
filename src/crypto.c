@@ -294,8 +294,8 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
     char const *context_string = NULL;
     uint8_t context_string_length = 0;
 
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
-            CTLS_STATUS_CRYPTO_INVALID_ARG;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_CRYPTO_INVALID_ARG;
 
     switch (key_type) {
         case CTLS_KEY_TYPE_DERIVED_SECRET: {
@@ -892,8 +892,8 @@ ctls_status_t ctls_signed_bytes_generate(ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
     CTLS_CHECK_NULL_BUFFER(hshk_data->transcript_hash);
 
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
-            CTLS_STATUS_CRYPTO_INVALID_ARG;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_CRYPTO_INVALID_ARG;
 
     uint8_t *buffer;
     size_t bytes_written;
@@ -958,8 +958,8 @@ ctls_status_t ctls_signed_bytes_verify(ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(hshk_data);
     CTLS_CHECK_NULL_STRUCT(crypto);
 
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
-            CTLS_STATUS_CRYPTO_INVALID_ARG;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_CRYPTO_INVALID_ARG;
 
     uint8_t *signed_bytes;
     uint8_t *signed_bytes_length;
@@ -1085,3 +1085,48 @@ cleanup:
 }
 
 
+ctls_status_t ctls_verify_data_generate(ctls_entity_t const entity) {
+    /* verify_data = HMAC-SHA256(finished_key, transcript_hash)
+     * [RFC 8446 §4.4.4] */
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+    ctls_crypto_t *crypto = ctls_crypto_get();
+
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_CRYPTO_INVALID_ARG;
+
+    psa_status_t psa_st = PSA_SUCCESS;
+    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+    psa_key_id_t hmac_key = PSA_KEY_ID_NULL;
+
+    psa_set_key_type(&attr, PSA_KEY_TYPE_HMAC);
+    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_SIGN_MESSAGE);
+    psa_set_key_algorithm(&attr, PSA_ALG_HMAC(crypto->hash_algorithm));
+    psa_set_key_bits(&attr, 256U);
+    size_t bytes_written;
+
+    psa_st = psa_import_key(&attr,
+                            entity == CTLS_ENTITY_CLIENT
+                                ? hshk_data->client_finished_key
+                                : hshk_data->server_finished_key,
+                            CTLS_SIZE_HASH,
+                            &hmac_key);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    psa_st = psa_mac_compute(hmac_key,
+                             PSA_ALG_HMAC(crypto->hash_algorithm),
+                             hshk_data->transcript_hash,
+                             CTLS_SIZE_HASH,
+                             entity == CTLS_ENTITY_CLIENT
+                                 ? hshk_data->client_verify_data
+                                 : hshk_data->server_verify_data,
+                             CTLS_SIZE_HASH,
+                             &bytes_written);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+    return CTLS_STATUS_SUCCESS;
+
+
+cleanup:
+    if (hmac_key != PSA_KEY_ID_NULL) { psa_destroy_key(hmac_key); }
+    psa_reset_key_attributes(&attr);
+    return CTLS_STATUS_CRYPTO_HASH_FAILED;
+}

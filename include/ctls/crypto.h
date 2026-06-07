@@ -87,4 +87,6 @@ ctls_status_t ctls_cert_public_key_import(uint8_t const *cert_der,
                                           psa_key_id_t *key_id);
 ctls_status_t ctls_signed_bytes_generate(ctls_entity_t entity);
 ctls_status_t ctls_signed_bytes_verify(ctls_entity_t entity);
-#endif //CTLS_CRYPTO_H
+ctls_status_t ctls_finished_key_generate(ctls_entity_t entity);
+ctls_status_t ctls_verify_data_generate(ctls_entity_t entity);
+#endif // CTLS_CRYPTO_H
