@@ -119,7 +119,8 @@ ctls_status_t ctls_hsmg_certificate_to_wire(uint8_t *buffer,
 
 ctls_status_t ctls_hsmg_certificate_verify_create(void);
 ctls_status_t ctls_hsmg_certificate_verify_to_struct(ctls_handshake_message_t *hsmg,
-                                                     uint8_t const *buffer);
+                                                     uint8_t const *buffer,
+                                                     ctls_entity_t entity);
 ctls_status_t ctls_hsmg_certificate_verify_to_wire(uint8_t *buffer,
                                                    ctls_size_t *offset,
                                                    ctls_handshake_message_t const *hsmg,

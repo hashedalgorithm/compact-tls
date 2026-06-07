@@ -50,7 +50,8 @@ ctls_status_t ctls_record_serialize(ctls_record_t const *record,
                                     ctls_size_t *offset);
 ctls_status_t ctls_record_deserialize(ctls_record_t *record,
                                       ctls_hsmg_type_t hsmg_type,
-                                      uint8_t const *buffer);
+                                      uint8_t const *buffer,
+                                      ctls_entity_t entity);
 
 ctls_status_t ctls_recd_client_hello_create(ctls_record_t *record);
 ctls_status_t ctls_recd_client_hello_to_struct();
@@ -94,7 +95,8 @@ ctls_status_t ctls_recd_certificate_to_wire(uint8_t *buffer,
 
 ctls_status_t ctls_recd_certificate_verify_create(ctls_record_t *record);
 ctls_status_t ctls_recd_certificate_verify_to_struct(ctls_record_t *record,
-                                                     uint8_t const *buffer);
+                                                     uint8_t const *buffer,
+                                                     ctls_entity_t entity);
 ctls_status_t ctls_recd_certificate_verify_to_wire(uint8_t *buffer,
                                                    ctls_size_t *offset,
                                                    ctls_record_t const *record,

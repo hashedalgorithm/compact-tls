@@ -86,7 +86,6 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     result = ctls_transcript_hash_update(&context->record);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
     context->state = CTLS_HSHK_STATE_WAIT_SERVER_HELLO;
-
     // Server Hello
     result = ctls_wire_buffer_clear(buffer, &buffer_offset);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
@@ -96,9 +95,11 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
 
     result = ctls_record_deserialize(&context->record,
                                      CTLS_HSMG_TYPE_SERVER_HELLO,
-                                     buffer);
+                                     buffer,
+                                     CTLS_ENTITY_CLIENT);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
+    result = ctls_core_server_hello_internal_op(&context->record);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     result = ctls_transcript_hash_update(&context->record);
@@ -121,9 +122,12 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     // Encrypted Extensions
     result = ctls_record_deserialize(&context->record,
                                      CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS,
-                                     buffer);
+                                     buffer,
+                                     CTLS_ENTITY_CLIENT);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
+    result = ctls_core_encrypted_extensions_internal_op(&context->record);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     result = ctls_transcript_hash_update(&context->record);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
@@ -143,7 +147,8 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
 
         result = ctls_record_deserialize(&context->record,
                                          CTLS_HSMG_TYPE_CERTIFICATE_REQUEST,
-                                         buffer);
+                                         buffer,
+                                         CTLS_ENTITY_CLIENT);
         if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
         context->state = CTLS_HSHK_STATE_WAIT_CERTIFICATE;
@@ -160,9 +165,12 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
 
     result = ctls_record_deserialize(&context->record,
                                      CTLS_HSMG_TYPE_CERTIFICATE,
-                                     buffer);
+                                     buffer,
+                                     CTLS_ENTITY_CLIENT);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
+    result = ctls_core_certificate_internal_op(&context->record);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     result = ctls_transcript_hash_update(&context->record);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
@@ -173,7 +181,8 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
 
     result = ctls_record_deserialize(&context->record,
                                      CTLS_HSMG_TYPE_CERTIFICATE_VERIFY,
-                                     buffer);
+                                     buffer,
+                                     CTLS_ENTITY_SERVER);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     result = ctls_core_certificate_verify_internal_op(&context->record);

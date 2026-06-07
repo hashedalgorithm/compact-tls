@@ -294,8 +294,8 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
     char const *context_string = NULL;
     uint8_t context_string_length = 0;
 
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_CRYPTO_INVALID_ARG;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
+            CTLS_STATUS_CRYPTO_INVALID_ARG;
 
     switch (key_type) {
         case CTLS_KEY_TYPE_DERIVED_SECRET: {
@@ -892,8 +892,8 @@ ctls_status_t ctls_signed_bytes_generate(ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
     CTLS_CHECK_NULL_BUFFER(hshk_data->transcript_hash);
 
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_CRYPTO_INVALID_ARG;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
+            CTLS_STATUS_CRYPTO_INVALID_ARG;
 
     uint8_t *buffer;
     size_t bytes_written;
@@ -958,9 +958,8 @@ ctls_status_t ctls_signed_bytes_verify(ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(hshk_data);
     CTLS_CHECK_NULL_STRUCT(crypto);
 
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_CRYPTO_INVALID_ARG;
-
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
+            CTLS_STATUS_CRYPTO_INVALID_ARG;
 
     uint8_t *signed_bytes;
     uint8_t *signed_bytes_length;

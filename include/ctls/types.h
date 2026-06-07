@@ -401,6 +401,11 @@ typedef enum {
     CTLS_EXTN_SCT_ENTRY_TYPE_PRECERT = 1, // pre-certificate
 } ctls_extn_sct_entry_type_t;
 
+typedef enum {
+    CTLS_ENTITY_CLIENT = 0,
+    CTLS_ENTITY_SERVER = 1,
+} ctls_entity_t;
+
 typedef struct ctls_extn_server_name_item ctls_extn_server_name_item_t;
 typedef struct ctls_extn_server_name ctls_extn_server_name_t;
 typedef ctls_max_fragment_length_t ctls_extn_max_fragment_length_t;

@@ -177,7 +177,8 @@ ctls_status_t ctls_record_serialize(ctls_record_t const *record,
 
 ctls_status_t ctls_record_deserialize(ctls_record_t *record,
                                       ctls_hsmg_type_t const hsmg_type,
-                                      uint8_t const *buffer) {
+                                      uint8_t const *buffer,
+                                      ctls_entity_t const entity) {
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_STRUCT(record);
 
@@ -204,7 +205,7 @@ ctls_status_t ctls_record_deserialize(ctls_record_t *record,
             result = ctls_recd_certificate_to_struct(record, buffer);
             break;
         case CTLS_HSMG_TYPE_CERTIFICATE_VERIFY:
-            result = ctls_recd_certificate_verify_to_struct(record, buffer);
+            result = ctls_recd_certificate_verify_to_struct(record, buffer, entity);
             break;
         default:
             result = CTLS_STATUS_RECD_UNKNOWN_MSG_TYPE;
@@ -480,7 +481,8 @@ ctls_status_t ctls_recd_certificate_verify_create(ctls_record_t *record) {
 }
 
 ctls_status_t ctls_recd_certificate_verify_to_struct(ctls_record_t *record,
-                                                     uint8_t const *buffer) {
+                                                     uint8_t const *buffer,
+                                                     ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(record);
     CTLS_CHECK_NULL_BUFFER(buffer);
 
@@ -503,7 +505,9 @@ ctls_status_t ctls_recd_certificate_verify_to_struct(ctls_record_t *record,
                           &plaintext_offset);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    return ctls_hsmg_certificate_verify_to_struct(&record->record_body, plaintext);
+    return ctls_hsmg_certificate_verify_to_struct(&record->record_body,
+                                                  plaintext,
+                                                  entity);
 }
 
 ctls_status_t ctls_recd_certificate_verify_to_wire(uint8_t *buffer,
