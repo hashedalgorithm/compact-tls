@@ -59,6 +59,8 @@ struct ctls_hshk_data {
     uint8_t server_certificate_signed_bytes[CTLS_SIZE_SIGNED_BYTES];
     uint8_t client_certificate_signed_bytes_length;
     uint8_t server_certificate_signed_bytes_length;
+    uint8_t client_finished_key[CTLS_SIZE_HASH];
+    uint8_t server_finished_key[CTLS_SIZE_HASH];
 };
 
 
