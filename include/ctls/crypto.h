@@ -9,6 +9,15 @@
 #define CTLS_SIZE_NONCE 12U
 #define CTLS_SIZE_TRANSCRIPT_HASH 32U
 
+typedef enum {
+    CTLS_KEY_TYPE_DERIVED_SECRET = 0,
+    CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_SECRET,
+    CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_KEYS,
+    CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_IV_KEY,
+    CTLS_KEY_TYPE_SIGNED_BYTES,
+    CTLS_KEY_TYPE_FINISHED_KEY,
+} ctls_key_type_t;
+
 struct ctls_crypto {
     psa_algorithm_t hash_algorithm;
     psa_hash_operation_t transcript_hash_operator;
