@@ -574,8 +574,21 @@ ctls_status_t ctls_recd_certificate_verify_to_wire(uint8_t *buffer,
     return CTLS_STATUS_RECD_INVALID_WIRE_FORMAT;
 }
 
-ctls_status_t ctls_recd_finished_create(void) {
-    return CTLS_STATUS_NOT_IMPLEMENTED;
+ctls_status_t ctls_recd_finished_create(ctls_record_t *record,
+                                        ctls_entity_t const entity) {
+    CTLS_CHECK_NULL_STRUCT(record);
+
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_RECD_INVALID_ENTITY;
+
+    ctls_status_t const result = ctls_recd_buffer_clear(record);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    record->type = CTLS_RECORD_TYPE_ENCRYPTED;
+    record->record_body.message_type = CTLS_HSMG_TYPE_FINISHED;
+    record->record_body.sequence_number = 0;
+
+    return ctls_hsmg_finished_create(&record->record_body, entity);
 }
 
 ctls_status_t ctls_recd_finished_to_struct(ctls_record_t *record,

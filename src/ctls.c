@@ -209,7 +209,7 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     // Client Certificate
-    result = ctls_recd_certificate_create(&context->record);
+    result = ctls_recd_certificate_create(&context->record, CTLS_ENTITY_CLIENT);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     result = ctls_record_serialize(&context->record, buffer, &buffer_offset);
@@ -240,7 +240,18 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     result = ctls_transcript_hash_update(&context->record);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
-    result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
+    // Client Finished
+    result = ctls_recd_finished_create(&context->record, CTLS_ENTITY_CLIENT);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    result = ctls_record_serialize(&context->record, buffer, &buffer_offset);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    result = context->transport.recd_send(buffer, buffer_offset);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    result = ctls_core_finished_internal_op(&context->record);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     result = ctls_transcript_hash_update(&context->record);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
