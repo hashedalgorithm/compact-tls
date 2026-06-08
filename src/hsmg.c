@@ -341,8 +341,24 @@ ctls_status_t ctls_hsmg_certificate_request_to_wire(uint8_t *buffer,
     return CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT;
 }
 
-ctls_status_t ctls_hsmg_certificate_create(void) {
-    return CTLS_STATUS_NOT_IMPLEMENTED;
+ctls_status_t ctls_hsmg_certificate_create(ctls_handshake_message_t *hsmg,
+                                           ctls_entity_t const entity) {
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+
+    CTLS_CHECK_NULL_STRUCT(hsmg);
+    CTLS_CHECK_NULL(hshk_data);
+
+    hsmg->handshake_message_body.certificate.certificate_request_context.buffer =
+            hshk_data->certificate_request_context;
+    hsmg->handshake_message_body.certificate.certificate_request_context.buffer_length =
+            CTLS_SIZE_CERTIFICATE_REQUEST_CONTEXT;
+
+    hsmg->handshake_message_body.certificate.certificate_entries[0].certificate_id =
+            CTLS_ENTITY_CERTIFICATE_ID;
+
+    return ctls_extn_certificate_create(&hsmg->handshake_message_body.certificate.
+                                        certificate_entries[0].extensions,
+                                        entity);
 }
 
 ctls_status_t ctls_hsmg_certificate_to_struct(ctls_handshake_message_t *hsmg,

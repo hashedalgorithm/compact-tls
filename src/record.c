@@ -170,6 +170,26 @@ ctls_status_t ctls_record_serialize(ctls_record_t const *record,
         }
     }
     if (record->type == CTLS_RECORD_TYPE_ENCRYPTED) {
+        switch (record->record_body.message_type) {
+            case CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS: {
+            }
+            break;
+            case CTLS_HSMG_TYPE_CERTIFICATE_REQUEST: {
+            }
+            break;
+            case CTLS_HSMG_TYPE_CERTIFICATE: {
+            }
+            break;
+            case CTLS_HSMG_TYPE_CERTIFICATE_VERIFY:
+                result = ctls_recd_certificate_verify_to_wire(buffer,
+                    offset,
+                    record,
+                    CTLS_WIRE_FORMAT_DEFAULT);
+            case CTLS_HSMG_TYPE_FINISHED: {
+            }
+            break;
+            default: return CTLS_STATUS_RECD_INVALID_MSG_TYPE;
+        }
     }
 
     return result;
@@ -413,8 +433,21 @@ ctls_status_t ctls_recd_certificate_request_to_wire(uint8_t *buffer,
     return CTLS_STATUS_RECD_INVALID_WIRE_FORMAT;
 }
 
-ctls_status_t ctls_recd_certificate_create(void) {
-    return CTLS_STATUS_NOT_IMPLEMENTED;
+ctls_status_t ctls_recd_certificate_create(ctls_record_t *record,
+                                           ctls_entity_t const entity) {
+    ctls_template_t const *template = ctls_template_get();
+
+    CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL_STRUCT(record);
+
+    ctls_status_t const result = ctls_recd_buffer_clear(record);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    record->type = CTLS_RECORD_TYPE_ENCRYPTED;
+    record->record_body.message_type = CTLS_HSMG_TYPE_CERTIFICATE;
+
+
+    return ctls_hsmg_certificate_create(&record->record_body, entity);
 }
 
 ctls_status_t ctls_recd_certificate_to_struct(ctls_record_t *record,

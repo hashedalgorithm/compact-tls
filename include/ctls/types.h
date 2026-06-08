@@ -307,6 +307,7 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_RECD_INVALID_WIRE_FORMAT        ((ctls_status_t)0x012Fu)
 #define CTLS_STATUS_RECD_UNKNOWN_MSG_TYPE           ((ctls_status_t)0x0130u)
 #define CTLS_STATUS_RECD_NO_MUTUAL_AUTH             ((ctls_status_t)0x0131u)
+#define CTLS_STATUS_RECD_INVALID_MSG_TYPE           ((ctls_status_t)0x0132u)
 
 /* Handshake Messages (0x015E-0x018F) */
 #define CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT        ((ctls_status_t)0x015Eu)

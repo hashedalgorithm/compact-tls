@@ -176,6 +176,9 @@ ctls_status_t ctls_extn_max_fragment_length_serialize(
     ctls_size_t *offset,
     ctls_extn_max_fragment_length_t const *max_fragment_length);
 
+ctls_status_t ctls_extn_certificate_status_request_create(
+    ctls_extn_certificate_status_request_t *certificate_status_request,
+    ctls_entity_t entity);
 ctls_status_t ctls_extn_certificate_status_request_deserialize(
     uint8_t *buffer,
     ctls_size_t const *buffer_length,
@@ -226,6 +229,9 @@ ctls_status_t ctls_extn_alpn_serialize(uint8_t *buffer,
                                        ctls_size_t *offset,
                                        ctls_extn_alpn_t const *alpn);
 
+ctls_status_t ctls_extn_signed_certificate_timestamp_create(
+    ctls_extn_signed_certificate_timestamp_t *signed_certificate_timestamp,
+    ctls_entity_t entity);
 ctls_status_t ctls_extn_signed_certificate_timestamp_deserialize(
     uint8_t *buffer,
     ctls_size_t const *buffer_length,
@@ -337,7 +343,8 @@ ctls_status_t ctls_extn_certificate_request_to_wire(uint8_t *buffer,
                                                     *certificate_request,
                                                     ctls_wire_format_t wire_format);
 
-ctls_status_t ctls_extn_certificate_create(void);
+ctls_status_t ctls_extn_certificate_create(ctls_extn_certificate_t *ctls_certificate,
+                                           ctls_entity_t entity);
 ctls_status_t ctls_extn_certificate_to_struct(
     ctls_extn_certificate_t *certificate_extensions);
 ctls_status_t ctls_extn_certificate_to_wire(uint8_t *buffer,

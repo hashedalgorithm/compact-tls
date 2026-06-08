@@ -6,6 +6,7 @@
 #ifndef CTLS_H
 #define CTLS_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include "crypto.h"
 #include "record.h"
@@ -63,6 +64,9 @@ struct ctls_hshk_data {
     uint8_t server_finished_key[CTLS_SIZE_HASH];
     uint8_t client_verify_data[CTLS_SIZE_HASH];
     uint8_t server_verify_data[CTLS_SIZE_HASH];
+    // flags
+    bool isCertificateStatusRequested;
+    bool isSignedCertificateTimestampRequested;
 };
 
 

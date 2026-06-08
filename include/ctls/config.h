@@ -23,6 +23,7 @@
 #define CTLS_SIZE_SCT_LOG_ID 32U
 #define CTLS_SIZE_SIGNED_BYTES  64U
 #define CTLS_COUNT_KNOWN_CERTIFICATES  2
+#define CTLS_ENTITY_CERTIFICATE_ID 0x01
 
 
 /* Using a wrong profile with wrong parameters results in connection
