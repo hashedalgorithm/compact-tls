@@ -9,8 +9,6 @@
 #include "config.h"
 #include "extensions.h"
 
-#define CTLS_COUNT_KNOWN_CERTIFICATES  3
-
 #define CTLS_IS_TEMPLATE_BYTES_INITIALIZED(buffer, length)          \
     ((buffer) != NULL && length != 0)
 
