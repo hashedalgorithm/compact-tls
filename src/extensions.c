@@ -576,8 +576,6 @@ ctls_status_t ctls_extn_signed_certificate_timestamp_deserialize(
     CTLS_CHECK_NULL(buffer_length);
     CTLS_CHECK_NULL_STRUCT(signed_certificate_timestamp);
 
-    signed_certificate_timestamp->extension_type =
-            CTLS_EXTN_TYPE_SIGNED_CERTIFICATE_TIMESTAMP;
     signed_certificate_timestamp->form = form;
 
     if (form == CTLS_DATA_FORM_OPAQUE) {

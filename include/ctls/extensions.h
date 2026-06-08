@@ -70,7 +70,6 @@ struct ctls_extn_alpn {
 
 struct ctls_extn_certificate_authorities {
     ctls_data_form_t form;
-    ctls_extn_type_t extension_type;
     uint8_t distinguished_name_length;
     union {
         ctls_hshk_buffer_block_t opaque;
@@ -89,7 +88,6 @@ struct ctls_extn_signed_certificate_timestamp_parsed {
 };
 struct ctls_extn_signed_certificate_timestamp {
     ctls_data_form_t form;
-    ctls_extn_type_t extension_type;
     union {
         ctls_hshk_buffer_block_t opaque;
         ctls_extn_signed_certificate_timestamp_parsed_t signed_certificate_timestamp;
