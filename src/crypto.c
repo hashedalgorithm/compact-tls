@@ -158,7 +158,10 @@ ctls_status_t ctls_transcript_hash_update(ctls_record_t const *record) {
                                                  CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
             break;
         case CTLS_HSMG_TYPE_FINISHED:
-            ctls_recd_finished_to_wire();
+            ctls_recd_finished_to_wire(buffer,
+                                       &offset,
+                                       record,
+                                       CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
             break;
         case CTLS_HSMG_TYPE_NEW_SESSION_TICKET:
         case CTLS_HSMG_TYPE_END_OF_EARLY_DATA:
