@@ -194,8 +194,9 @@ ctls_status_t ctls_extn_server_name_deserialize(uint8_t *buffer,
     if (form == CTLS_DATA_FORM_PARSED) {
         ctls_size_t offset = 0;
         ctls_size_t server_name_list_index = 0;
-        ctls_size_t server_name_list_length = ctls_read_u16(buffer, &offset);
-        ctls_size_t server_name_list_absolute_length = offset + server_name_list_length;
+        ctls_size_t const server_name_list_length = ctls_read_u16(buffer, &offset);
+        ctls_size_t const server_name_list_absolute_length =
+                offset + server_name_list_length;
 
         while (offset < server_name_list_absolute_length) {
             server_name->server_name_list[server_name_list_index].name_type =
@@ -285,10 +286,13 @@ ctls_status_t ctls_extn_max_fragment_length_serialize(
 ctls_status_t ctls_extn_certificate_status_request_create(
     ctls_extn_certificate_status_request_t *certificate_status_request,
     ctls_entity_t const entity) {
-    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+    ctls_hshk_data_t const *hshk_data = ctls_hshk_data_get();
 
     CTLS_CHECK_NULL_STRUCT(certificate_status_request);
     CTLS_CHECK_NULL_STRUCT(hshk_data);
+
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_EXTN_INVALID_ENTITY;
 
     if (!hshk_data->isCertificateStatusRequested) {
         certificate_status_request->form = CTLS_DATA_FORM_SENTINEL;
@@ -546,11 +550,13 @@ ctls_status_t ctls_extn_alpn_serialize(uint8_t *buffer,
 ctls_status_t ctls_extn_signed_certificate_timestamp_create(
     ctls_extn_signed_certificate_timestamp_t *signed_certificate_timestamp,
     ctls_entity_t const entity) {
-    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
-
+    ctls_hshk_data_t const *hshk_data = ctls_hshk_data_get();
 
     CTLS_CHECK_NULL_STRUCT(hshk_data);
     CTLS_CHECK_NULL_STRUCT(signed_certificate_timestamp);
+
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
+            CTLS_STATUS_EXTN_INVALID_ENTITY;
 
     if (hshk_data->isSignedCertificateTimestampRequested) {
         signed_certificate_timestamp->form = CTLS_DATA_FORM_SENTINEL;
@@ -1393,7 +1399,8 @@ ctls_status_t ctls_extn_encrypted_extensions_to_wire(uint8_t *buffer,
                                                      ctls_size_t *offset,
                                                      ctls_extn_encrypted_extensions_t
                                                      const *encrypted_extensions,
-                                                     ctls_wire_format_t wire_format) {
+                                                     ctls_wire_format_t const
+                                                     wire_format) {
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
     CTLS_CHECK_NULL_STRUCT(encrypted_extensions);
@@ -1592,6 +1599,9 @@ ctls_status_t ctls_extn_certificate_create(ctls_extn_certificate_t *ctls_certifi
 
     CTLS_CHECK_NULL_STRUCT(ctls_certificate);
     CTLS_CHECK_NULL_STRUCT(hshk_data);
+
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_EXTN_INVALID_ENTITY;
 
     ctls_status_t result;
     if (hshk_data->isCertificateStatusRequested) {

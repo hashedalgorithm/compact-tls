@@ -299,6 +299,7 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_EXTN_INVALID_ENTITY_OWNERSHIP   ((ctls_status_t)0x00CDu)
 #define CTLS_STATUS_EXTN_INVALID_WIRE_FORMAT        ((ctls_status_t)0x00CEu)
 #define CTLS_STATUS_EXTN_UNEXPECTED_EXPECTED_EXTNS  ((ctls_status_t)0x00CFu)
+#define CTLS_STATUS_EXTN_INVALID_ENTITY             ((ctls_status_t)0x00D0u)
 
 /* Record Layer (0x012C-0x015D) */
 #define CTLS_STATUS_RECD_UNSUPPORTED_CID            ((ctls_status_t)0x012Cu)
