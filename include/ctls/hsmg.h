@@ -111,7 +111,7 @@ ctls_status_t ctls_hsmg_certificate_request_to_wire(uint8_t *buffer,
                                                     ctls_wire_format_t wire_format);
 
 ctls_status_t ctls_hsmg_certificate_create(ctls_handshake_message_t *hsmg,
-                                           ctls_entity_t const entity);
+                                           ctls_entity_t entity);
 ctls_status_t ctls_hsmg_certificate_to_struct(ctls_handshake_message_t *hsmg,
                                               uint8_t const *buffer);
 ctls_status_t ctls_hsmg_certificate_to_wire(uint8_t *buffer,
@@ -119,7 +119,8 @@ ctls_status_t ctls_hsmg_certificate_to_wire(uint8_t *buffer,
                                             ctls_handshake_message_t const *hsmg,
                                             ctls_wire_format_t wire_format);
 
-ctls_status_t ctls_hsmg_certificate_verify_create(void);
+ctls_status_t ctls_hsmg_certificate_verify_create(ctls_handshake_message_t *hsmg,
+                                                  ctls_entity_t entity);
 ctls_status_t ctls_hsmg_certificate_verify_to_struct(ctls_handshake_message_t *hsmg,
                                                      uint8_t const *buffer,
                                                      ctls_entity_t entity);

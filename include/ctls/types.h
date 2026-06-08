@@ -308,10 +308,12 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_RECD_UNKNOWN_MSG_TYPE           ((ctls_status_t)0x0130u)
 #define CTLS_STATUS_RECD_NO_MUTUAL_AUTH             ((ctls_status_t)0x0131u)
 #define CTLS_STATUS_RECD_INVALID_MSG_TYPE           ((ctls_status_t)0x0132u)
+#define CTLS_STATUS_RECD_INVALID_ENTITY             ((ctls_status_t)0x0133u)
 
 /* Handshake Messages (0x015E-0x018F) */
 #define CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT        ((ctls_status_t)0x015Eu)
 #define CTLS_STATUS_HSMG_UNKNOWN_MSG_TYPE           ((ctls_status_t)0x015Fu)
+#define CTLS_STATUS_HSMG_INVALID_ENTITY             ((ctls_status_t)0x0160u)
 
 /* Template / Profile (0x0190-0x01C1) */
 #define CTLS_STATUS_TMPL_NULL                       ((ctls_status_t)0x0190u)
