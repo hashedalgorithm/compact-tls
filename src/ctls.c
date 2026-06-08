@@ -97,7 +97,7 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     result = ctls_record_deserialize(&context->record,
                                      CTLS_HSMG_TYPE_SERVER_HELLO,
                                      buffer,
-                                     CTLS_ENTITY_CLIENT);
+                                     CTLS_ENTITY_SERVER);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     result = ctls_core_server_hello_internal_op(&context->record);
@@ -124,7 +124,7 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     result = ctls_record_deserialize(&context->record,
                                      CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS,
                                      buffer,
-                                     CTLS_ENTITY_CLIENT);
+                                     CTLS_ENTITY_SERVER);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     result = ctls_core_encrypted_extensions_internal_op(&context->record);
@@ -149,7 +149,7 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
         result = ctls_record_deserialize(&context->record,
                                          CTLS_HSMG_TYPE_CERTIFICATE_REQUEST,
                                          buffer,
-                                         CTLS_ENTITY_CLIENT);
+                                         CTLS_ENTITY_SERVER);
         if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
         context->state = CTLS_HSHK_STATE_WAIT_CERTIFICATE;
@@ -167,7 +167,7 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     result = ctls_record_deserialize(&context->record,
                                      CTLS_HSMG_TYPE_CERTIFICATE,
                                      buffer,
-                                     CTLS_ENTITY_CLIENT);
+                                     CTLS_ENTITY_SERVER);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     result = ctls_core_certificate_internal_op(&context->record);
