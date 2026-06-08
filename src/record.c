@@ -578,8 +578,8 @@ ctls_status_t ctls_recd_finished_create(ctls_record_t *record,
                                         ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(record);
 
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_RECD_INVALID_ENTITY;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
+            CTLS_STATUS_RECD_INVALID_ENTITY;
 
     ctls_status_t const result = ctls_recd_buffer_clear(record);
     if (result != CTLS_STATUS_SUCCESS) return result;

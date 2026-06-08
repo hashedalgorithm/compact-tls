@@ -1,4 +1,4 @@
-#include <string.h>
+#include<string.h>
 #include "ctls/ctls.h"
 #include "ctls/templates.h"
 #include "ctls/core.h"
@@ -29,8 +29,8 @@ ctls_status_t ctls_validate_template() {
 
     if (template->cipher_suite == 0) return CTLS_STATUS_TMPL_INVALID_CIPHER_SUITE;
     if (template->dhe_group.dhe_group == 0) return CTLS_STATUS_TMPL_INVALID_DHE_GROUP;
-    if (template->signature_algorithm.signature_algorithm_type == 0) return
-            CTLS_STATUS_TMPL_INVALID_SIG_ALGORITHM;
+    if (template->signature_algorithm.signature_algorithm_type == 0)
+        return CTLS_STATUS_TMPL_INVALID_SIG_ALGORITHM;
     return CTLS_STATUS_SUCCESS;
 }
 
