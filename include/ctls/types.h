@@ -220,6 +220,8 @@ typedef enum {
     CTLS_HSMG_TYPE_FINISHED = 0x14,
     CTLS_HSMG_TYPE_KEY_UPDATE = 0x18,
     CTLS_HSMG_TYPE_MESSAGE_HASH = 0xFE,
+    // 27, 28 are not assigned in IINA - custom definition
+    CTLS_HSMG_TYPE_SERVER_FLIGHT = 0x28,
     CTLS_HSMG_TYPE_SENTINEL = 0xFF,
 } ctls_hsmg_type_t;
 
@@ -456,6 +458,7 @@ typedef struct ctls_hsmg_finished ctls_hsmg_finished_t;
 typedef struct ctls_hsmg_application_data ctls_hsmg_application_data_t;
 typedef struct ctls_hsmg_alert ctls_hsmg_alert_t;
 
+typedef struct ctls_hsmg_server_flight ctls_hsmg_server_flight_t;
 
 typedef struct ctls_record ctls_record_t;
 typedef struct ctls_unified_header ctls_unified_header_t;

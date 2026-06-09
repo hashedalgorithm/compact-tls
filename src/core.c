@@ -31,3 +31,7 @@ ctls_status_t ctls_core_certificate_verify_internal_op(ctls_record_t *record) {
 ctls_status_t ctls_core_finished_internal_op(ctls_record_t *record) {
     return CTLS_STATUS_NOT_IMPLEMENTED;
 }
+
+ctls_status_t ctls_core_server_flight_op(ctls_record_t *record) {
+    return CTLS_STATUS_NOT_IMPLEMENTED;
+}

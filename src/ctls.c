@@ -120,73 +120,19 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
     context->state = CTLS_HSHK_STATE_WAIT_CERTIFICATE;
 
-    // Encrypted Extensions
-    result = ctls_record_deserialize(&context->record,
-                                     CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS,
-                                     buffer,
-                                     CTLS_ENTITY_SERVER);
-    if (result != CTLS_STATUS_SUCCESS) goto onerror;
-
-    result = ctls_core_encrypted_extensions_internal_op(&context->record);
-    if (result != CTLS_STATUS_SUCCESS) goto onerror;
-
-    result = ctls_transcript_hash_update(&context->record);
-    if (result != CTLS_STATUS_SUCCESS) goto onerror;
-
-    /*
-     * TODO - EE, CR, CERT, CV all combined and sent in
-     * should handle it later
-     * For now implements normal TLS 1.3 flow
-     */
-
-    if (context->template->mutual_auth == 1 && context->template->signature_algorithm.
-        signature_algorithm_type == CTLS_EXTN_SIGNATURE_ALGORITHM_SENTINEL) {
-        result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
-        if (result != CTLS_STATUS_SUCCESS) goto onerror;
-
-        context->state = CTLS_HSHK_STATE_WAIT_CERTIFICATE_VERIFY;
-
-        result = ctls_record_deserialize(&context->record,
-                                         CTLS_HSMG_TYPE_CERTIFICATE_REQUEST,
-                                         buffer,
-                                         CTLS_ENTITY_SERVER);
-        if (result != CTLS_STATUS_SUCCESS) goto onerror;
-
-        context->state = CTLS_HSHK_STATE_WAIT_CERTIFICATE;
-        result = ctls_core_certificate_request_internal_op(&context->record);
-        if (result != CTLS_STATUS_SUCCESS) goto onerror;
-
-        result = ctls_transcript_hash_update(&context->record);
-        if (result != CTLS_STATUS_SUCCESS) goto onerror;
-    }
-
-    // Certificate
+    // Server Flight
     result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
+    context->state = CTLS_HSHK_STATE_WAIT_CERTIFICATE_VERIFY;
+
     result = ctls_record_deserialize(&context->record,
-                                     CTLS_HSMG_TYPE_CERTIFICATE,
+                                     CTLS_HSMG_TYPE_SERVER_FLIGHT,
                                      buffer,
                                      CTLS_ENTITY_SERVER);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
-    result = ctls_core_certificate_internal_op(&context->record);
-    if (result != CTLS_STATUS_SUCCESS) goto onerror;
-
-    result = ctls_transcript_hash_update(&context->record);
-    if (result != CTLS_STATUS_SUCCESS) goto onerror;
-
-    // Certificate Verify
-    result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
-    if (result != CTLS_STATUS_SUCCESS) goto onerror;
-
-    result = ctls_record_deserialize(&context->record,
-                                     CTLS_HSMG_TYPE_CERTIFICATE_VERIFY,
-                                     buffer,
-                                     CTLS_ENTITY_SERVER);
-    if (result != CTLS_STATUS_SUCCESS) goto onerror;
-
-    result = ctls_core_certificate_verify_internal_op(&context->record);
+    result = ctls_core_server_flight_op(&context->record);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     result = ctls_transcript_hash_update(&context->record);

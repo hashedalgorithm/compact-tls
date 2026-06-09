@@ -59,6 +59,13 @@ struct ctls_hsmg_alert {
     uint8_t description;
 };
 
+struct ctls_hsmg_server_flight {
+    ctls_hsmg_encrypted_extensions_t encrypted_extensions;
+    ctls_hsmg_certificate_t certificate;
+    ctls_hsmg_certificate_verify_t certificate_verify;
+    ctls_hsmg_finished_t finished;
+};
+
 typedef union {
     ctls_hsmg_client_hello_t client_hello;
     ctls_hsmg_server_hello_t server_hello;
@@ -69,6 +76,7 @@ typedef union {
     ctls_hsmg_finished_t finished;
     ctls_hsmg_application_data_t application_data;
     ctls_hsmg_alert_t alert;
+    ctls_hsmg_server_flight_t server_flight;
 } ctls_hsmg_body_t;
 
 struct ctls_handshake_message {

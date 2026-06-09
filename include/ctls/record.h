@@ -112,4 +112,13 @@ ctls_status_t ctls_recd_finished_to_wire(uint8_t *buffer,
                                          ctls_record_t const *record,
                                          ctls_wire_format_t wire_format);
 
+ctls_status_t ctls_recd_server_flight_create(ctls_record_t *record);
+ctls_status_t ctls_recd_server_flight_to_struct(ctls_record_t *record,
+                                                uint8_t const *buffer);
+ctls_status_t ctls_recd_server_flight_to_wire(uint8_t *buffer,
+                                              ctls_size_t *offset,
+                                              ctls_record_t const *record,
+                                              ctls_wire_format_t wire_format);
+
+
 #endif
