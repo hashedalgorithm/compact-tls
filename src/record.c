@@ -100,50 +100,6 @@ ctls_status_t ctls_unified_header_deserialize(ctls_unified_header_t *unified_hea
     return CTLS_STATUS_SUCCESS;
 }
 
-ctls_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
-                                             ctls_size_t *offset,
-                                             ctls_record_t const *record,
-                                             ctls_wire_format_t const wire_format) {
-    CTLS_CHECK_NULL_BUFFER(buffer);
-    CTLS_CHECK_NULL_OFFSET(offset);
-    CTLS_CHECK_NULL_STRUCT(record);
-
-    if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
-        if (sizeof(record->content_type) + *offset > CTLS_SIZE_WIRE_BUFFER)
-            return CTLS_STATUS_BUFFER_OVERFLOW;
-
-        ctls_write_u8(buffer, offset, record->content_type);
-
-        if ((sizeof(record->profile_id) + sizeof(uint8_t)) + *offset >
-            CTLS_SIZE_WIRE_BUFFER) return CTLS_STATUS_BUFFER_OVERFLOW;
-
-        ctls_write_u8(buffer, offset, sizeof(record->profile_id));
-        ctls_write_u8(buffer, offset, record->profile_id);
-
-        return ctls_hsmg_client_hello_to_wire(buffer,
-                                              offset,
-                                              &record->record_body,
-                                              CTLS_WIRE_FORMAT_DEFAULT);
-    }
-    if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
-        ctls_write_u8(buffer, offset, record->content_type);
-        ctls_write_u16(buffer, offset, CTLS_HSMG_PROTOCOL_VERSION_1_3);
-
-        ctls_size_t record_body_length = *offset;
-        *offset += 2;
-        ctls_status_t const result = ctls_hsmg_client_hello_to_wire(buffer,
-            offset,
-            &record->record_body,
-            CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
-        if (result != CTLS_STATUS_SUCCESS) return result;
-
-        ctls_write_u16(buffer, &record_body_length, *offset - record_body_length);
-
-        return CTLS_STATUS_SUCCESS;
-    }
-    return CTLS_STATUS_RECD_INVALID_WIRE_FORMAT;
-}
-
 ctls_status_t ctls_record_serialize(ctls_record_t const *record,
                                     uint8_t *buffer,
                                     ctls_size_t *offset) {
@@ -268,6 +224,51 @@ ctls_status_t ctls_recd_client_hello_create(ctls_record_t *record) {
 
 ctls_status_t ctls_recd_client_hello_to_struct() {
     return CTLS_STATUS_NOT_IMPLEMENTED;
+}
+
+
+ctls_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
+                                             ctls_size_t *offset,
+                                             ctls_record_t const *record,
+                                             ctls_wire_format_t const wire_format) {
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_OFFSET(offset);
+    CTLS_CHECK_NULL_STRUCT(record);
+
+    if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
+        if (sizeof(record->content_type) + *offset > CTLS_SIZE_WIRE_BUFFER) return
+                CTLS_STATUS_BUFFER_OVERFLOW;
+
+        ctls_write_u8(buffer, offset, record->content_type);
+
+        if ((sizeof(record->profile_id) + sizeof(uint8_t)) + *offset >
+            CTLS_SIZE_WIRE_BUFFER) return CTLS_STATUS_BUFFER_OVERFLOW;
+
+        ctls_write_u8(buffer, offset, sizeof(record->profile_id));
+        ctls_write_u8(buffer, offset, record->profile_id);
+
+        return ctls_hsmg_client_hello_to_wire(buffer,
+                                              offset,
+                                              &record->record_body,
+                                              CTLS_WIRE_FORMAT_DEFAULT);
+    }
+    if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
+        ctls_write_u8(buffer, offset, record->content_type);
+        ctls_write_u16(buffer, offset, CTLS_HSMG_PROTOCOL_VERSION_1_3);
+
+        ctls_size_t record_body_length = *offset;
+        *offset += 2;
+        ctls_status_t const result = ctls_hsmg_client_hello_to_wire(buffer,
+            offset,
+            &record->record_body,
+            CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
+        if (result != CTLS_STATUS_SUCCESS) return result;
+
+        ctls_write_u16(buffer, &record_body_length, *offset - record_body_length);
+
+        return CTLS_STATUS_SUCCESS;
+    }
+    return CTLS_STATUS_RECD_INVALID_WIRE_FORMAT;
 }
 
 
