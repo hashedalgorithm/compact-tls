@@ -125,7 +125,6 @@ ctls_status_t ctls_record_serialize(ctls_record_t const *record,
     ctls_status_t result = ctls_wire_buffer_clear(buffer, offset);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-
     if (record->type == CTLS_RECORD_TYPE_PLAINTEXT) {
         switch (record->record_body.message_type) {
             case CTLS_HSMG_TYPE_CLIENT_HELLO:
@@ -150,8 +149,17 @@ ctls_status_t ctls_record_serialize(ctls_record_t const *record,
         }
     }
     if (record->type == CTLS_RECORD_TYPE_ENCRYPTED) {
+        uint8_t plaintext[CTLS_SIZE_WIRE_BUFFER];
+        ctls_size_t plaintext_offset = 0;
+
         switch (record->record_body.message_type) {
             case CTLS_HSMG_TYPE_CLIENT_FLIGHT: {
+                result = ctls_recd_client_flight_to_wire(buffer,
+                                                         offset,
+                                                         plaintext,
+                                                         &plaintext_offset,
+                                                         record,
+                                                         CTLS_WIRE_FORMAT_DEFAULT);
             }
             break;
             case CTLS_HSMG_TYPE_SERVER_FLIGHT: {
@@ -216,6 +224,33 @@ ctls_status_t ctls_recd_buffer_clear(ctls_record_t *record_buffer) {
     return CTLS_STATUS_SUCCESS;
 }
 
+ctls_status_t ctls_record_encrypt(uint8_t *buffer,
+                                  ctls_size_t *offset,
+                                  ctls_unified_header_t const *unified_header,
+                                  uint8_t const *plaintext,
+                                  ctls_size_t const plaintext_length,
+                                  ctls_size_t *ciphertext_length) {
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_STRUCT(unified_header);
+
+    size_t ciphertext_length_s = 0;
+    ctls_status_t result = ctls_unified_header_serialize(unified_header, buffer, offset);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_encrypt(&unified_header->sequence_number,
+                          buffer,
+                          unified_header->aad_length,
+                          plaintext,
+                          plaintext_length,
+                          &buffer[unified_header->aad_length],
+                          &ciphertext_length_s);
+
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    *ciphertext_length = ciphertext_length_s;
+
+    return result;
+}
+
 ctls_status_t ctls_record_decrypt(ctls_record_t *record,
                                   uint8_t const *buffer,
                                   uint8_t *plaintext,
@@ -242,8 +277,8 @@ ctls_status_t ctls_record_decrypt(ctls_record_t *record,
                           plaintext,
                           &plaintext_bytes_written_s);
     if (result != CTLS_STATUS_SUCCESS) return result;
-    *plaintext_bytes_written = plaintext_bytes_written_s;
 
+    *plaintext_bytes_written = plaintext_bytes_written_s;
     return result;
 }
 
@@ -720,4 +755,76 @@ ctls_status_t ctls_recd_server_flight_to_wire(uint8_t *buffer,
 }
 
 
+ctls_status_t ctls_recd_client_flight_create(ctls_record_t *record) {
+    CTLS_CHECK_NULL_STRUCT(record);
+
+    ctls_status_t result = ctls_recd_buffer_clear(record);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    record->type = CTLS_RECORD_TYPE_ENCRYPTED;
+    record->record_body.message_type = CTLS_HSMG_TYPE_CLIENT_FLIGHT;
+    record->record_body.sequence_number = 0;
+
+    result = ctls_unified_header_build(&record->unified_header, 0);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_hsmg_certificate_create(&record->record_body, CTLS_ENTITY_CLIENT);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_hsmg_certificate_verify_create(&record->record_body,
+                                                 CTLS_ENTITY_CLIENT);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    return ctls_hsmg_finished_create(&record->record_body, CTLS_ENTITY_CLIENT);
+}
+
+ctls_status_t ctls_recd_client_flight_to_struct(ctls_record_t *record,
+                                                uint8_t const *buffer) {
+    return CTLS_STATUS_NOT_IMPLEMENTED;
+}
+
+ctls_status_t ctls_recd_client_flight_to_wire(uint8_t *buffer,
+                                              ctls_size_t *offset,
+                                              uint8_t *plaintext,
+                                              ctls_size_t *plaintext_bytes_written,
+                                              ctls_record_t const *record,
+                                              ctls_wire_format_t const wire_format) {
+    CTLS_CHECK_NULL_STRUCT(record);
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_OFFSET(offset);
+
+    if (wire_format != CTLS_WIRE_FORMAT_DEFAULT && wire_format !=
+        CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) return CTLS_STATUS_RECD_INVALID_WIRE_FORMAT;
+
+    ctls_status_t result = ctls_unified_header_serialize(&record->unified_header,
+                                                         buffer,
+                                                         offset);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+
+    result = ctls_hsmg_certificate_to_wire(plaintext,
+                                           plaintext_bytes_written,
+                                           &record->record_body,
+                                           wire_format);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_hsmg_certificate_verify_to_wire(plaintext,
+                                                  plaintext_bytes_written,
+                                                  &record->record_body,
+                                                  wire_format);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_hsmg_finished_to_wire(plaintext,
+                                        plaintext_bytes_written,
+                                        &record->record_body,
+                                        wire_format);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    ctls_size_t ciphertext_length = 0;
+    return ctls_record_encrypt(buffer,
+                               offset,
+                               &record->unified_header,
+                               plaintext,
+                               *plaintext_bytes_written,
+                               &ciphertext_length);
 }

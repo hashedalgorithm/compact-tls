@@ -221,6 +221,7 @@ typedef enum {
     CTLS_HSMG_TYPE_KEY_UPDATE = 0x18,
     CTLS_HSMG_TYPE_MESSAGE_HASH = 0xFE,
     // 27, 28 are not assigned in IINA - custom definition
+    CTLS_HSMG_TYPE_CLIENT_FLIGHT = 0x27,
     CTLS_HSMG_TYPE_SERVER_FLIGHT = 0x28,
     CTLS_HSMG_TYPE_SENTINEL = 0xFF,
 } ctls_hsmg_type_t;
@@ -286,8 +287,9 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_CRYPTO_HKDF_FAILED              ((ctls_status_t)0x006Cu)
 #define CTLS_STATUS_CRYPTO_HASH_FAILED              ((ctls_status_t)0x006Du)
 #define CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED      ((ctls_status_t)0x006Eu)
-#define CTLS_STATUS_CRYPTO_UNSUPPORTED_CIPHER_SUITE ((ctls_status_t)0x006Fu)
-#define CTLS_STATUS_CRYPTO_UNSUPPORTED_DHE_GROUP    ((ctls_status_t)0x0070u)
+#define CTLS_STATUS_CRYPTO_AEAD_ENCRYPT_FAILED      ((ctls_status_t)0x006Fu)
+#define CTLS_STATUS_CRYPTO_UNSUPPORTED_CIPHER_SUITE ((ctls_status_t)0x0070u)
+#define CTLS_STATUS_CRYPTO_UNSUPPORTED_DHE_GROUP    ((ctls_status_t)0x0071u)
 #define CTLS_STATUS_CRYPTO_RANDOM_FAILED            ((ctls_status_t)0x0071u)
 #define CTLS_STATUS_CRYPTO_SIGNATURE_FAILED         ((ctls_status_t)0x0072u)
 #define CTLS_STATUS_CRYPTO_UNKNOWN                  ((ctls_status_t)0x0073u)
@@ -459,6 +461,7 @@ typedef struct ctls_hsmg_application_data ctls_hsmg_application_data_t;
 typedef struct ctls_hsmg_alert ctls_hsmg_alert_t;
 
 typedef struct ctls_hsmg_server_flight ctls_hsmg_server_flight_t;
+typedef struct ctls_hsmg_client_flight ctls_hsmg_client_flight_t;
 
 typedef struct ctls_record ctls_record_t;
 typedef struct ctls_unified_header ctls_unified_header_t;
