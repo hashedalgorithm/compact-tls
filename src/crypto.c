@@ -835,6 +835,75 @@ cleanup:
     return err;
 }
 
+ctls_status_t ctls_encrypt(uint16_t const *sequence_number,
+                           uint8_t const *aad,
+                           ctls_size_t const aad_len,
+                           uint8_t const *plaintext,
+                           ctls_size_t const plaintext_length,
+                           uint8_t *ciphertext_buffer,
+                           size_t *bytes_written) {
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+    uint8_t *handshake_key;
+    uint8_t *iv_key;
+
+    CTLS_CHECK_NULL(hshk_data);
+    CTLS_CHECK_NULL(sequence_number);
+    CTLS_CHECK_NULL_BUFFER(aad);
+    CTLS_CHECK_NULL_BUFFER(plaintext);
+    CTLS_CHECK_NULL_BUFFER(ciphertext_buffer);
+    CTLS_CHECK_NULL(bytes_written);
+
+#if CTLS_CLIENT
+    CTLS_CHECK_NULL(hshk_data->client_handshake_key);
+    CTLS_CHECK_NULL(hshk_data->client_handshake_iv_key);
+
+    handshake_key = hshk_data->client_handshake_key;
+    iv_key = hshk_data->client_handshake_iv_key;
+#endif
+
+#if CTLS_SERVER
+    CTLS_CHECK_NULL(hshk_data->server_handshake_key);
+    CTLS_CHECK_NULL(hshk_data->server_handshake_iv_key);
+    handshake_key = hshk_data->server_handshake_key;
+    iv_key = hshk_data->server_handshake_iv_key;
+#endif
+
+    psa_status_t psa_st = PSA_SUCCESS;
+    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+    psa_key_id_t key_id = PSA_KEY_ID_NULL;
+
+    uint8_t nonce[CTLS_SIZE_NONCE];
+    ctls_status_t const result = ctls_nonce_generate(nonce, sequence_number, iv_key);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    psa_set_key_type(&attr, PSA_KEY_TYPE_AES);
+    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_ENCRYPT);
+    psa_set_key_algorithm(&attr, PSA_ALG_GCM);
+    psa_set_key_bits(&attr, 128U);
+
+    psa_st = psa_import_key(&attr, handshake_key,CTLS_SIZE_AEAD_KEY, &key_id);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    psa_st = psa_aead_encrypt(key_id,
+                              PSA_ALG_GCM,
+                              nonce,
+                              CTLS_SIZE_NONCE,
+                              aad,
+                              aad_len,
+                              plaintext,
+                              plaintext_length,
+                              ciphertext_buffer,
+                              plaintext_length + CTLS_SIZE_AEAD_KEY,
+                              bytes_written);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    return CTLS_STATUS_SUCCESS;
+cleanup:
+    if (key_id != PSA_KEY_ID_NULL) { psa_destroy_key(key_id); }
+    psa_reset_key_attributes(&attr);
+    return CTLS_STATUS_CRYPTO_AEAD_ENCRYPT_FAILED;
+}
+
 ctls_status_t ctls_cert_public_key_import(uint8_t const *cert_der,
                                           size_t cert_der_length,
                                           psa_key_id_t *key_id) {

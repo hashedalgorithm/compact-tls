@@ -81,6 +81,13 @@ ctls_status_t ctls_decrypt(uint16_t const *sequence_number,
                            size_t ciphertext_len,
                            uint8_t *buffer,
                            size_t *bytes_written);
+ctls_status_t ctls_encrypt(uint16_t const *sequence_number,
+                           uint8_t const *aad,
+                           ctls_size_t aad_len,
+                           uint8_t const *plaintext,
+                           ctls_size_t plaintext_length,
+                           uint8_t *ciphertext_buffer,
+                           size_t *bytes_written);
 
 ctls_status_t ctls_cert_public_key_import(uint8_t const *cert_der,
                                           size_t cert_der_length,
