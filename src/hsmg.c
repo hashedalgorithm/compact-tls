@@ -9,7 +9,24 @@
 #include "ctls/hsmg.h"
 #include "ctls/templates.h"
 
+/*
+ * Handshake message serialization. See hsmg.h for the API overview.
+ * Comments here give the exact byte layouts of both wire formats:
+ *
+ *   DEFAULT          — compact cTLS bytes that go on the wire. Template-
+ *                      pinned values and TLS 1.3 legacy fields are omitted.
+ *   TRANSCRIPT_HASH  — the message re-expanded into RFC 8446 §4 Handshake
+ *                      syntax (msg_type(u8) | length(u24) | body), hashed
+ *                      into the transcript but never sent.
+ */
 
+/*
+ * Build ClientHello (RFC 8446 §4.1.2) from the template: fresh random of
+ * template->random bytes (stored in hshk_data->client_random), pinned
+ * cipher suite and protocol version, legacy_session_id and
+ * legacy_compression_methods zeroed (cTLS drops them; TLS 1.3 already calls
+ * them legacy), extensions via ctls_extn_client_hello_create.
+ */
 ctls_status_t ctls_hsmg_client_hello_create(ctls_handshake_message_t *hsmg) {
     ctls_template_t const *template = ctls_template_get();
     ctls_crypto_t const *crypto = ctls_crypto_get();
@@ -43,6 +60,29 @@ ctls_status_t ctls_hsmg_client_hello_to_struct() {
     return CTLS_STATUS_NOT_IMPLEMENTED;
 }
 
+/*
+ * Emit ClientHello.
+ *
+ * DEFAULT (compact cTLS):
+ *
+ *     body_length(u16, backfilled)
+ *     | message_type(u8) | sequence_number(u16)
+ *     | random (template->random bytes, no length)
+ *     | cipher_suites block — only when the template does NOT pin a suite
+ *     | extensions (key_share bytes only, see extensions.c)
+ *
+ *   legacy_session_id / legacy_compression_methods never appear.
+ *
+ * TRANSCRIPT_HASH (RFC 8446 §4 + §4.1.2 reconstruction):
+ *
+ *     msg_type(u8) | length(u24, backfilled)
+ *     | legacy_version(u16) = 0x0303   ("MUST be set to 0x0303")
+ *     | random
+ *     | session_id_length(u8) | legacy_session_id(u8)
+ *     | cipher_suites_length(u16) | cipher_suite(u16)
+ *     | compression_length(u8) | legacy_compression_methods(u8)
+ *     | extensions in TLS 1.3 framing
+ */
 ctls_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
                                              ctls_size_t *offset,
                                              ctls_handshake_message_t const *hsmg,
@@ -134,6 +174,19 @@ ctls_status_t ctls_hsmg_server_hello_create(void) {
     return CTLS_STATUS_NOT_IMPLEMENTED;
 }
 
+/*
+ * Parse a compact ServerHello:
+ *
+ *     message_type(u8)
+ *     | server random (template->random bytes, no length —
+ *       saved to hshk_data->server_random)
+ *     | cipher_suite(u16)
+ *     | 2 bytes skipped
+ *     | key_share (raw server public key bytes)
+ *
+ * protocol_version and the legacy fields are reconstructed from the
+ * template — RFC 8446 §4.1.3 values that cTLS never sends.
+ */
 ctls_status_t ctls_hsmg_server_hello_to_struct(ctls_handshake_message_t *hsmg,
                                                uint8_t const *buffer,
                                                ctls_size_t *offset) {
@@ -167,6 +220,19 @@ ctls_status_t ctls_hsmg_server_hello_to_struct(ctls_handshake_message_t *hsmg,
                                             offset);
 }
 
+/*
+ * Emit ServerHello, TRANSCRIPT_HASH only (RFC 8446 §4.1.3 reconstruction):
+ *
+ *     msg_type(u8) | length(u24, backfilled)
+ *     | legacy_version(u16) = 0x0303
+ *     | random
+ *     | session_id_echo_length(u8) | legacy_session_id_echo(u8)
+ *     | cipher_suite(u16)
+ *     | legacy_compression_length(u8) | legacy_compression_method(u8)
+ *     | extensions (supported_versions, key_share)
+ *
+ * DEFAULT is empty — client build never sends ServerHello.
+ */
 ctls_status_t ctls_hsmg_server_hello_to_wire(uint8_t *buffer,
                                              ctls_size_t *offset,
                                              ctls_handshake_message_t const *hsmg,
@@ -226,6 +292,11 @@ ctls_status_t ctls_hsmg_encrypted_extensions_create(void) {
     return CTLS_STATUS_NOT_IMPLEMENTED;
 }
 
+/*
+ * Parse EncryptedExtensions (RFC 8446 §4.3.1). Wire carries only
+ * message_type(u8); the whole extension set is template-predefined and
+ * reconstructed locally.
+ */
 ctls_status_t ctls_hsmg_encrypted_extensions_to_struct(ctls_handshake_message_t *hsmg,
                                                        uint8_t const *buffer) {
     CTLS_CHECK_NULL_STRUCT(hsmg);
@@ -239,6 +310,12 @@ ctls_status_t ctls_hsmg_encrypted_extensions_to_struct(ctls_handshake_message_t 
                                                     encrypted_extensions.extensions);
 }
 
+/*
+ * Emit EncryptedExtensions, TRANSCRIPT_HASH only (RFC 8446 §4.3.1:
+ * "Extension extensions<0..2^16-1>;"):
+ *
+ *     extensions_length(u16, backfilled) | extensions in TLS 1.3 framing
+ */
 ctls_status_t ctls_hsmg_encrypted_extensions_to_wire(uint8_t *buffer,
                                                      ctls_size_t *offset,
                                                      ctls_handshake_message_t const *hsmg,
@@ -272,6 +349,15 @@ ctls_status_t ctls_hsmg_certificate_request_create(void) {
     return CTLS_STATUS_NOT_IMPLEMENTED;
 }
 
+/*
+ * Parse CertificateRequest (RFC 8446 §4.3.2):
+ *
+ *     message_type(u8)
+ *     | context_length(u8) | certificate_request_context bytes
+ *
+ * The context is saved to hshk_data — RFC 8446 §4.4.2 requires the client's
+ * Certificate to echo it. Extensions come from the template.
+ */
 ctls_status_t ctls_hsmg_certificate_request_to_struct(ctls_handshake_message_t *hsmg,
                                                       uint8_t const *buffer) {
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
@@ -296,6 +382,13 @@ ctls_status_t ctls_hsmg_certificate_request_to_struct(ctls_handshake_message_t *
                                                    certificate_request.extensions);
 }
 
+/*
+ * Emit CertificateRequest, TRANSCRIPT_HASH only (RFC 8446 §4.3.2):
+ *
+ *     msg_type(u8)
+ *     | context_length(u8) | certificate_request_context bytes
+ *     | extensions_length(u16, backfilled) | extensions
+ */
 ctls_status_t ctls_hsmg_certificate_request_to_wire(uint8_t *buffer,
                                                     ctls_size_t *offset,
                                                     ctls_handshake_message_t const *hsmg,
@@ -341,6 +434,13 @@ ctls_status_t ctls_hsmg_certificate_request_to_wire(uint8_t *buffer,
     return CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT;
 }
 
+/*
+ * Build a Certificate message (RFC 8446 §4.4.2) with the cTLS certificate
+ * dictionary: a single entry carrying this build's certificate_id
+ * (CTLS_ENTITY_CERTIFICATE_ID) instead of DER, echoing the stored
+ * certificate_request_context, plus per-entry extensions (OCSP/SCT) the
+ * peer requested.
+ */
 ctls_status_t ctls_hsmg_certificate_create(ctls_handshake_message_t *hsmg,
                                            ctls_entity_t const entity) {
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
@@ -361,6 +461,19 @@ ctls_status_t ctls_hsmg_certificate_create(ctls_handshake_message_t *hsmg,
                                         entity);
 }
 
+/*
+ * Parse a Certificate message (RFC 8446 §4.4.2, dictionary-compressed):
+ *
+ *     message_type(u8)
+ *     | context_length(u8) | context bytes (or 1 pad byte when empty)
+ *     | certificate_list_length(u24)
+ *     | per entry: id_length(u16, skipped) | certificate_id(u16)
+ *                | extensions_length(u24)
+ *                | extensions (reconstructed from template when non-empty)
+ *
+ * certificate_id replaces RFC 8446's "opaque cert_data<1..2^24-1>" —
+ * the DER is looked up in the template's known_certificates.
+ */
 ctls_status_t ctls_hsmg_certificate_to_struct(ctls_handshake_message_t *hsmg,
                                               uint8_t const *buffer) {
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
@@ -412,6 +525,17 @@ ctls_status_t ctls_hsmg_certificate_to_struct(ctls_handshake_message_t *hsmg,
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * Emit Certificate, TRANSCRIPT_HASH only (RFC 8446 §4.4.2, dictionary-
+ * compressed — both peers reconstruct the same compressed form, so the
+ * transcript still matches):
+ *
+ *     msg_type(u8)
+ *     | context_length(u8) | context bytes
+ *     | certificate_list_length(u16, backfilled)
+ *     | per entry: id_length(u16) | certificate_id(u16)
+ *                | extensions_length(u16, backfilled) | extensions
+ */
 ctls_status_t ctls_hsmg_certificate_to_wire(uint8_t *buffer,
                                             ctls_size_t *offset,
                                             ctls_handshake_message_t const *hsmg,
@@ -476,6 +600,12 @@ ctls_status_t ctls_hsmg_certificate_to_wire(uint8_t *buffer,
     return CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT;
 }
 
+/*
+ * Build CertificateVerify (RFC 8446 §4.4.3): scheme pinned by the template,
+ * signature computed by ctls_signed_bytes_generate over the §4.4.3 signed
+ * content (context string + Transcript-Hash). signature aliases hshk_data's
+ * signed-bytes storage for this entity.
+ */
 ctls_status_t ctls_hsmg_certificate_verify_create(ctls_handshake_message_t *hsmg,
                                                   ctls_entity_t const entity) {
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
@@ -506,6 +636,15 @@ ctls_status_t ctls_hsmg_certificate_verify_create(ctls_handshake_message_t *hsmg
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * Parse CertificateVerify:
+ *
+ *     message_type(u8) | signature_scheme(u16)
+ *     | signature_length(u16) | signature bytes
+ *
+ * Signature bytes land in hshk_data's signed-bytes storage for this entity;
+ * actual verification happens later in the core ops, not here.
+ */
 ctls_status_t ctls_hsmg_certificate_verify_to_struct(ctls_handshake_message_t *hsmg,
                                                      uint8_t const *buffer,
                                                      ctls_entity_t const entity) {
@@ -536,6 +675,12 @@ ctls_status_t ctls_hsmg_certificate_verify_to_struct(ctls_handshake_message_t *h
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * Emit CertificateVerify, TRANSCRIPT_HASH only (RFC 8446 §4.4.3):
+ *
+ *     msg_type(u8) | signature_scheme(u16)
+ *     | signature_length(u16) | signature bytes
+ */
 ctls_status_t ctls_hsmg_certificate_verify_to_wire(uint8_t *buffer,
                                                    ctls_size_t *offset,
                                                    ctls_handshake_message_t const *hsmg,
@@ -565,6 +710,11 @@ ctls_status_t ctls_hsmg_certificate_verify_to_wire(uint8_t *buffer,
     return CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT;
 }
 
+/*
+ * Build Finished (RFC 8446 §4.4.4): derive this entity's finished key, then
+ * verify_data = HMAC(finished_key, Transcript-Hash(...)). verify_data
+ * aliases hshk_data storage.
+ */
 ctls_status_t ctls_hsmg_finished_create(ctls_handshake_message_t *hsmg,
                                         ctls_entity_t const entity) {
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
@@ -590,6 +740,11 @@ ctls_status_t ctls_hsmg_finished_create(ctls_handshake_message_t *hsmg,
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * Parse Finished: message_type(u8) | verify_data[CTLS_SIZE_HASH]. Fixed
+ * size, no length field — RFC 8446 §4.4.4:
+ * "opaque verify_data[Hash.length];"
+ */
 ctls_status_t ctls_hsmg_finished_to_struct(ctls_handshake_message_t *hsmg,
                                            uint8_t const *buffer,
                                            ctls_entity_t const entity) {
@@ -618,6 +773,11 @@ ctls_status_t ctls_hsmg_finished_to_struct(ctls_handshake_message_t *hsmg,
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * Emit Finished, TRANSCRIPT_HASH only:
+ *
+ *     msg_type(u8) | verify_data[CTLS_SIZE_HASH]
+ */
 ctls_status_t ctls_hsmg_finished_to_wire(uint8_t *buffer,
                                          ctls_size_t *offset,
                                          ctls_handshake_message_t const *hsmg,
