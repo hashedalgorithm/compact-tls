@@ -74,7 +74,7 @@ ctls_status_t ctls_handshake_iv_key_generate(ctls_crypto_t *crypto,
 ctls_status_t ctls_nonce_generate(uint8_t *buffer,
                                   uint16_t const *sequence_number,
                                   uint8_t const *iv_key);
-ctls_status_t ctls_decrypt(uint16_t const *seq_num,
+ctls_status_t ctls_decrypt(uint16_t const *sequence_number,
                            uint8_t const *aad,
                            size_t aad_len,
                            const uint8_t *ciphertext,

@@ -769,9 +769,9 @@ ctls_status_t ctls_nonce_generate(uint8_t *buffer,
 
 ctls_status_t ctls_decrypt(uint16_t const *sequence_number,
                            uint8_t const *aad,
-                           size_t aad_len,
-                           const uint8_t *ciphertext,
-                           size_t ciphertext_len,
+                           size_t const aad_len,
+                           uint8_t const *ciphertext,
+                           size_t const ciphertext_len,
                            uint8_t *buffer,
                            size_t *bytes_written) {
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
