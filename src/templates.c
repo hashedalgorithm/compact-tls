@@ -7,9 +7,20 @@
 #include "bytes.h"
 #include "ctls/ctls.h"
 
+/*
+ * Template handling. See templates.h for what a template is and config.h
+ * for the built-in template's values. Comments here describe the exact byte
+ * layouts of the template's canonical wire form.
+ */
+
 const ctls_template_t ctls_template_1 = CTLS_TEMPLATE_1_INIT;
 
 
+/*
+ * Resolve profile_id -> built-in template. cTLS peers agree on the profile
+ * out of band; an unknown id cannot be negotiated away, so it is a hard
+ * failure (CTLS_STATUS_TMPL_UNKNOWN_PROFILE).
+ */
 ctls_status_t ctls_template_set(uint8_t const profile_id, ctls_context_t *context) {
     switch (profile_id) {
         case 0x01: {
@@ -23,6 +34,23 @@ ctls_status_t ctls_template_set(uint8_t const profile_id, ctls_context_t *contex
     }
 }
 
+/*
+ * Serialize one per-message extension block of the template:
+ *
+ *     predefined_extensions_length(u16, backfilled)
+ *     | per initialized predefined extension:
+ *           extension_type(u16) | data_length(u16) | raw template data
+ *     | expected_extensions_length(u16, backfilled)
+ *     | expected extension type codes (u16 each)
+ *     | self_delimiting_extensions_length(u16, backfilled)
+ *     | self-delimiting extension type codes (u16 each)
+ *     | allow_additional(u8)
+ *
+ * Predefined extensions are written in TLS 1.3 Extension framing
+ * (RFC 8446 §4.2) via ctls_extn_opaque_serialize — scalar values are passed
+ * as raw bytes of their in-memory width. key_share may not appear in either
+ * type-code list: it is handled by the dhe_group template element.
+ */
 ctls_status_t ctls_tmpl_extension_to_wire(uint8_t *buffer,
                                           ctls_size_t *offset,
                                           ctls_hsmg_type_t type,
@@ -249,6 +277,24 @@ ctls_status_t ctls_tmpl_extension_to_wire(uint8_t *buffer,
 }
 
 
+/*
+ * Serialize one template element as TLV:
+ *
+ *     element_type(u16) | element_length(u32) | value
+ *
+ * Value layouts:
+ *     PROFILE_ID          id_length(u8) | profile_id(u8)
+ *     VERSION             protocol_version(u16)
+ *     CIPHER_SUITE        cipher_suite(u16)
+ *     DH_GROUP            dhe_group(u16) | key_share_length(u16)
+ *     SIGNATURE_ALGORITHM scheme(u16) | signature_length(u16)
+ *     RANDOM              random_length(u16)
+ *     MUTUAL_AUTH         mutual_auth(u16)
+ *     HANDSHAKE_FRAMING   handshake_framing(u16)
+ *     *_EXTENSIONS        extension block, see ctls_tmpl_extension_to_wire
+ *     KNOWN_CERTIFICATES  per entry: certificate_id(u8) | DER bytes
+ *     FINISHED_SIZE       finished_size(u16)
+ */
 ctls_status_t ctls_template_element_to_wire(uint8_t *buffer,
                                             ctls_size_t *offset,
                                             ctls_template_t const *tmpl,
@@ -354,6 +400,18 @@ ctls_status_t ctls_template_element_to_wire(uint8_t *buffer,
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * Canonical byte form of the active template:
+ *
+ *     content_type(u8, CTLS_RECD_CONTENT_TYPE_TEMPLATE)
+ *     | body_length(u24, backfilled)
+ *     | ctls_version(u8)
+ *     | element_length(u32, backfilled)
+ *     | template elements (currently PROFILE_ID only)
+ *
+ * Both peers must derive identical bytes from their template copies — this
+ * form is what makes the template hashable/identifiable.
+ */
 ctls_status_t ctls_template_to_wire(uint8_t *buffer) {
     ctls_template_t const *tmpl = ctls_template_get();
     if (!tmpl) return CTLS_STATUS_TMPL_NULL;
