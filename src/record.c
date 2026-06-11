@@ -24,6 +24,67 @@ ctls_status_t ctls_aad_length_calculate(ctls_unified_header_t *unified_header) {
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * Record counters, single sequence space for the connection: every record —
+ * created or received — consumes one sequence number, so both peers stay in
+ * lockstep (CH=0, SH=1, server flight=2, ...). Increment happens at the end
+ * of ctls_record_serialize / ctls_record_deserialize; headers stamp the
+ * counter's current value via ctls_unified_header_build before that.
+ *
+ * Epoch counts key changes (DTLS 1.3 style), not messages: bump it where
+ * the key schedule switches keys. On receive the epoch is reconstructed
+ * from the header's 2 bits and synced back in ctls_record_decrypt.
+ */
+ctls_status_t ctls_sequence_number_counter_increment(void) {
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+    CTLS_CHECK_NULL(hshk_data);
+
+    hshk_data->sequence_number++;
+    return CTLS_STATUS_SUCCESS;
+}
+
+ctls_status_t ctls_sequence_number_counter_get(uint16_t *sequence_number) {
+    ctls_hshk_data_t const *hshk_data = ctls_hshk_data_get();
+    CTLS_CHECK_NULL(hshk_data);
+    CTLS_CHECK_NULL(sequence_number);
+
+    *sequence_number = hshk_data->sequence_number;
+    return CTLS_STATUS_SUCCESS;
+}
+
+ctls_status_t ctls_sequence_number_counter_reset(void) {
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+    CTLS_CHECK_NULL(hshk_data);
+
+    hshk_data->sequence_number = 0;
+    return CTLS_STATUS_SUCCESS;
+}
+
+ctls_status_t ctls_epoch_counter_increment(void) {
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+    CTLS_CHECK_NULL(hshk_data);
+
+    hshk_data->epoch++;
+    return CTLS_STATUS_SUCCESS;
+}
+
+ctls_status_t ctls_epoch_counter_get(uint64_t *epoch) {
+    ctls_hshk_data_t const *hshk_data = ctls_hshk_data_get();
+    CTLS_CHECK_NULL(hshk_data);
+    CTLS_CHECK_NULL(epoch);
+
+    *epoch = hshk_data->epoch;
+    return CTLS_STATUS_SUCCESS;
+}
+
+ctls_status_t ctls_epoch_counter_reset(void) {
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+    CTLS_CHECK_NULL(hshk_data);
+
+    hshk_data->epoch = 0;
+    return CTLS_STATUS_SUCCESS;
+}
+
 ctls_status_t ctls_unified_header_build(ctls_unified_header_t *unified_header,
                                         uint16_t const length) {
     ctls_hshk_data_t const *hshk_data = ctls_hshk_data_get();
@@ -177,8 +238,10 @@ ctls_status_t ctls_record_serialize(ctls_record_t const *record,
             default: return CTLS_STATUS_RECD_UNKNOWN_MSG_TYPE;
         }
     }
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
-    return result;
+    /* record produced — consume one sequence number */
+    return ctls_sequence_number_counter_increment();
 }
 
 ctls_status_t ctls_record_deserialize(ctls_record_t *record,
@@ -212,8 +275,10 @@ ctls_status_t ctls_record_deserialize(ctls_record_t *record,
         default:
             result = CTLS_STATUS_RECD_UNKNOWN_MSG_TYPE;
     }
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
-    return result;
+    /* record consumed — keep our counter in lockstep with the peer */
+    return ctls_sequence_number_counter_increment();
 }
 
 ctls_status_t ctls_recd_buffer_clear(ctls_record_t *record_buffer) {
@@ -255,15 +320,21 @@ ctls_status_t ctls_record_decrypt(ctls_record_t *record,
                                   uint8_t const *buffer,
                                   uint8_t *plaintext,
                                   ctls_size_t *plaintext_bytes_written) {
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+
     CTLS_CHECK_NULL_STRUCT(record);
     CTLS_CHECK_NULL_BUFFER(plaintext);
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(plaintext_bytes_written);
+    CTLS_CHECK_NULL(hshk_data);
 
     ctls_size_t offset = 0;
     size_t plaintext_bytes_written_s = 0;
 
     record->type = CTLS_RECORD_TYPE_ENCRYPTED;
+    /* epoch expansion reconstructs from 2 wire bits — needs our current
+       epoch as base */
+    record->unified_header.epoch = hshk_data->epoch;
     ctls_status_t result = ctls_unified_header_deserialize(&record->unified_header,
                                                            buffer,
                                                            &offset);
@@ -277,6 +348,9 @@ ctls_status_t ctls_record_decrypt(ctls_record_t *record,
                           plaintext,
                           &plaintext_bytes_written_s);
     if (result != CTLS_STATUS_SUCCESS) return result;
+
+    /* AEAD tag verified — header is authentic, accept the peer's epoch */
+    hshk_data->epoch = record->unified_header.epoch;
 
     *plaintext_bytes_written = plaintext_bytes_written_s;
     return result;

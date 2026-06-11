@@ -35,6 +35,20 @@ struct ctls_record {
     ctls_handshake_message_t record_body;
 };
 
+/*
+ * Record counters over hshk_data (single sequence space: every record
+ * created or received consumes one sequence number; epoch counts key
+ * changes). Increment hooks live in ctls_record_serialize /
+ * ctls_record_deserialize.
+ */
+ctls_status_t ctls_sequence_number_counter_increment(void);
+ctls_status_t ctls_sequence_number_counter_get(uint16_t *sequence_number);
+ctls_status_t ctls_sequence_number_counter_reset(void);
+
+ctls_status_t ctls_epoch_counter_increment(void);
+ctls_status_t ctls_epoch_counter_get(uint64_t *epoch);
+ctls_status_t ctls_epoch_counter_reset(void);
+
 /* Computes serialized header (= AAD) size into unified_header->aad_length. */
 ctls_status_t ctls_aad_length_calculate(ctls_unified_header_t *unified_header);
 ctls_status_t ctls_unified_header_build(ctls_unified_header_t *unified_header,

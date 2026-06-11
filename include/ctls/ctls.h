@@ -40,6 +40,8 @@ struct ctls_hshk_buffer {
 };
 
 struct ctls_hshk_data {
+    uint16_t sequence_number;
+    uint64_t epoch;
     uint8_t transcript_hash[CTLS_SIZE_TRANSCRIPT_HASH];
     uint8_t client_random[CTLS_SIZE_RANDOM];
     uint8_t client_public_ephemeral_key[CTLS_DEFAULT_SIGNATURE_LENGTH];
@@ -82,7 +84,6 @@ struct ctls_context {
     ctls_hshk_buffer_t *hshk_buffer;
     ctls_hshk_data_t hshk_data;
     ctls_transport_t transport;
-    uint64_t sequence_number;
     ctls_record_t record;
 };
 

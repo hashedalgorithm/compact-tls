@@ -284,7 +284,15 @@ ctls_status_t ctls_key_schedule() {
     result = ctls_handshake_iv_key_generate(crypto, hshk_data, CTLS_ENTITY_CLIENT);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    return ctls_handshake_iv_key_generate(crypto, hshk_data, CTLS_ENTITY_SERVER);
+    result = ctls_handshake_iv_key_generate(crypto, hshk_data, CTLS_ENTITY_SERVER);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    /* Keys switched to handshake traffic keys — new epoch. RFC 9147 §6.1
+       numbering: epoch 0 plaintext, 1 early data (unsupported, skipped),
+       2 handshake keys. */
+    result = ctls_epoch_counter_increment();
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    return ctls_epoch_counter_increment();
 }
 
 ctls_status_t ctls_context_string_build(uint8_t *buffer,
