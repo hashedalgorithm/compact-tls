@@ -2,10 +2,25 @@
 //
 // Created by Sanjay Kumar Kumaravelan on 05/04/26.
 
+/**
+ * @file bytes.h
+ * @brief Wire encoding primitives + epoch helpers.
+ *
+ * TLS presentation language (RFC 8446, Section 3) encodes all multi-byte
+ * numbers in network byte order: "multibyte numeric quantities" are big-endian,
+ * vectors are length-prefixed. Every serializer in this library goes through
+ * these helpers, so the byte order is fixed in exactly one place.
+ *
+ * Convention: each write/read advances *offset past the bytes it consumed.
+ * No bounds checks here — callers validate buffer space against
+ * CTLS_SIZE_WIRE_BUFFER before calling.
+ */
+
 #ifndef CTLS_BYTES_H
 #define CTLS_BYTES_H
 
 #include <stdint.h>
+#include <string.h>
 #include "types.h"
 
 
@@ -23,6 +38,7 @@ static inline void ctls_write_u16(uint8_t *buffer,
     buffer[(*offset)++] = value & 0xFF;
 }
 
+/* u24: TLS uses 3-byte lengths e.g. for Handshake.length (RFC 8446 §4). */
 static inline void ctls_write_u24(uint8_t *buffer,
                                   ctls_size_t *offset,
                                   uint32_t const value) {
@@ -56,6 +72,7 @@ static inline void ctls_write_bytes(uint8_t *destination_buffer,
     *destination_offset += write_size;
 }
 
+/* Same as ctls_write_bytes; takes char* so string literals need no cast. */
 static inline void ctls_write_char_bytes(uint8_t *destination_buffer,
                                          ctls_size_t *destination_offset,
                                          ctls_size_t write_size,
@@ -99,10 +116,21 @@ static inline void ctls_read_bytes(uint8_t *destination_buffer,
     *source_buffer_offset += write_size;
 }
 
+/*
+ * Epoch compression — DTLS 1.3 style (RFC 9147, Section 4): the unified
+ * header carries only "the low-order two bits of the epoch" in its config
+ * octet; both sides track the full 64-bit epoch and reconstruct it from
+ * those two bits. cTLS reuses the same scheme in its unified header.
+ */
 static inline uint8_t ctls_epoch_compress(uint64_t const *full_epoch) {
     return (uint8_t) (*full_epoch & 0x03);
 }
 
+/*
+ * Reconstruct the full epoch from received 2-bit ee_bits. Epochs only move
+ * forward: take the current epoch with its low 2 bits replaced; if that went
+ * backwards, the 2-bit counter wrapped, so advance one full cycle (+4).
+ */
 static inline void ctls_epoch_expand(uint8_t ee_bits, uint64_t *current_epoch) {
     /* Mask to 2 bits — caller may pass raw config octet */
     ee_bits &= 0x03;
