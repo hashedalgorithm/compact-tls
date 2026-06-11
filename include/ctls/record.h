@@ -23,6 +23,8 @@ struct ctls_unified_header {
     uint16_t length;
     /* Except for Client Hello and Server Hello */
     uint64_t epoch;
+    /* For internal purposes */
+    ctls_size_t aad_length;
 };
 
 struct ctls_record {
@@ -33,11 +35,10 @@ struct ctls_record {
     ctls_handshake_message_t record_body;
 };
 
-
+/* Computes serialized header (= AAD) size into unified_header->aad_length. */
+ctls_status_t ctls_aad_length_calculate(ctls_unified_header_t *unified_header);
 ctls_status_t ctls_unified_header_build(ctls_unified_header_t *unified_header,
-                                        uint16_t sequence_number,
-                                        uint16_t length,
-                                        uint64_t const *epoch);
+                                        uint16_t length);
 ctls_status_t ctls_unified_header_serialize(ctls_unified_header_t const *unified_header,
                                             uint8_t *buffer,
                                             ctls_size_t *offset);

@@ -8,24 +8,39 @@
 #include "ctls/record.h"
 #include "ctls/templates.h"
 
-
-ctls_status_t ctls_unified_header_build(ctls_unified_header_t *unified_header,
-                                        uint16_t const sequence_number,
-                                        uint16_t const length,
-                                        uint64_t const *epoch) {
+/*
+ * Serialized header size = AAD size, from the config bits:
+ * octet(1) + sequence(s_bit ? 2 : 1) + length(l_bit ? 2 : 0) — 2..5 bytes.
+ * Stored in unified_header->aad_length. CID unsupported.
+ */
+ctls_status_t ctls_aad_length_calculate(ctls_unified_header_t *unified_header) {
     CTLS_CHECK_NULL_STRUCT(unified_header);
-    CTLS_CHECK_NULL_BUFFER(epoch);
 
-    unified_header->config_octet.c_bit = 0;
-    unified_header->config_octet.s_bit = (sequence_number > 0xFFu) ? 1u : 0u;
-    unified_header->config_octet.l_bit = (length > 0u) ? 1u : 0u;
-    unified_header->config_octet.epoch = ctls_epoch_compress(epoch);
+    if (unified_header->config_octet.c_bit != 0) return CTLS_STATUS_RECD_UNSUPPORTED_CID;
 
-    unified_header->sequence_number = sequence_number;
-    unified_header->length = length;
-    unified_header->epoch = *epoch;
+    unified_header->aad_length = 1U + (unified_header->config_octet.s_bit ? 2U : 1U) + (
+                                     unified_header->config_octet.l_bit ? 2U : 1U);
 
     return CTLS_STATUS_SUCCESS;
+}
+
+ctls_status_t ctls_unified_header_build(ctls_unified_header_t *unified_header,
+                                        uint16_t const length) {
+    ctls_hshk_data_t const *hshk_data = ctls_hshk_data_get();
+
+    CTLS_CHECK_NULL_STRUCT(unified_header);
+    CTLS_CHECK_NULL_STRUCT(hshk_data);
+
+    unified_header->config_octet.c_bit = 0;
+    unified_header->config_octet.s_bit = (hshk_data->sequence_number > 0xFFu) ? 1u : 0u;
+    unified_header->config_octet.l_bit = (length > 0u) ? 1u : 0u;
+    unified_header->config_octet.epoch = ctls_epoch_compress(&hshk_data->epoch);
+
+    unified_header->sequence_number = hshk_data->sequence_number;
+    unified_header->length = length;
+    unified_header->epoch = hshk_data->epoch;
+
+    return ctls_aad_length_calculate(unified_header);
 }
 
 ctls_status_t ctls_unified_header_serialize(ctls_unified_header_t const *unified_header,
@@ -97,7 +112,7 @@ ctls_status_t ctls_unified_header_deserialize(ctls_unified_header_t *unified_hea
 
     ctls_epoch_expand(unified_header->config_octet.epoch, &unified_header->epoch);
 
-    return CTLS_STATUS_SUCCESS;
+    return ctls_aad_length_calculate(unified_header);
 }
 
 ctls_status_t ctls_record_serialize(ctls_record_t const *record,
