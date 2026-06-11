@@ -3,12 +3,32 @@
 // Created by Sanjay Kumar Kumaravelan on 18/04/26.
 //
 
+/*
+ * Extension serialization for cTLS. See extensions.h for the design overview
+ * (template compression, data forms, DEFAULT vs TRANSCRIPT_HASH wire formats)
+ * and per-function API docs. Comments here describe the exact byte layouts.
+ *
+ * Two byte layouts appear throughout:
+ *
+ *   TLS 1.3 form (TRANSCRIPT_HASH — hashed, never sent), RFC 8446 §4.2:
+ *       extension_type(u16) | extension_data_length(u16) | extension_data
+ *
+ *   cTLS form (DEFAULT — sent on wire): extension omitted entirely when the
+ *   template predefines it; only dynamic data (key_share) is written, with
+ *   no type and no length the template already implies.
+ */
+
 #include <string.h>
 #include "ctls/ctls.h"
 #include "ctls/extensions.h"
 #include "ctls/templates.h"
 #include "ctls/bytes.h"
 
+/*
+ * Generic loader for single-value enum extensions (supported_groups,
+ * signature_algorithms, supported_versions, heartbeat, ...). The template
+ * stores the bare value, so this is a 1- or 2-byte memcpy — no framing.
+ */
 ctls_status_t ctls_extn_enum_deserialize(void const *source,
                                          void *destination,
                                          ctls_helper_is_one_byte_t const isOneByte) {
@@ -23,6 +43,15 @@ ctls_status_t ctls_extn_enum_deserialize(void const *source,
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * Generic writer for single-value enum extensions, TLS 1.3 form:
+ *
+ *     extension_type(u16) | extension_data_length(u16, =1|2) | value(u8|u16)
+ *
+ * Deviation from RFC 8446: the inner list wrappers (NamedGroupList,
+ * SignatureSchemeList, ...) are dropped because the profile pins exactly one
+ * value. Both peers reconstruct identically, so the transcript still matches.
+ */
 ctls_status_t ctls_extn_enum_serialize(uint8_t *buffer,
                                        ctls_size_t *offset,
                                        ctls_extn_type_t const extn_type,
@@ -46,6 +75,13 @@ ctls_status_t ctls_extn_enum_serialize(uint8_t *buffer,
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * Does the template predefine extn_type for handshake message hsmg_type?
+ * cTLS: a predefined extension exists on the connection but never on the
+ * wire; an extension absent from the template simply does not exist. Each
+ * extension has its own "present" signal: non-null blob, non-zero scalar, or
+ * non-sentinel enum.
+ */
 ctls_status_t ctls_extn_is_initialized(ctls_extn_type_t const extn_type,
                                        ctls_hsmg_type_t const hsmg_type,
                                        uint8_t *is_initialized) {
@@ -153,6 +189,16 @@ ctls_status_t ctls_extn_is_initialized(ctls_extn_type_t const extn_type,
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * Blob passthrough writer:
+ *
+ *     [extension_type(u16) — skipped when CTLS_EXTN_TYPE_SENTINEL]
+ *     | extension_data_length(u16) | raw bytes
+ *
+ * Template blobs store extension_data only (no type/length), matching
+ * RFC 8446 §4.2 "opaque extension_data<0..2^16-1>" once framed here.
+ * Callers that already wrote the type pass SENTINEL.
+ */
 ctls_status_t ctls_extn_opaque_serialize(uint8_t *destination_buffer,
                                          ctls_size_t *destination_offset,
                                          uint8_t const *source_buffer,
@@ -176,6 +222,14 @@ ctls_status_t ctls_extn_opaque_serialize(uint8_t *destination_buffer,
 }
 
 
+/*
+ * server_name, RFC 6066 §3. OPAQUE: alias the source blob, zero copy.
+ * PARSED: decode the ServerNameList —
+ *
+ *     server_name_list_length(u16)
+ *     then per entry: name_type(u8, host_name=0)
+ *                   | host_name_length(u16) | host_name bytes
+ */
 ctls_status_t ctls_extn_server_name_deserialize(uint8_t *buffer,
                                                 ctls_size_t const *buffer_length,
                                                 ctls_data_form_t const form,
@@ -218,6 +272,17 @@ ctls_status_t ctls_extn_server_name_deserialize(uint8_t *buffer,
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * server_name, TLS 1.3 form (transcript). OPAQUE delegates to
+ * ctls_extn_opaque_serialize (blob already holds the ServerNameList).
+ * PARSED writes:
+ *
+ *     extension_type(u16) | list_length(u16, backfilled)
+ *     then per entry: name_type(u8) | host_name_length(u16) | host_name
+ *
+ * Note: extension_data_length and server_name_list length collapse into the
+ * single backfilled u16 — RFC 6066 carries both, here one u16 serves as both.
+ */
 ctls_status_t ctls_extn_server_name_serialize(uint8_t *buffer,
                                               ctls_size_t *offset,
                                               ctls_extn_server_name_t const *
@@ -264,6 +329,11 @@ ctls_status_t ctls_extn_server_name_serialize(uint8_t *buffer,
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * max_fragment_length, RFC 6066 §4:
+ * "enum{ 2^9(1), 2^10(2), 2^11(3), 2^12(4), (255) } MaxFragmentLength;"
+ * One byte — handled by the generic enum helpers.
+ */
 ctls_status_t ctls_extn_max_fragment_length_deserialize(
     ctls_extn_max_fragment_length_t const *source,
     ctls_extn_max_fragment_length_t *max_fragment_length) {
@@ -283,6 +353,11 @@ ctls_status_t ctls_extn_max_fragment_length_serialize(
                                     *max_fragment_length);
 }
 
+/*
+ * Sender side: if the peer asked for certificate status during the
+ * handshake, attach the canned OCSP response DER for this entity (form =
+ * OPAQUE); otherwise mark the extension absent (form = SENTINEL).
+ */
 ctls_status_t ctls_extn_certificate_status_request_create(
     ctls_extn_certificate_status_request_t *certificate_status_request,
     ctls_entity_t const entity) {
@@ -310,6 +385,20 @@ ctls_status_t ctls_extn_certificate_status_request_create(
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * status_request, RFC 6066 §8. OPAQUE: alias blob. PARSED layout read:
+ *
+ *     status_type(u8, must be ocsp=1)
+ *     | responder_id_list_length(u16, skipped)
+ *     | responder_id_length(u16, skipped)
+ *     | responder_id(u8 stub)
+ *     | request_extensions_length(u16, skipped)
+ *     | request_extensions(u8 stub)
+ *
+ * RFC 6066 allows variable-length ResponderID and Extensions lists; the
+ * profile fixes both to 1-byte stubs (value 0), so the list lengths are
+ * skipped rather than honored.
+ */
 ctls_status_t ctls_extn_certificate_status_request_deserialize(
     uint8_t *buffer,
     ctls_size_t const *buffer_length,
@@ -347,6 +436,15 @@ ctls_status_t ctls_extn_certificate_status_request_deserialize(
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * status_request, TLS 1.3 form (transcript). OPAQUE delegates to opaque
+ * writer. PARSED writes:
+ *
+ *     extension_type(u16) | status_type(u8)
+ *     | responder_id_list_length(u16, backfilled)
+ *     | responder_id_length(u16) | responder_id(u8)
+ *     | request_extensions(u8)
+ */
 ctls_status_t ctls_extn_certificate_status_request_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
@@ -396,6 +494,10 @@ ctls_status_t ctls_extn_certificate_status_request_serialize(
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * supported_groups, RFC 8446 §4.2.7 ("NamedGroup named_group_list
+ * <2..2^16-1>;") — collapsed to the single u16 NamedGroup the template pins.
+ */
 ctls_status_t ctls_extn_supported_groups_deserialize(
     ctls_extn_supported_group_t const *source,
     ctls_extn_supported_group_t *supported_group) {
@@ -413,6 +515,11 @@ ctls_status_t ctls_extn_supported_groups_serialize(uint8_t *buffer,
                                     *supported_groups);
 }
 
+/*
+ * signature_algorithms, RFC 8446 §4.2.3 ("SignatureScheme
+ * supported_signature_algorithms<2..2^16-2>;") — collapsed to the single
+ * u16 SignatureScheme the template pins.
+ */
 ctls_status_t ctls_extn_signature_algorithm_deserialize(
     ctls_extn_signature_algorithm_t const *source,
     ctls_extn_signature_algorithm_t *signature_algorithm) {
@@ -432,6 +539,10 @@ ctls_status_t ctls_extn_signature_algorithm_serialize(
                                     *signature_algorithm);
 }
 
+/*
+ * signature_algorithms_cert, RFC 8446 §4.2.3 — same encoding as
+ * signature_algorithms, scoped to signatures inside certificates.
+ */
 ctls_status_t ctls_extn_signature_algorithm_cert_deserialize(
     ctls_extn_signature_algorithm_t const *source,
     ctls_extn_signature_algorithm_t *signature_algorithm_cert) {
@@ -451,6 +562,10 @@ ctls_status_t ctls_extn_signature_algorithm_cert_serialize(
                                     *signature_algorithm_cert);
 }
 
+/*
+ * heartbeat, RFC 6520 §2 — single HeartbeatMode byte:
+ * peer_allowed_to_send(1) | peer_not_allowed_to_send(2).
+ */
 ctls_status_t ctls_extn_heartbeat_mode_deserialize(
     ctls_extn_heartbeat_mode_t const *source,
     ctls_extn_heartbeat_mode_t *heartbeat_mode) {
@@ -468,6 +583,13 @@ ctls_status_t ctls_extn_heartbeat_mode_serialize(uint8_t *buffer,
                                     *heartbeat_mode);
 }
 
+/*
+ * ALPN, RFC 7301 §3.1. OPAQUE: alias blob. PARSED: decode the
+ * ProtocolNameList —
+ *
+ *     protocol_name_list_length(u16)
+ *     then per entry: protocol_name_length(u8) | protocol_name bytes
+ */
 ctls_status_t ctls_extn_alpn_deserialize(uint8_t *buffer,
                                          ctls_size_t const *buffer_length,
                                          ctls_data_form_t const form,
@@ -504,6 +626,10 @@ ctls_status_t ctls_extn_alpn_deserialize(uint8_t *buffer,
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * ALPN, TLS 1.3 form (transcript). Same single-length collapse as
+ * server_name: extension_type(u16) | list_length(u16, backfilled) | entries.
+ */
 ctls_status_t ctls_extn_alpn_serialize(uint8_t *buffer,
                                        ctls_size_t *offset,
                                        ctls_extn_alpn_t const *alpn) {
@@ -547,6 +673,10 @@ ctls_status_t ctls_extn_alpn_serialize(uint8_t *buffer,
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * Sender side: attach canned SCT DER for this entity (form = OPAQUE), or
+ * mark absent. RFC 6962 §3.3 — SCT delivered via TLS extension.
+ */
 ctls_status_t ctls_extn_signed_certificate_timestamp_create(
     ctls_extn_signed_certificate_timestamp_t *signed_certificate_timestamp,
     ctls_entity_t const entity) {
@@ -573,6 +703,14 @@ ctls_status_t ctls_extn_signed_certificate_timestamp_create(
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * SCT, RFC 6962 §3.2. OPAQUE: alias blob. PARSED layout read (profile
+ * variant of SignedCertificateTimestamp, single SCT, no list wrapper):
+ *
+ *     sct_version(u8) | log_id(32B) | timestamp(u64)
+ *     | extensions(u8 stub) | signature_algorithm(u16)
+ *     | certificate_length(u16) | certificate bytes
+ */
 ctls_status_t ctls_extn_signed_certificate_timestamp_deserialize(
     uint8_t *buffer,
     ctls_size_t const *buffer_length,
@@ -615,6 +753,15 @@ ctls_status_t ctls_extn_signed_certificate_timestamp_deserialize(
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * SCT, TLS 1.3 form (transcript). OPAQUE delegates to opaque writer.
+ * PARSED writes:
+ *
+ *     extension_type(u16) | extension_data_length(u16, backfilled)
+ *     | sct_version(u8) | log_id(32B) | timestamp(u64)
+ *     | extensions(u8) | signature_algorithm(u16)
+ *     | certificate_length(u16) | certificate bytes
+ */
 ctls_status_t ctls_extn_signed_certificate_timestamp_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
@@ -670,6 +817,10 @@ ctls_status_t ctls_extn_signed_certificate_timestamp_serialize(
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * client_certificate_type, RFC 7250 — single CertificateType byte the
+ * template pins (X509(0) | RawPublicKey(2)). List wrapper dropped.
+ */
 ctls_status_t ctls_extn_client_certificate_type_deserialize(
     ctls_extn_client_certificate_type_t const *source,
     ctls_extn_client_certificate_type_t *client_certificate_type) {
@@ -689,6 +840,7 @@ ctls_status_t ctls_extn_client_certificate_type_serialize(
                                     *client_certificate_type);
 }
 
+/* server_certificate_type, RFC 7250 — same encoding as client variant. */
 ctls_status_t ctls_extn_server_certificate_type_deserialize(
     ctls_extn_server_certificate_type_t const *source,
     ctls_extn_server_certificate_type_t *server_certificate_type) {
@@ -708,6 +860,11 @@ ctls_status_t ctls_extn_server_certificate_type_serialize(
                                     *server_certificate_type);
 }
 
+/*
+ * supported_versions, RFC 8446 §4.2.1. TLS 1.3 sends a version list in CH
+ * and one selected_version in SH; the template pins ProtocolVersion 0x0304,
+ * so both collapse to a single u16.
+ */
 ctls_status_t ctls_extn_supported_versions_deserialize(
     ctls_extn_supported_version_t const *source,
     ctls_extn_supported_version_t *supported_versions) {
@@ -727,6 +884,10 @@ ctls_status_t ctls_extn_supported_versions_serialize(uint8_t *buffer,
                                     *supported_versions);
 }
 
+/*
+ * psk_key_exchange_modes, RFC 8446 §4.2.9 ("PskKeyExchangeMode
+ * ke_modes<1..255>;") — collapsed to the single u8 mode the template pins.
+ */
 ctls_status_t ctls_extn_psk_key_exchange_modes_deserialize(
     ctls_extn_psk_key_exchange_mode_t const *source,
     ctls_extn_psk_key_exchange_mode_t *psk_key_exchange_modes) {
@@ -746,6 +907,12 @@ ctls_status_t ctls_extn_psk_key_exchange_modes_serialize(
                                     *psk_key_exchange_modes);
 }
 
+/*
+ * certificate_authorities, RFC 8446 §4.2.4 ("DistinguishedName
+ * authorities<3..2^16-1>;"). OPAQUE: alias blob. PARSED: single DN —
+ *
+ *     distinguished_name_length(u16) | DER-encoded DN bytes
+ */
 ctls_status_t ctls_extn_certificate_authorities_deserialize(
     uint8_t *buffer,
     ctls_size_t const *buffer_length,
@@ -802,6 +969,11 @@ ctls_status_t ctls_extn_certificate_authorities_serialize(
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * post_handshake_auth, RFC 8446 §4.2.6: "The 'extension_data' field of the
+ * 'post_handshake_auth' extension is zero length." Deserialize copies the
+ * template flag byte.
+ */
 ctls_status_t ctls_extn_post_handshake_auth_deserialize(
     ctls_extn_post_handshake_auth_t const *source,
     ctls_extn_post_handshake_auth_t *post_handshake_auth) {
@@ -810,6 +982,10 @@ ctls_status_t ctls_extn_post_handshake_auth_deserialize(
                                       CTLS_HELPER_IS_ONE_BYTE);
 }
 
+/*
+ * post_handshake_auth, TLS 1.3 form: extension_type(u16) | length(u16)=0.
+ * Writes nothing when the flag is unset (extension absent).
+ */
 ctls_status_t ctls_extn_post_handshake_auth_serialize(
     uint8_t *buffer,
     ctls_size_t *offset,
@@ -826,6 +1002,14 @@ ctls_status_t ctls_extn_post_handshake_auth_serialize(
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * key_share, RFC 8446 §4.2.8. TLS 1.3 KeyShareEntry is
+ * { NamedGroup group(u16); opaque key_exchange<1..2^16-1>; } — in cTLS the
+ * group and key length come from the template, so the wire carries only the
+ * raw CTLS_SIZE_KEY_SHARE key bytes. They are copied into hshk_data's
+ * client/server ephemeral key slot per entity_ownership, and *key_share is
+ * pointed at that storage.
+ */
 ctls_status_t ctls_extn_key_share_deserialize(uint8_t const *buffer,
                                               ctls_size_t *offset,
                                               ctls_helper_entity_ownership_t const
@@ -855,6 +1039,13 @@ ctls_status_t ctls_extn_key_share_deserialize(uint8_t const *buffer,
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * key_share writer.
+ *
+ *     DEFAULT (cTLS wire):  key_exchange_length(u16) | key bytes
+ *     TRANSCRIPT_HASH:      extension_type(u16) | key_exchange_length(u16)
+ *                           | key bytes
+ */
 ctls_status_t ctls_extn_key_share_serialize(uint8_t *buffer,
                                             ctls_size_t *offset,
                                             ctls_wire_format_t const wire_format,
@@ -873,11 +1064,20 @@ ctls_status_t ctls_extn_key_share_serialize(uint8_t *buffer,
 }
 
 
+/* Element count of a template expected_extensions array. */
 uint8_t ctls_expected_extensions_size_get(
     ctls_tmpl_expected_extensions_t const *expected_extensions) {
     return sizeof(*expected_extensions) / sizeof((*expected_extensions)[0]);
 }
 
+/*
+ * Build the full ClientHello extension set. For each extension: ask
+ * ctls_extn_is_initialized whether the template predefines it, and if so
+ * load it from the template (OPAQUE blobs alias template memory, scalars
+ * are copied). Then, if the template expects key_share dynamically,
+ * generate the client ephemeral key pair and reference its public half —
+ * the only extension data that will hit the cTLS wire.
+ */
 ctls_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions) {
     ctls_template_t const *template = ctls_template_get();
@@ -1110,6 +1310,18 @@ ctls_status_t ctls_extn_client_hello_to_struct() {
     return CTLS_STATUS_NOT_IMPLEMENTED;
 }
 
+/*
+ * Emit ClientHello extensions.
+ *
+ * DEFAULT (cTLS wire): predefined extensions are compressed away entirely;
+ * only the key_share key bytes are written. The u16 length prefix is added
+ * only when the template does not pin key_share_length.
+ *
+ * TRANSCRIPT_HASH: reconstruct every present extension in TLS 1.3 Extension
+ * framing (type | length | data), in struct order, key_share last. This
+ * byte stream feeds the transcript hash so the key schedule matches what a
+ * TLS 1.3 peer would compute.
+ */
 ctls_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
                                              ctls_size_t *offset,
                                              ctls_extn_client_hello_t const *
@@ -1240,6 +1452,11 @@ ctls_status_t ctls_extn_server_hello_create(void) {
     return CTLS_STATUS_NOT_IMPLEMENTED;
 }
 
+/*
+ * Emit ServerHello extensions. RFC 8446 §4.1.3 requires supported_versions
+ * and key_share in SH. TRANSCRIPT_HASH reconstructs both in TLS 1.3
+ * framing; DEFAULT is empty (client-only build never sends SH).
+ */
 ctls_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
                                              ctls_size_t *offset,
                                              ctls_extn_server_hello_t const *
@@ -1266,6 +1483,11 @@ ctls_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
     return CTLS_STATUS_EXTN_INVALID_WIRE_FORMAT;
 }
 
+/*
+ * Rebuild ServerHello extensions on receive. supported_versions comes from
+ * the template (predefined, never on wire); key_share is the only wire
+ * field — raw server public key bytes at *offset.
+ */
 ctls_status_t ctls_extn_server_hello_to_struct(
     ctls_extn_server_hello_t *server_hello_extensions,
     uint8_t const *buffer,
@@ -1294,6 +1516,11 @@ ctls_status_t ctls_extn_encrypted_extensions_create(
     return CTLS_STATUS_NOT_IMPLEMENTED;
 }
 
+/*
+ * Rebuild EncryptedExtensions content (RFC 8446 §4.3.1) purely from the
+ * template — in cTLS none of these travel on the wire. Errors if the
+ * template expects dynamic extensions for EE (none are defined).
+ */
 ctls_status_t ctls_extn_encrypted_extensions_to_struct(
     ctls_extn_encrypted_extensions_t *encrypted_extensions) {
     ctls_template_t const *template = ctls_template_get();
@@ -1395,6 +1622,11 @@ ctls_status_t ctls_extn_encrypted_extensions_to_struct(
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * Emit EncryptedExtensions extensions. TRANSCRIPT_HASH reconstructs each
+ * present extension in TLS 1.3 framing, struct order. DEFAULT is empty —
+ * everything here is template-predefined, nothing goes on the wire.
+ */
 ctls_status_t ctls_extn_encrypted_extensions_to_wire(uint8_t *buffer,
                                                      ctls_size_t *offset,
                                                      ctls_extn_encrypted_extensions_t
@@ -1466,6 +1698,11 @@ ctls_status_t ctls_extn_certificate_request_create(void) {
     return CTLS_STATUS_NOT_IMPLEMENTED;
 }
 
+/*
+ * Rebuild CertificateRequest extensions (RFC 8446 §4.3.2) from the
+ * template. signature_algorithms is the one RFC-mandatory extension there;
+ * the rest load only if predefined.
+ */
 ctls_status_t ctls_extn_certificate_request_to_struct(
     ctls_extn_certificate_request_t *certificate_request_extensions) {
     ctls_template_t const *template = ctls_template_get();
@@ -1543,6 +1780,10 @@ ctls_status_t ctls_extn_certificate_request_to_struct(
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * Emit CertificateRequest extensions (TRANSCRIPT_HASH reconstruction,
+ * TLS 1.3 framing, struct order). DEFAULT is empty — template-predefined.
+ */
 ctls_status_t ctls_extn_certificate_request_to_wire(uint8_t *buffer,
                                                     ctls_size_t *offset,
                                                     ctls_extn_certificate_request_t const
@@ -1593,6 +1834,12 @@ ctls_status_t ctls_extn_certificate_request_to_wire(uint8_t *buffer,
     return CTLS_STATUS_EXTN_INVALID_WIRE_FORMAT;
 }
 
+/*
+ * Build per-CertificateEntry extensions from handshake state. RFC 8446
+ * §4.4.2: "Valid extensions for server certificates at present include the
+ * OCSP Status extension [RFC6066] and the SignedCertificateTimestamp
+ * extension [RFC6962]" — attached only when the peer requested them.
+ */
 ctls_status_t ctls_extn_certificate_create(ctls_extn_certificate_t *ctls_certificate,
                                            ctls_entity_t const entity) {
     ctls_hshk_data_t const *hshk_data = ctls_hshk_data_get();
@@ -1620,6 +1867,7 @@ ctls_status_t ctls_extn_certificate_create(ctls_extn_certificate_t *ctls_certifi
     return result;
 }
 
+/* Rebuild per-CertificateEntry extensions from the template. */
 ctls_status_t ctls_extn_certificate_to_struct(
     ctls_extn_certificate_t *certificate_extensions) {
     ctls_template_t const *template = ctls_template_get();
@@ -1666,6 +1914,10 @@ ctls_status_t ctls_extn_certificate_to_struct(
     return result;
 }
 
+/*
+ * Emit per-CertificateEntry extensions (TRANSCRIPT_HASH reconstruction,
+ * TLS 1.3 framing). DEFAULT is empty.
+ */
 ctls_status_t ctls_extn_certificate_to_wire(uint8_t *buffer,
                                             ctls_size_t *offset,
                                             ctls_extn_certificate_t const *
