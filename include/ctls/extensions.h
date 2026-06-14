@@ -266,6 +266,7 @@ struct ctls_extn_client_hello {
     ctls_extn_supported_version_t supported_versions;
     ctls_extn_psk_key_exchange_mode_t psk_key_exchange_modes;
     ctls_extn_early_data_t early_data;
+    ctls_extn_cookie_t cookie;
     ctls_extn_certificate_authorities_t certificate_authorities;
     ctls_extn_post_handshake_auth_t post_handshake_auth;
     ctls_extn_signature_algorithm_cert_t signature_algorithm_cert;
