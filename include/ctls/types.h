@@ -443,6 +443,7 @@ typedef struct ctls_extn_pre_shared_key ctls_extn_pre_shared_key_t;
 typedef struct ctls_extn_offered_psk ctls_extn_offered_psk_t;
 typedef struct ctls_extn_psk_identity ctls_extn_psk_identity_t;
 typedef struct ctls_extn_early_data ctls_extn_early_data_t;
+typedef struct ctls_ticket ctls_ticket_t;
 
 typedef struct ctls_extn_client_hello ctls_extn_client_hello_t;
 typedef struct ctls_hsmg_client_hello ctls_hsmg_client_hello_t;
