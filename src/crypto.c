@@ -1,3 +1,11 @@
+/*
+ * Crypto layer over PSA Crypto. See crypto.h for the key schedule diagram
+ * (RFC 8446 §7.1 with cTLS "Sctls " labels) and per-function API docs.
+ * Pattern used throughout: import key material as a transient PSA key,
+ * run the operation, destroy the key and reset attributes in the cleanup
+ * path — no raw secrets persist beyond hshk_data.
+ */
+
 #include <string.h>
 #include "psa/crypto.h"
 #include "ctls/types.h"
@@ -79,6 +87,12 @@ ctls_status_t ctls_psa_ecc_family_set(ctls_crypto_t *crypto,
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * Start the running transcript hash. The template's canonical wire bytes
+ * are the first input — cTLS binds the profile into the transcript so
+ * peers with different templates fail at Finished, not silently.
+ * NOTE: transcript_hash doubles as scratch for the template bytes here.
+ */
 ctls_status_t ctls_transcript_hash_init(ctls_crypto_t *crypto,
                                         uint8_t *transcript_hash,
                                         ctls_template_t const *template) {
@@ -110,6 +124,12 @@ ctls_status_t ctls_transcript_hash_calculate(psa_hash_operation_t *hash_operator
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * Absorb one handshake message into the transcript: serialize the record in
+ * TRANSCRIPT_HASH wire format (reconstructed TLS 1.3 bytes, see
+ * extensions.h) and feed it to the running hash. Called once per message
+ * from the handshake driver, after send/receive.
+ */
 ctls_status_t ctls_transcript_hash_update(ctls_record_t const *record) {
     ctls_crypto_t *crypto = ctls_crypto_get();
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
@@ -176,6 +196,11 @@ ctls_status_t ctls_transcript_hash_update(ctls_record_t const *record) {
                                           hshk_data->transcript_hash);
 }
 
+/*
+ * Read the current Transcript-Hash without killing the running operator:
+ * psa_hash_clone, finish the clone. Needed because the key schedule and
+ * CertificateVerify consume intermediate transcript values mid-handshake.
+ */
 ctls_status_t transcript_snapshot(psa_hash_operation_t const *hash_operator,
                                   uint8_t *buffer) {
     psa_hash_operation_t clone = PSA_HASH_OPERATION_INIT;
@@ -246,6 +271,12 @@ ctls_status_t ctls_random_generate(uint8_t *buffer,
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * Full key schedule run (crypto.h diagram), called once after ServerHello:
+ * early secret -> derived secret -> ECDHE -> handshake secret -> client +
+ * server traffic secrets -> AEAD keys + IVs. Ends by bumping the epoch to
+ * 2 (handshake keys, RFC 9147 §6.1 — epoch 1 / early data unsupported).
+ */
 ctls_status_t ctls_key_schedule() {
     ctls_crypto_t *crypto = ctls_crypto_get();
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
@@ -300,6 +331,17 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
                                         uint8_t const *transcript_hash,
                                         ctls_entity_t const entity,
                                         ctls_key_type_t const key_type) {
+    /*
+     * HkdfLabel encoding (RFC 8446 §7.1), label prefix "Sctls " per the
+     * cTLS profile instead of "tls13 ":
+     *
+     *     output_length(u16) | label_length(u8) | label bytes
+     *     | context_length(u8) | context bytes
+     *
+     * SIGNED_BYTES is the odd one out — it emits the RFC 8446 §4.4.3
+     * signing content instead: 64 x 0x20 | context string | 0x00 |
+     * transcript hash.
+     */
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL(offset);
 
@@ -407,6 +449,10 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
 }
 
 
+/*
+ * early_secret = HKDF-Extract(salt = 0, ikm = 0) — RFC 8446 §7.1, no-PSK
+ * profile, so both inputs are 32 zero bytes.
+ */
 ctls_status_t ctls_early_secret_generate(ctls_crypto_t *crypto, uint8_t *early_secret) {
     CTLS_CHECK_NULL_STRUCT(crypto);
     CTLS_CHECK_NULL(early_secret);
@@ -535,6 +581,10 @@ ctls_status_t ctls_shared_ephemeral_secret_generate(ctls_crypto_t const *crypto,
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * handshake_secret = HKDF-Extract(salt = derived_secret,
+ *                                 ikm = ECDHE shared secret) — RFC 8446 §7.1.
+ */
 ctls_status_t ctls_handshake_secret_generate(ctls_crypto_t *crypto,
                                              ctls_hshk_data_t *hshk_data) {
     CTLS_CHECK_NULL_STRUCT(crypto);
@@ -586,6 +636,11 @@ cleanup:
     return CTLS_STATUS_CRYPTO_HKDF_FAILED;
 }
 
+/*
+ * c/s hs traffic secret = Expand-Label(handshake_secret,
+ *     "c hs traffic" | "s hs traffic", Transcript-Hash(CH..SH), 32)
+ * — RFC 8446 §7.1; entity picks label and output slot.
+ */
 ctls_status_t ctls_handshake_traffic_secret_generate(ctls_crypto_t *crypto,
                                                      ctls_hshk_data_t *hshk_data,
                                                      ctls_entity_t const entity) {
@@ -649,6 +704,10 @@ cleanup:
     return CTLS_STATUS_CRYPTO_HKDF_FAILED;
 }
 
+/*
+ * AEAD write key = Expand-Label(traffic_secret, "key", "", 16)
+ * — RFC 8446 §7.3.
+ */
 ctls_status_t ctls_handshake_key_generate(ctls_crypto_t *crypto,
                                           ctls_hshk_data_t *hshk_data,
                                           ctls_entity_t const entity) {
@@ -711,6 +770,11 @@ cleanup:
     return CTLS_STATUS_CRYPTO_HKDF_FAILED;
 }
 
+/*
+ * Static record IV = Expand-Label(traffic_secret, "iv", "", 12)
+ * — RFC 8446 §7.3; XORed with the sequence number per record
+ * (ctls_nonce_generate).
+ */
 ctls_status_t ctls_handshake_iv_key_generate(ctls_crypto_t *crypto,
                                              ctls_hshk_data_t *hshk_data,
                                              ctls_entity_t const entity) {
@@ -761,6 +825,12 @@ cleanup:
     return CTLS_STATUS_CRYPTO_HKDF_FAILED;
 }
 
+/*
+ * Per-record nonce (RFC 8446 §5.3): copy the 12-byte static IV, XOR the
+ * sequence number into its last 8 bytes (left-padded big-endian). Same
+ * sequence number must never repeat under one key — that is what the
+ * record counters guarantee.
+ */
 ctls_status_t ctls_nonce_generate(uint8_t *buffer,
                                   uint16_t const *sequence_number,
                                   uint8_t const *iv_key) {
@@ -776,6 +846,12 @@ ctls_status_t ctls_nonce_generate(uint8_t *buffer,
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * AEAD open (RFC 8446 §5.2): AES-128-GCM with the per-record nonce and the
+ * unified header bytes as AAD. Tag mismatch -> AEAD_DECRYPT_FAILED; a good
+ * tag simultaneously authenticates the header. Key/IV selected by
+ * compile-time role.
+ */
 ctls_status_t ctls_decrypt(uint16_t const *sequence_number,
                            uint8_t const *aad,
                            size_t const aad_len,
@@ -844,6 +920,11 @@ cleanup:
     return err;
 }
 
+/*
+ * AEAD seal — inverse of ctls_decrypt. Output written to ciphertext_buffer
+ * is ciphertext | tag(16); bytes_written = plaintext_length + 16. Own
+ * role's handshake key + IV (compile-time CTLS_CLIENT / CTLS_SERVER).
+ */
 ctls_status_t ctls_encrypt(uint16_t const *sequence_number,
                            uint8_t const *aad,
                            ctls_size_t const aad_len,
@@ -965,6 +1046,12 @@ ctls_status_t ctls_cert_public_key_import(uint8_t const *cert_der,
     return ctls_psa_error_map(psa_st);
 }
 
+/*
+ * CertificateVerify signature (RFC 8446 §4.4.3): Ed25519 over
+ * 64 x 0x20 | context string | 0x00 | Transcript-Hash. Private key comes
+ * from this entity's PKCS#8 DER in the certs header; signature lands in
+ * hshk_data's signed-bytes slot for the hsmg layer to reference.
+ */
 ctls_status_t ctls_signed_bytes_generate(ctls_entity_t const entity) {
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
     ctls_crypto_t const *crypto = ctls_crypto_get();
@@ -1032,6 +1119,12 @@ cleanup: memset(content, 0, sizeof(content));
 }
 
 
+/*
+ * Verify the peer's CertificateVerify: rebuild the same §4.4.3 content
+ * from the local transcript, import the peer's Ed25519 public key from its
+ * certificate (SPKI scan), psa_verify_message against the received
+ * signature stored in hshk_data.
+ */
 ctls_status_t ctls_signed_bytes_verify(ctls_entity_t const entity) {
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
     ctls_crypto_t const *crypto = ctls_crypto_get();
@@ -1097,6 +1190,10 @@ cleanup:
     return CTLS_STATUS_CRYPTO_SIGNATURE_FAILED;
 }
 
+/*
+ * finished_key = HKDF-Expand-Label(base key, "finished", "", 32)
+ * — RFC 8446 §4.4.4; per entity, stored in hshk_data.
+ */
 ctls_status_t ctls_finished_key_generate(ctls_entity_t const entity) {
     if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
         return CTLS_STATUS_CRYPTO_INVALID_ARG;
