@@ -1,6 +1,16 @@
 // Created by Sanjay Kumar Kumaravelan on 15/04/26.
 //
 
+/*
+ * cTLS record layer. See record.h for the design overview (record forms,
+ * unified header layout, counter semantics). Comments here give exact byte
+ * layouts per function.
+ *
+ * Encrypted record on the wire:
+ *
+ *     unified header (clear, = AEAD AAD) | AES-128-GCM(body) | tag(16)
+ */
+
 #include <string.h>
 #include "ctls/ctls.h"
 #include "ctls/bytes.h"
@@ -85,6 +95,12 @@ ctls_status_t ctls_epoch_counter_reset(void) {
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * Snapshot current hshk_data counters into a header at record creation:
+ * sequence number (s_bit picks 1- vs 2-byte encoding), full epoch plus its
+ * compressed 2 bits, l_bit from length. length is usually 0 here — for
+ * encrypted records the final value is known only after body serialization.
+ */
 ctls_status_t ctls_unified_header_build(ctls_unified_header_t *unified_header,
                                         uint16_t const length) {
     ctls_hshk_data_t const *hshk_data = ctls_hshk_data_get();
@@ -104,6 +120,15 @@ ctls_status_t ctls_unified_header_build(ctls_unified_header_t *unified_header,
     return ctls_aad_length_calculate(unified_header);
 }
 
+/*
+ * Header struct -> wire bytes (RFC 9147 §4 model):
+ *
+ *     config octet(1): fixed prefix | C | S | L | EE(2 epoch bits)
+ *     | sequence number (u8 if S=0, u16 if S=1)
+ *     | length (u16, only if L=1)
+ *
+ * These bytes double as the AEAD AAD for encrypted records.
+ */
 ctls_status_t ctls_unified_header_serialize(ctls_unified_header_t const *unified_header,
                                             uint8_t *buffer,
                                             ctls_size_t *offset) {
@@ -139,6 +164,12 @@ ctls_status_t ctls_unified_header_serialize(ctls_unified_header_t const *unified
 }
 
 
+/*
+ * Wire bytes -> header struct, inverse of serialize. The 2 epoch wire bits
+ * are expanded against the epoch value already in the struct — the caller
+ * (ctls_record_decrypt) seeds it with the current epoch from hshk_data.
+ * Also recomputes aad_length from the parsed config bits.
+ */
 ctls_status_t ctls_unified_header_deserialize(ctls_unified_header_t *unified_header,
                                               uint8_t const *buffer,
                                               ctls_size_t *offset) {
@@ -176,6 +207,13 @@ ctls_status_t ctls_unified_header_deserialize(ctls_unified_header_t *unified_hea
     return ctls_aad_length_calculate(unified_header);
 }
 
+/*
+ * Record struct -> final wire bytes, dispatched on record type + message
+ * type. PLAINTEXT (CH/SH) serializes straight into buffer. ENCRYPTED
+ * flights serialize header into buffer and body into the plaintext scratch,
+ * then encrypt inside their to_wire. On success consumes one sequence
+ * number (see counter block above).
+ */
 ctls_status_t ctls_record_serialize(ctls_record_t const *record,
                                     uint8_t *buffer,
                                     ctls_size_t *offset) {
@@ -244,6 +282,12 @@ ctls_status_t ctls_record_serialize(ctls_record_t const *record,
     return ctls_sequence_number_counter_increment();
 }
 
+/*
+ * Received wire bytes -> record struct, dispatched on the message type the
+ * handshake state machine expects (cTLS has no content-type byte on
+ * encrypted records to dispatch on). Decryption happens inside the
+ * per-message to_struct. On success consumes one sequence number.
+ */
 ctls_status_t ctls_record_deserialize(ctls_record_t *record,
                                       ctls_hsmg_type_t const hsmg_type,
                                       uint8_t const *buffer) {
@@ -289,6 +333,15 @@ ctls_status_t ctls_recd_buffer_clear(ctls_record_t *record_buffer) {
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * Body plaintext -> encrypted record bytes in buffer:
+ *
+ *     unified header (clear, AAD) | AES-128-GCM(plaintext) | tag(16)
+ *
+ * Header is serialized here so its bytes and the AAD are identical by
+ * construction; the AEAD tag binds them (RFC 8446 §5.2 model). The
+ * receiver's tag check is what authenticates the header.
+ */
 ctls_status_t ctls_record_encrypt(uint8_t *buffer,
                                   ctls_size_t *offset,
                                   ctls_unified_header_t const *unified_header,
@@ -356,6 +409,10 @@ ctls_status_t ctls_record_decrypt(ctls_record_t *record,
     return result;
 }
 
+/*
+ * ClientHello record: PLAINTEXT type, profile id from the template. Body
+ * built by the hsmg layer (fresh random, key share generation).
+ */
 ctls_status_t ctls_recd_client_hello_create(ctls_record_t *record) {
     ctls_template_t const *template = ctls_template_get();
 
@@ -378,6 +435,19 @@ ctls_status_t ctls_recd_client_hello_to_struct() {
 }
 
 
+/*
+ * ClientHello record framing.
+ *
+ * DEFAULT (compact cTLS bytes sent on wire):
+ *
+ *     content_type(u8) | profile_id_length(u8) | profile_id(u8)
+ *     | compact ClientHello body (see hsmg.c)
+ *
+ * TRANSCRIPT_HASH (TLS 1.3 record reconstruction, hashed only):
+ *
+ *     content_type(u8) | legacy protocol version(u16) = 0x0303
+ *     | record_body_length(u16, backfilled) | TLS 1.3 ClientHello body
+ */
 ctls_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
                                              ctls_size_t *offset,
                                              ctls_record_t const *record,
@@ -427,6 +497,13 @@ ctls_status_t ctls_recd_server_hello_create(void) {
     return CTLS_STATUS_NOT_IMPLEMENTED;
 }
 
+/*
+ * Parse a compact ServerHello record:
+ *
+ *     content_type(u8) | record_body_length(u16) | compact SH body
+ *
+ * PLAINTEXT record — arrives before keys exist.
+ */
 ctls_status_t ctls_recd_server_hello_to_struct(ctls_record_t *record,
                                                uint8_t const *buffer,
                                                ctls_size_t *offset) {
@@ -442,6 +519,12 @@ ctls_status_t ctls_recd_server_hello_to_struct(ctls_record_t *record,
     return ctls_hsmg_server_hello_to_struct(&record->record_body, buffer, offset);
 }
 
+/*
+ * ServerHello record, TRANSCRIPT_HASH only (client never sends SH):
+ *
+ *     content_type(u8) | legacy version(u16) = 0x0303
+ *     | record_body_length(u16, backfilled) | TLS 1.3 ServerHello body
+ */
 ctls_status_t ctls_recd_server_hello_to_wire(uint8_t *buffer,
                                              ctls_size_t *offset,
                                              ctls_record_t const *record,
@@ -476,6 +559,13 @@ ctls_status_t ctls_recd_encrypted_extensions_create(void) {
     return CTLS_STATUS_NOT_IMPLEMENTED;
 }
 
+/*
+ * Standalone encrypted-message receive path (EE / CertificateRequest /
+ * Certificate / CertificateVerify / Finished all follow this pattern):
+ * decrypt the record into a stack scratch buffer, then hand the body
+ * plaintext to the hsmg-layer parser. Used when messages arrive as
+ * individual records rather than a combined flight.
+ */
 ctls_status_t ctls_recd_encrypted_extensions_to_struct(ctls_record_t *record,
                                                        uint8_t const *buffer) {
     CTLS_CHECK_NULL_STRUCT(record);
@@ -493,6 +583,12 @@ ctls_status_t ctls_recd_encrypted_extensions_to_struct(ctls_record_t *record,
     return ctls_hsmg_encrypted_extensions_to_struct(&record->record_body, plaintext);
 }
 
+/*
+ * Standalone encrypted-message transcript form (same pattern for the next
+ * four functions): unified header bytes, then the hsmg-layer message body
+ * in TLS 1.3 reconstruction. Hashed only — DEFAULT path empty, the client
+ * sends these messages only inside the combined client flight.
+ */
 ctls_status_t ctls_recd_encrypted_extensions_to_wire(uint8_t *buffer,
                                                      ctls_size_t *offset,
                                                      ctls_record_t const *record,
@@ -522,6 +618,8 @@ ctls_status_t ctls_recd_certificate_request_create(void) {
     return CTLS_STATUS_NOT_IMPLEMENTED;
 }
 
+/* Decrypt + parse; rejected outright when the template disables mutual
+ * auth (RFC 8446 §4.3.2 — CertificateRequest only when client auth wanted). */
 ctls_status_t ctls_recd_certificate_request_to_struct(ctls_record_t *record,
                                                       uint8_t const *buffer) {
     ctls_template_t const *template = ctls_template_get();
@@ -633,8 +731,8 @@ ctls_status_t ctls_recd_certificate_verify_create(ctls_record_t *record,
                                                   ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(record);
 
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
-            CTLS_STATUS_RECD_INVALID_ENTITY;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_RECD_INVALID_ENTITY;
 
     ctls_status_t const result = ctls_recd_buffer_clear(record);
     if (result != CTLS_STATUS_SUCCESS) return result;
@@ -695,8 +793,8 @@ ctls_status_t ctls_recd_finished_create(ctls_record_t *record,
                                         ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(record);
 
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
-            CTLS_STATUS_RECD_INVALID_ENTITY;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_RECD_INVALID_ENTITY;
 
     ctls_status_t const result = ctls_recd_buffer_clear(record);
     if (result != CTLS_STATUS_SUCCESS) return result;
@@ -756,6 +854,11 @@ ctls_status_t ctls_recd_server_flight_create(ctls_record_t *record) {
     return CTLS_STATUS_NOT_IMPLEMENTED;
 }
 
+/*
+ * Combined server flight (cTLS combined message): one decrypt, then the
+ * four hsmg parsers consume the body in order —
+ * EncryptedExtensions | Certificate | CertificateVerify | Finished.
+ */
 ctls_status_t ctls_recd_server_flight_to_struct(ctls_record_t *record,
                                                 uint8_t const *buffer) {
     CTLS_CHECK_NULL_STRUCT(record);
@@ -786,6 +889,11 @@ ctls_status_t ctls_recd_server_flight_to_struct(ctls_record_t *record,
                                         CTLS_ENTITY_SERVER);
 }
 
+/*
+ * Server flight emit (transcript reconstruction on the client side):
+ * unified header, then EE | Certificate | CertificateVerify | Finished
+ * bodies in order.
+ */
 ctls_status_t ctls_recd_server_flight_to_wire(uint8_t *buffer,
                                               ctls_size_t *offset,
                                               ctls_record_t const *record,
@@ -830,6 +938,11 @@ ctls_status_t ctls_recd_server_flight_to_wire(uint8_t *buffer,
 }
 
 
+/*
+ * Combined client flight (cTLS combined message): Certificate +
+ * CertificateVerify + Finished in one encrypted record. Unified header
+ * built here, stamping the current sequence number and epoch.
+ */
 ctls_status_t ctls_recd_client_flight_create(ctls_record_t *record) {
     CTLS_CHECK_NULL_STRUCT(record);
 
@@ -858,6 +971,13 @@ ctls_status_t ctls_recd_client_flight_to_struct(ctls_record_t *record,
     return CTLS_STATUS_NOT_IMPLEMENTED;
 }
 
+/*
+ * Client flight emit. Two buffers: the unified header goes straight into
+ * buffer (clear — it is the AAD), the three message bodies
+ * (Certificate | CertificateVerify | Finished) accumulate in the plaintext
+ * scratch, and ctls_record_encrypt appends AES-GCM(plaintext) | tag after
+ * the header in buffer.
+ */
 ctls_status_t ctls_recd_client_flight_to_wire(uint8_t *buffer,
                                               ctls_size_t *offset,
                                               uint8_t *plaintext,
