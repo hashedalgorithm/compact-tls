@@ -48,6 +48,8 @@
 #define CTLS_COUNT_KNOWN_CERTIFICATES  2
 #define CTLS_SIZE_TICKET_NONCE 8U
 #define CTLS_SIZE_TICKET 32U
+#define CTLS_SIZE_PSK_IDENTITY 64U
+#define CTLS_SIZE_PSK_BINDER CTLS_SIZE_HASH
 #define CTLS_ENTITY_CERTIFICATE_ID 0x01    /* this build's own cert in the dictionary */
 
 

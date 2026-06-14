@@ -222,6 +222,23 @@ struct ctls_extn_signed_certificate_timestamp {
     };
 };
 
+struct ctls_extn_psk_identity {
+    uint8_t identity[CTLS_SIZE_PSK_IDENTITY];
+    uint8_t identity_length;
+    uint32_t obfuscated_ticket_age;
+};
+
+struct ctls_extn_offered_psk {
+    ctls_extn_psk_identity_t identities[CTLS_COUNT_PSK_IDENTITIES];
+    uint8_t binders[CTLS_SIZE_PSK_BINDER];
+};
+
+struct ctls_extn_pre_shared_key {
+    union {
+        ctls_extn_offered_psk_t offered_psk;
+        ctls_extn_psk_identity_t psk_identity;
+    };
+};
 
 struct ctls_extn_early_data {
     uint32_t max_size;
@@ -244,6 +261,7 @@ struct ctls_extn_client_hello {
     ctls_extn_signed_certificate_timestamp_t signed_certificate_timestamp;
     ctls_extn_certificate_type_t client_certificate_type;
     ctls_extn_certificate_type_t server_certificate_type;
+    ctls_extn_pre_shared_key_t pre_shared_key;
     ctls_extn_supported_version_t supported_versions;
     ctls_extn_psk_key_exchange_mode_t psk_key_exchange_modes;
     ctls_extn_early_data_t early_data;
@@ -261,6 +279,7 @@ struct ctls_extn_client_hello {
 struct ctls_extn_server_hello {
     ctls_extn_supported_version_t supported_versions;
     ctls_extn_key_share_t key_share_entity;
+    ctls_extn_pre_shared_key_t pre_shared_key;
 };
 
 /**
