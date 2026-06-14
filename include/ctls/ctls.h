@@ -39,6 +39,15 @@ struct ctls_hshk_buffer {
     ctls_size_t buffer_length;
 };
 
+struct ctls_ticket {
+    uint32_t ticket_lifetime;
+    uint32_t ticket_age_add;
+    uint8_t ticket_nonce[CTLS_SIZE_TICKET_NONCE];
+    uint8_t ticket[CTLS_SIZE_TICKET];
+    uint16_t ticket_length;
+    ctls_extn_new_session_ticket_t extensions;
+};
+
 struct ctls_hshk_data {
     uint16_t sequence_number;
     uint64_t epoch;
@@ -66,6 +75,7 @@ struct ctls_hshk_data {
     uint8_t server_finished_key[CTLS_SIZE_HASH];
     uint8_t client_verify_data[CTLS_SIZE_HASH];
     uint8_t server_verify_data[CTLS_SIZE_HASH];
+    ctls_ticket_t ticket;
     // flags
     bool isCertificateStatusRequested;
     bool isSignedCertificateTimestampRequested;

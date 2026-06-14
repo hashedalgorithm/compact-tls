@@ -222,6 +222,11 @@ struct ctls_extn_signed_certificate_timestamp {
     };
 };
 
+
+struct ctls_extn_early_data {
+    uint32_t max_size;
+};
+
 /**
  * All extensions a ClientHello may carry (RFC 8446, Section 4.2, table of
  * permitted messages, column CH). Every member except key_share_entity is
@@ -241,6 +246,7 @@ struct ctls_extn_client_hello {
     ctls_extn_certificate_type_t server_certificate_type;
     ctls_extn_supported_version_t supported_versions;
     ctls_extn_psk_key_exchange_mode_t psk_key_exchange_modes;
+    ctls_extn_early_data_t early_data;
     ctls_extn_certificate_authorities_t certificate_authorities;
     ctls_extn_post_handshake_auth_t post_handshake_auth;
     ctls_extn_signature_algorithm_cert_t signature_algorithm_cert;
@@ -270,6 +276,7 @@ struct ctls_extn_encrypted_extensions {
     ctls_extn_alpn_t alpn;
     ctls_extn_certificate_type_t client_certificate_type;
     ctls_extn_certificate_type_t server_certificate_type;
+    ctls_extn_early_data_t early_data;
 };
 
 /**
@@ -294,6 +301,10 @@ struct ctls_extn_certificate_request {
 struct ctls_extn_certificate {
     ctls_extn_certificate_status_request_t certificate_status_request;
     ctls_extn_signed_certificate_timestamp_t signed_certificate_timestamp;
+};
+
+struct ctls_extn_new_session_ticket {
+    ctls_extn_early_data_t early_data;
 };
 
 /**

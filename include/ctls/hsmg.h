@@ -164,6 +164,10 @@ struct ctls_hsmg_server_flight {
     ctls_hsmg_finished_t finished;
 };
 
+struct ctls_new_session_ticket {
+    ctls_ticket_t *ticket;
+};
+
 /** Body union — discriminated by ctls_handshake_message.message_type. */
 typedef union {
     ctls_hsmg_client_hello_t client_hello;

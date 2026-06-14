@@ -437,6 +437,7 @@ typedef struct ctls_extn_certificate_authorities ctls_extn_certificate_authoriti
 typedef uint8_t ctls_extn_post_handshake_auth_t;
 typedef ctls_signature_scheme_t ctls_extn_signature_algorithm_cert_t;
 typedef uint8_t *ctls_extn_key_share_t;
+typedef struct ctls_extn_early_data ctls_extn_early_data_t;
 
 typedef struct ctls_extn_client_hello ctls_extn_client_hello_t;
 typedef struct ctls_hsmg_client_hello ctls_hsmg_client_hello_t;
@@ -462,6 +463,8 @@ typedef struct ctls_hsmg_alert ctls_hsmg_alert_t;
 
 typedef struct ctls_hsmg_server_flight ctls_hsmg_server_flight_t;
 typedef struct ctls_hsmg_client_flight ctls_hsmg_client_flight_t;
+typedef struct ctls_extn_new_session_ticket ctls_extn_new_session_ticket_t;
+typedef struct ctls_hsmg_new_session_ticket ctls_hsmg_new_session_ticket_t;
 
 typedef struct ctls_record ctls_record_t;
 typedef struct ctls_unified_header ctls_unified_header_t;
