@@ -449,6 +449,10 @@ typedef struct ctls_extn_early_data ctls_extn_early_data_t;
 typedef uint8_t ctls_extn_cookie_t[CTLS_SIZE_COOKIE];
 typedef struct ctls_ticket ctls_ticket_t;
 
+#if CTLS_SERVER
+typedef struct ctls_extn_oid_filters ctls_extn_oid_filters_t;
+#endif
+
 typedef struct ctls_extn_client_hello ctls_extn_client_hello_t;
 typedef struct ctls_hsmg_client_hello ctls_hsmg_client_hello_t;
 

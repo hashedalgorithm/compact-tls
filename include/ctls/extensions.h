@@ -244,6 +244,10 @@ struct ctls_extn_early_data {
     uint32_t max_size;
 };
 
+#if CTLS_SERVER
+struct ctls_extn_oid_filters {
+};
+#endif
 /**
  * All extensions a ClientHello may carry (RFC 8446, Section 4.2, table of
  * permitted messages, column CH). Every member except key_share_entity is
