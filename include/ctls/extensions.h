@@ -261,6 +261,7 @@ struct ctls_extn_client_hello {
     ctls_extn_signed_certificate_timestamp_t signed_certificate_timestamp;
     ctls_extn_certificate_type_t client_certificate_type;
     ctls_extn_certificate_type_t server_certificate_type;
+    ctls_extn_padding_t padding;
     ctls_extn_pre_shared_key_t pre_shared_key;
     ctls_extn_supported_version_t supported_versions;
     ctls_extn_psk_key_exchange_mode_t psk_key_exchange_modes;

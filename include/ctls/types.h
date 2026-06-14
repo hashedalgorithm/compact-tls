@@ -32,6 +32,7 @@
 #define CTLS_COUNT_ALPN 3U
 #define CTLS_COUNT_SERVER_NAME 3U
 #define CTLS_SIZE_MAX_ALPN_PROTOCOL_NAME 12U
+#define CTLS_SIZE_PADDING 6U
 #define CTLS_COUNT_SUPPORTED_GROUPS  3U
 #define CTLS_COUNT_SIGNATURE_ALGORITHM  3U
 #define CTLS_SIZE_MAX_DISTINGUISHED_NAME 128U
@@ -439,6 +440,7 @@ typedef struct ctls_extn_certificate_authorities ctls_extn_certificate_authoriti
 typedef uint8_t ctls_extn_post_handshake_auth_t;
 typedef ctls_signature_scheme_t ctls_extn_signature_algorithm_cert_t;
 typedef uint8_t *ctls_extn_key_share_t;
+typedef uint8_t ctls_extn_padding_t[CTLS_SIZE_PADDING];
 typedef struct ctls_extn_pre_shared_key ctls_extn_pre_shared_key_t;
 typedef struct ctls_extn_offered_psk ctls_extn_offered_psk_t;
 typedef struct ctls_extn_psk_identity ctls_extn_psk_identity_t;
