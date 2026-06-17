@@ -83,13 +83,17 @@ All errors in this band originate inside crypto operations backed by Mbed TLS PS
 | 0x0069 | `CTLS_STATUS_CRYPTO_KEY_GEN_FAILED`           | `psa_generate_key()` failed; ephemeral ECDHE key pair could not be created.                                                                        |
 | 0x006A | `CTLS_STATUS_CRYPTO_KEY_EXPORT_FAILED`        | `psa_export_public_key()` or `psa_import_key()` failed; key material could not be read or loaded.                                                  |
 | 0x006B | `CTLS_STATUS_CRYPTO_ECDH_FAILED`              | `psa_raw_key_agreement()` failed; shared ephemeral secret derivation failed.                                                                       |
-| 0x006C | `CTLS_STATUS_CRYPTO_HKDF_FAILED`              | Any HKDF extract/expand PSA call failed (early secret, derived secret, handshake secret, traffic secrets, write keys, IVs).                        |
-| 0x006D | `CTLS_STATUS_CRYPTO_HASH_FAILED`              | `psa_hash_setup`, `psa_hash_update`, `psa_hash_finish`, or `psa_hash_clone` returned non-success. Transcript hash is broken.                       |
-| 0x006E | `CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED`      | `psa_aead_decrypt()` failed; either the tag check failed (authentication failure) or a PSA internal error.                                         |
-| 0x006F | `CTLS_STATUS_CRYPTO_UNSUPPORTED_CIPHER_SUITE` | Cipher suite value has no PSA hash algorithm mapping in `ctls_psa_hash_algorithm_set`. New cipher suite added to enum without updating the switch. |
-| 0x0070 | `CTLS_STATUS_CRYPTO_UNSUPPORTED_DHE_GROUP`    | DHE group has no PSA ECC family mapping in `ctls_psa_ecc_family_set`. New group added to enum without updating the switch.                         |
-| 0x0071 | `CTLS_STATUS_CRYPTO_RANDOM_FAILED`            | `psa_generate_random()` failed in `ctls_random_generate`; random nonce or client-random could not be produced.                                     |
-| 0x0072 | `CTLS_STATUS_CRYPTO_UNKNOWN`                  | PSA returned an error code not explicitly mapped in `ctls_psa_error_map`. Raw PSA status must be logged separately.                                |
+| 0x006C | `CTLS_STATUS_CRYPTO_HKDF_EXTRACT_FAILED`      | PSA HKDF-Extract operation failed (early secret or handshake secret derivation).                                                                   |
+| 0x006D | `CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED`       | PSA HKDF-Expand operation failed (derived secret, traffic secrets, write keys, IVs, or finished key derivation).                                   |
+| 0x006E | `CTLS_STATUS_CRYPTO_HASH_FAILED`              | `psa_hash_setup`, `psa_hash_update`, `psa_hash_finish`, or `psa_hash_clone` returned non-success. Transcript hash is broken.                       |
+| 0x006F | `CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED`      | `psa_aead_decrypt()` failed; either the tag check failed (authentication failure) or a PSA internal error.                                         |
+| 0x0070 | `CTLS_STATUS_CRYPTO_AEAD_ENCRYPT_FAILED`      | `psa_aead_encrypt()` failed.                                                                                                                       |
+| 0x0071 | `CTLS_STATUS_CRYPTO_UNSUPPORTED_CIPHER_SUITE` | Cipher suite value has no PSA hash algorithm mapping in `ctls_psa_hash_algorithm_set`. New cipher suite added to enum without updating the switch. |
+| 0x0072 | `CTLS_STATUS_CRYPTO_UNSUPPORTED_DHE_GROUP`    | DHE group has no PSA ECC family mapping in `ctls_psa_ecc_family_set`. New group added to enum without updating the switch.                         |
+| 0x0073 | `CTLS_STATUS_CRYPTO_RANDOM_FAILED`            | `psa_generate_random()` failed in `ctls_random_generate`; random nonce or client-random could not be produced.                                     |
+| 0x0074 | `CTLS_STATUS_CRYPTO_SIGNATURE_FAILED`         | PSA signature operation failed.                                                                                                                    |
+| 0x0075 | `CTLS_STATUS_CRYPTO_KEY_IMPORT_FAILED`        | `psa_import_key()` failed; key material could not be loaded into a transient PSA key handle.                                                       |
+| 0x0076 | `CTLS_STATUS_CRYPTO_UNKNOWN`                  | PSA returned an error code not explicitly mapped in `ctls_psa_error_map`. Raw PSA status must be logged separately.                                |
 
 ---
 
