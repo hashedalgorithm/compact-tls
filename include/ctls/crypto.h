@@ -61,7 +61,7 @@ typedef enum {
 
 /** Which HkdfLabel / signing context ctls_context_string_build emits. */
 typedef enum {
-    CTLS_KEY_TYPE_DERIVED_SECRET = 0,
+    CTLS_KEY_TYPE_EARLY_SECRET,
     CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_SECRET,
     CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_KEYS,
     CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_IV_KEY,
@@ -80,6 +80,7 @@ struct ctls_crypto {
     psa_key_id_t peer_public_ephemeral_key;
     // If client, server's pubic key and vice versa
     psa_key_id_t shared_ephemeral_secret;
+    psa_key_id_t early_secret;
 };
 
 /** Map a psa_status_t onto the closest ctls_status_t. */
@@ -166,23 +167,17 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
                                         ctls_entity_t entity,
                                         ctls_key_type_t key_type);
 
-/* Key schedule steps — see the file-header diagram for what each derives. */
-ctls_status_t ctls_early_secret_generate(ctls_crypto_t *crypto, uint8_t *early_secret);
-ctls_status_t ctls_derived_secret_generate(ctls_crypto_t *crypto,
-                                           ctls_hshk_data_t *hshk_data);
+/** Key schedule steps — see the file-header diagram for what each derives. */
+ctls_status_t ctls_early_secret_generate(ctls_crypto_t *crypto);
 /** X25519 ECDH: client private key x server public key share. */
 ctls_status_t ctls_shared_ephemeral_secret_generate(ctls_crypto_t *crypto);
 ctls_status_t ctls_handshake_secret_generate(ctls_crypto_t *crypto);
 ctls_status_t ctls_handshake_traffic_secret_generate(ctls_crypto_t *crypto,
                                                      ctls_hshk_data_t *hshk_data,
                                                      ctls_entity_t entity);
-ctls_status_t ctls_handshake_key_generate(ctls_crypto_t *crypto,
-                                          ctls_hshk_data_t *hshk_data,
-                                          ctls_entity_t entity);
-ctls_status_t ctls_handshake_iv_key_generate(ctls_crypto_t *crypto,
-                                             ctls_hshk_data_t *hshk_data,
-                                             ctls_entity_t entity);
-
+ctls_status_t ctls_hkdf_extract(psa_key_id_t *output_key_id,
+                                psa_key_id_t const *salt,
+                                psa_key_id_t const *ikm_key_id);
 /**
  * Per-record nonce (RFC 8446 §5.3): sequence number left-padded to IV size,
  * XORed into the static IV.

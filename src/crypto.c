@@ -359,7 +359,7 @@ ctls_status_t ctls_key_schedule() {
     CTLS_CHECK_NULL_STRUCT(crypto);
     CTLS_CHECK_NULL(hshk_data);
 
-    ctls_status_t result = ctls_early_secret_generate(crypto, hshk_data->early_secret);
+    ctls_status_t result = ctls_early_secret_generate(crypto);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     result = ctls_derived_secret_generate(crypto, hshk_data);
@@ -602,52 +602,44 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
  * early_secret = HKDF-Extract(salt = 0, ikm = 0) — RFC 8446 §7.1, no-PSK
  * profile, so both inputs are 32 zero bytes.
  */
-ctls_status_t ctls_early_secret_generate(ctls_crypto_t *crypto, uint8_t *early_secret) {
+ctls_status_t ctls_early_secret_generate(ctls_crypto_t *crypto) {
     CTLS_CHECK_NULL_STRUCT(crypto);
-    CTLS_CHECK_NULL(early_secret);
 
     static const uint8_t ZEROS[32] = {0};
     psa_status_t psa_st = PSA_SUCCESS;
-    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
-    psa_key_id_t ikm_key = PSA_KEY_ID_NULL;
+    psa_key_attributes_t salt_attributes = PSA_KEY_ATTRIBUTES_INIT;
+    psa_key_id_t salt = PSA_KEY_ID_NULL;
+    psa_key_attributes_t ikm_attributes = PSA_KEY_ATTRIBUTES_INIT;
+    psa_key_id_t ikm = PSA_KEY_ID_NULL;
 
-    ctls_status_t const result = ctls_key_schedule_operator_reset(crypto);
+    ctls_status_t result = ctls_key_schedule_operator_reset(crypto);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
-    psa_set_key_type(&attr, PSA_KEY_TYPE_DERIVE);
-    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_DERIVE);
-    psa_set_key_algorithm(&attr, PSA_ALG_HKDF_EXTRACT(crypto->hash_algorithm));
-    psa_set_key_bits(&attr, 256U);
+    result = ctls_key_attributes_set(CTLS_DERIVE_OPERATION_HKDF_EXTRACT,
+                                     &salt_attributes);
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
-    psa_st = psa_import_key(&attr, ZEROS, CTLS_SIZE_HASH, &ikm_key);
+    result = ctls_key_attributes_set(CTLS_DERIVE_OPERATION_HKDF_EXTRACT, &ikm_attributes);
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+
+    psa_st = psa_import_key(&salt_attributes, ZEROS, CTLS_SIZE_HASH, &salt);
     if (psa_st != PSA_SUCCESS) goto cleanup;
 
-    psa_st = psa_key_derivation_setup(&crypto->key_schedule_operator,
-                                      PSA_ALG_HKDF_EXTRACT(crypto->hash_algorithm));
+    psa_st = psa_import_key(&ikm_attributes, ZEROS, CTLS_SIZE_HASH, &ikm);
     if (psa_st != PSA_SUCCESS) goto cleanup;
 
-    psa_st = psa_key_derivation_input_bytes(&crypto->key_schedule_operator,
-                                            PSA_KEY_DERIVATION_INPUT_SALT,
-                                            ZEROS,
-                                            CTLS_SIZE_HASH);
-    if (psa_st != PSA_SUCCESS) goto cleanup;
-
-    psa_st = psa_key_derivation_input_key(&crypto->key_schedule_operator,
-                                          PSA_KEY_DERIVATION_INPUT_SECRET,
-                                          ikm_key);
-    if (psa_st != PSA_SUCCESS) goto cleanup;
-
-    psa_st = psa_key_derivation_output_bytes(&crypto->key_schedule_operator,
-                                             early_secret,
-                                             CTLS_SIZE_HASH);
-    if (psa_st != PSA_SUCCESS) goto cleanup;
+    result = ctls_hkdf_extract(&crypto->early_secret, &salt, &ikm);
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
     return CTLS_STATUS_SUCCESS;
 cleanup:
     psa_key_derivation_abort(&crypto->key_schedule_operator);
-    if (ikm_key != PSA_KEY_ID_NULL) { psa_destroy_key(ikm_key); }
-    psa_reset_key_attributes(&attr);
-    return CTLS_STATUS_CRYPTO_HKDF_FAILED;
+    if (ikm != PSA_KEY_ID_NULL) { psa_destroy_key(ikm); }
+    if (salt != PSA_KEY_ID_NULL) { psa_destroy_key(salt); }
+    psa_reset_key_attributes(&salt_attributes);
+    psa_reset_key_attributes(&ikm_attributes);
+
+    return CTLS_STATUS_CRYPTO_HKDF_EXTRACT_FAILED;
 }
 
 
