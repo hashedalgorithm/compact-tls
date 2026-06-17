@@ -371,9 +371,7 @@ ctls_status_t ctls_key_schedule() {
     result = ctls_handshake_secret_generate(crypto);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_handshake_traffic_secret_generate(crypto,
-                                                    hshk_data,
-                                                    CTLS_ENTITY_CLIENT);
+    result = ctls_handshake_traffic_secret_generate(crypto, CTLS_ENTITY_CLIENT);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     result = ctls_handshake_traffic_secret_generate(crypto,
@@ -736,66 +734,33 @@ ctls_status_t ctls_handshake_secret_generate(ctls_crypto_t *crypto) {
  * — RFC 8446 §7.1; entity picks label and output slot.
  */
 ctls_status_t ctls_handshake_traffic_secret_generate(ctls_crypto_t *crypto,
-                                                     ctls_hshk_data_t *hshk_data,
                                                      ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
-    CTLS_CHECK_NULL(hshk_data);
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_EXTN_INVALID_ENTITY;
 
-    ctls_status_t const result = ctls_key_schedule_operator_reset(crypto);
-    if (result != CTLS_STATUS_SUCCESS) return result;
-
-    psa_status_t psa_st = PSA_SUCCESS;
-    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
-    psa_key_id_t prk_key = PSA_KEY_ID_NULL;
-
-    psa_set_key_type(&attr, PSA_KEY_TYPE_DERIVE);
-    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_DERIVE);
-    psa_set_key_algorithm(&attr, PSA_ALG_HKDF_EXPAND(crypto->hash_algorithm));
-    psa_set_key_bits(&attr, 256U);
-
-    psa_st = psa_import_key(&attr, hshk_data->handshake_secret, CTLS_SIZE_HASH, &prk_key);
-    if (psa_st != PSA_SUCCESS) goto cleanup;
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
 
     uint8_t info[80U];
-    ctls_size_t offset = 0U;
+    ctls_size_t info_offset = 0U;
 
-    psa_st = ctls_context_string_build(info,
-                                       &offset,
-                                       hshk_data->transcript_hash,
+    result = ctls_context_string_build(info,
+                                       &info_offset,
                                        entity,
                                        CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_SECRET);
-    if (psa_st != PSA_SUCCESS) goto cleanup;
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
-    psa_st = psa_key_derivation_setup(&crypto->key_schedule_operator,
-                                      PSA_ALG_HKDF_EXPAND(crypto->hash_algorithm));
-    if (psa_st != PSA_SUCCESS) goto cleanup;
 
-    psa_st = psa_key_derivation_input_key(&crypto->key_schedule_operator,
-                                          PSA_KEY_DERIVATION_INPUT_SECRET,
-                                          prk_key);
-    if (psa_st != PSA_SUCCESS) goto cleanup;
+    return ctls_hkdf_expand(entity == CTLS_ENTITY_CLIENT
+                                ? &crypto->client_handshake_traffic_secret
+                                : &crypto->server_handshake_traffic_secret,
+                            &crypto->handshake_secret,
+                            CTLS_DERIVE_OPERATION_HKDF_EXPAND,
+                            info,
+                            info_offset);
 
-    psa_st = psa_key_derivation_input_bytes(&crypto->key_schedule_operator,
-                                            PSA_KEY_DERIVATION_INPUT_INFO,
-                                            info,
-                                            offset);
-    if (psa_st != PSA_SUCCESS) goto cleanup;
-
-    psa_st = psa_key_derivation_output_bytes(&crypto->key_schedule_operator,
-                                             entity == CTLS_ENTITY_CLIENT
-                                                 ? hshk_data->
-                                                 client_handshake_traffic_secret
-                                                 : hshk_data->
-                                                 server_handshake_traffic_secret,
-                                             CTLS_SIZE_HASH);
-    if (psa_st != PSA_SUCCESS) goto cleanup;
-
-    return CTLS_STATUS_SUCCESS;
 cleanup:
-    psa_key_derivation_abort(&crypto->key_schedule_operator);
-    if (prk_key != PSA_KEY_ID_NULL) { psa_destroy_key(prk_key); }
-    psa_reset_key_attributes(&attr);
-    return CTLS_STATUS_CRYPTO_HKDF_FAILED;
+    return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
 }
 
 /*
