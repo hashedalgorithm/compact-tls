@@ -374,9 +374,7 @@ ctls_status_t ctls_key_schedule() {
     result = ctls_handshake_traffic_secret_generate(crypto, CTLS_ENTITY_CLIENT);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_handshake_traffic_secret_generate(crypto,
-                                                    hshk_data,
-                                                    CTLS_ENTITY_SERVER);
+    result = ctls_handshake_traffic_secret_generate(crypto, CTLS_ENTITY_SERVER);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     result = ctls_handshake_key_generate(crypto, CTLS_ENTITY_CLIENT);
