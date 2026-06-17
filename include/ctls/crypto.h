@@ -175,7 +175,6 @@ ctls_status_t ctls_derived_secret_generate(ctls_crypto_t *crypto);
 ctls_status_t ctls_shared_ephemeral_secret_generate(ctls_crypto_t *crypto);
 ctls_status_t ctls_handshake_secret_generate(ctls_crypto_t *crypto);
 ctls_status_t ctls_handshake_traffic_secret_generate(ctls_crypto_t *crypto,
-                                                     ctls_hshk_data_t *hshk_data,
                                                      ctls_entity_t entity);
 
 ctls_status_t ctls_hkdf_extract(psa_key_id_t *output_key_id,

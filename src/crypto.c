@@ -477,7 +477,6 @@ ctls_status_t ctls_key_attributes_set(ctls_derive_operation_t const operation,
 
 ctls_status_t ctls_context_string_build(uint8_t *buffer,
                                         ctls_size_t *offset,
-                                        uint8_t const *transcript_hash,
                                         ctls_entity_t const entity,
                                         ctls_key_type_t const key_type) {
     /*
@@ -491,14 +490,18 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
      * signing content instead: 64 x 0x20 | context string | 0x00 |
      * transcript hash.
      */
+
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL(offset);
+    CTLS_CHECK_NULL_STRUCT(hshk_data);
+    CTLS_CHECK_NULL_BUFFER(hshk_data->transcript_hash);
 
     char const *context_string = NULL;
     uint8_t context_string_length = 0;
 
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_CRYPTO_INVALID_ARG;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
+            CTLS_STATUS_CRYPTO_INVALID_ARG;
 
     switch (key_type) {
         case CTLS_KEY_TYPE_DERIVED_SECRET: {
@@ -519,7 +522,7 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
             ctls_write_u8(buffer, offset, context_string_length);
             ctls_write_char_bytes(buffer, offset, context_string_length, context_string);
             ctls_write_u8(buffer, offset, 0x20);
-            ctls_write_bytes(buffer, offset, 32U, transcript_hash);
+            ctls_write_bytes(buffer, offset, 32U, hshk_data->transcript_hash);
         }
         break;
         case CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_SECRET: {
@@ -535,7 +538,7 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
             ctls_write_u8(buffer, offset, context_string_length);
             ctls_write_char_bytes(buffer, offset, context_string_length, context_string);
             ctls_write_u8(buffer, offset, CTLS_SIZE_HASH);
-            ctls_write_bytes(buffer, offset, CTLS_SIZE_HASH, transcript_hash);
+            ctls_write_bytes(buffer, offset, CTLS_SIZE_HASH, hshk_data->transcript_hash);
         }
         break;
         case CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_KEYS: {
@@ -577,7 +580,10 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
                              context_string_length,
                              (uint8_t *) context_string);
             ctls_write_u8(buffer, offset, 0x00);
-            ctls_write_bytes(buffer, offset, CTLS_SIZE_TRANSCRIPT_HASH, transcript_hash);
+            ctls_write_bytes(buffer,
+                             offset,
+                             CTLS_SIZE_TRANSCRIPT_HASH,
+                             hshk_data->transcript_hash);
         }
         break;
         case CTLS_KEY_TYPE_FINISHED_KEY: {
