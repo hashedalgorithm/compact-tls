@@ -830,45 +830,102 @@ cleanup:
     return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
 }
 
+ctls_status_t ctls_hkdf_extract(psa_key_id_t *output_key_id,
+                                psa_key_id_t const *salt,
+                                psa_key_id_t const *ikm_key_id) {
+    ctls_crypto_t *crypto = ctls_crypto_get();
+
+    CTLS_CHECK_NULL_STRUCT(crypto);
+    CTLS_CHECK_NULL_KEY_ID(salt);
+    CTLS_CHECK_NULL_KEY_ID(ikm_key_id);
 
     ctls_status_t result = ctls_key_schedule_operator_reset(crypto);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    uint8_t iv_key_info[2U + 1U + 1U + 1U];
-    ctls_size_t iv_key_info_offset = 0U;
+    psa_status_t status = PSA_SUCCESS;
+    psa_key_attributes_t output_key_attributes = PSA_KEY_ATTRIBUTES_INIT;
+    *output_key_id = PSA_KEY_ID_NULL;
 
-    result = ctls_context_string_build(iv_key_info,
-                                       &iv_key_info_offset,
-                                       hshk_data->transcript_hash,
-                                       entity,
-                                       CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_IV_KEY);
+    result = ctls_key_attributes_set(CTLS_DERIVE_OPERATION_HKDF_EXPAND,
+                                     &output_key_attributes);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
-    psa_st = psa_key_derivation_setup(&crypto->key_schedule_operator,
-                                      PSA_ALG_HKDF_EXPAND(crypto->hash_algorithm));
-    if (psa_st != PSA_SUCCESS) goto cleanup;
+    status = psa_key_derivation_setup(&crypto->key_schedule_operator,
+                                      PSA_ALG_HKDF_EXTRACT(crypto->hash_algorithm));
+    if (status != PSA_SUCCESS) goto cleanup;
 
-    psa_st = psa_key_derivation_input_key(&crypto->key_schedule_operator,
+    status = psa_key_derivation_input_key(&crypto->key_schedule_operator,
+                                          PSA_KEY_DERIVATION_INPUT_SALT,
+                                          *salt);
+    if (status != PSA_SUCCESS) goto cleanup;
+
+    status = psa_key_derivation_input_key(&crypto->key_schedule_operator,
                                           PSA_KEY_DERIVATION_INPUT_SECRET,
-                                          prk_key);
-    if (psa_st != PSA_SUCCESS) goto cleanup;
+                                          *ikm_key_id);
+    if (status != PSA_SUCCESS) goto cleanup;
 
-    psa_st = psa_key_derivation_input_bytes(&crypto->key_schedule_operator,
-                                            PSA_KEY_DERIVATION_INPUT_INFO,
-                                            iv_key_info,
-                                            iv_key_info_offset);
-    if (psa_st != PSA_SUCCESS) goto cleanup;
-
-    psa_st = psa_key_derivation_output_bytes(&crypto->key_schedule_operator,
-                                             hshk_data->client_handshake_iv_key,
-                                             CTLS_SIZE_IV);
-    if (psa_st != PSA_SUCCESS) goto cleanup;
+    status = psa_key_derivation_output_key(&output_key_attributes,
+                                           &crypto->key_schedule_operator,
+                                           output_key_id);
+    if (status != PSA_SUCCESS) goto cleanup;
 
     return CTLS_STATUS_SUCCESS;
 cleanup:
     psa_key_derivation_abort(&crypto->key_schedule_operator);
-    psa_reset_key_attributes(&attr);
-    return CTLS_STATUS_CRYPTO_HKDF_FAILED;
+    if (*output_key_id != PSA_KEY_ID_NULL) { psa_destroy_key(*output_key_id); }
+    psa_reset_key_attributes(&output_key_attributes);
+    return CTLS_STATUS_CRYPTO_HKDF_EXTRACT_FAILED;
+}
+
+ctls_status_t ctls_hkdf_expand(psa_key_id_t *output_key_id,
+                               psa_key_id_t const *prk_key_id,
+                               ctls_derive_operation_t const derive_operation,
+                               uint8_t const *info,
+                               ctls_size_t const info_length) {
+    ctls_crypto_t *crypto = ctls_crypto_get();
+
+    CTLS_CHECK_NULL_KEY_ID(output_key_id);
+    CTLS_CHECK_NULL_KEY_ID(prk_key_id);
+    CTLS_CHECK_NULL_BUFFER(info);
+    CTLS_CHECK_NULL_STRUCT(crypto);
+
+    psa_status_t status = PSA_SUCCESS;
+    psa_key_attributes_t output_key_attributes = PSA_KEY_ATTRIBUTES_INIT;
+    *output_key_id = PSA_KEY_ID_NULL;
+
+    ctls_status_t result = ctls_key_attributes_set(derive_operation,
+                                                   &output_key_attributes);
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+
+    result = ctls_key_schedule_operator_reset(crypto);
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+
+    status = psa_key_derivation_setup(&crypto->key_schedule_operator,
+                                      PSA_ALG_HKDF_EXPAND(crypto->hash_algorithm));
+    if (status != PSA_SUCCESS) goto cleanup;
+
+    status = psa_key_derivation_input_key(&crypto->key_schedule_operator,
+                                          PSA_KEY_DERIVATION_INPUT_SECRET,
+                                          *prk_key_id);
+    if (status != PSA_SUCCESS) goto cleanup;
+
+    status = psa_key_derivation_input_bytes(&crypto->key_schedule_operator,
+                                            PSA_KEY_DERIVATION_INPUT_INFO,
+                                            info,
+                                            info_length);
+    if (status != PSA_SUCCESS) goto cleanup;
+
+    status = psa_key_derivation_output_key(&output_key_attributes,
+                                           &crypto->key_schedule_operator,
+                                           output_key_id);
+    if (status != PSA_SUCCESS) goto cleanup;
+
+    return CTLS_STATUS_SUCCESS;
+cleanup:
+    psa_key_derivation_abort(&crypto->key_schedule_operator);
+    if (*output_key_id != PSA_KEY_ID_NULL) { psa_destroy_key(*output_key_id); }
+    psa_reset_key_attributes(&output_key_attributes);
+    return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
 }
 
 /*
