@@ -108,7 +108,7 @@ ctls_status_t ctls_crypto_init();
 /** Cipher suite -> PSA hash algorithm (suite's HKDF hash, RFC 8446 §B.4). */
 ctls_status_t ctls_psa_hash_algorithm_set(ctls_crypto_t *crypto,
                                           ctls_cipher_suite_t cipher_suite);
-/** DOCS - TODO */
+/** Map a PSA algorithm to its key size in bits (e.g. AES-128-GCM -> 128, HMAC-SHA256 -> 256). */
 ctls_status_t ctls_key_bits_get(psa_algorithm_t const *algorithm, ctls_size_t *key_bits);
 
 /** NamedGroup -> PSA ECC/DH family for ephemeral key generation. */
@@ -141,12 +141,14 @@ ctls_status_t transcript_snapshot(psa_hash_operation_t const *hash_operator,
 
 /** Reset the derivation operator + select ECC family for the profile. */
 ctls_status_t ctls_hkdf_init(ctls_crypto_t *crypto, ctls_dhe_group_t ecdhe_group_type);
+/** Abort and reinitialize the PSA key derivation operator; required between consecutive Extract/Expand steps. */
 ctls_status_t ctls_key_schedule_operator_reset(ctls_crypto_t *crypto);
 
-/** DOCS - TODO */
+/** Import raw peer public key bytes (X25519 32-byte point) into PSA as a key-agreement key. */
 ctls_status_t ctls_ephemeral_public_key_import(uint8_t const *buffer,
                                                ctls_size_t buffer_length,
                                                psa_key_id_t *ephemeral_public_key);
+/** Export the public half of an ephemeral key pair to raw bytes for inclusion in a KeyShare entry. */
 ctls_status_t ctls_ephemeral_public_key_export(psa_key_id_t const *ephemeral_key_pair_id,
                                                uint8_t *buffer,
                                                ctls_size_t buffer_length,
@@ -165,7 +167,8 @@ ctls_status_t ctls_random_generate(uint8_t *buffer,
  */
 ctls_status_t ctls_key_schedule();
 
-ctls_status_t ctls_key_attributes_set(ctls_derive_operation_t operation,
+/** Set PSA key attributes (type, usage, algorithm, bits) appropriate for the given derivation operation. */
+ctls_status_t ctls_key_attributes_set(ctls_key_usage_t key_usage,
                                       psa_key_attributes_t *key_attribute);
 
 /**
