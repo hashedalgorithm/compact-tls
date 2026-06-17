@@ -936,10 +936,19 @@ cleanup:
  */
 ctls_status_t ctls_nonce_generate(uint8_t *buffer,
                                   uint16_t const *sequence_number,
-                                  uint8_t const *iv_key) {
+                                  psa_key_id_t const *iv_key_id) {
     CTLS_CHECK_NULL_BUFFER(buffer);
-    CTLS_CHECK_NULL(iv_key);
+    CTLS_CHECK_NULL_KEY_ID(iv_key_id);
     CTLS_CHECK_NULL(sequence_number);
+
+    uint8_t iv_key[CTLS_SIZE_AEAD_KEY];
+
+    size_t iv_key_offset = 0;
+    ctls_status_t const result = psa_export_key(*iv_key_id,
+                                                iv_key,
+                                                CTLS_SIZE_AEAD_KEY,
+                                                &iv_key_offset);
+    if (result != CTLS_STATUS_SUCCESS) return CTLS_STATUS_CRYPTO_KEY_EXPORT_FAILED;
 
     ctls_write_bytes(buffer, 0, CTLS_SIZE_NONCE, iv_key);
     for (int i = 0; i < 8; i++) {

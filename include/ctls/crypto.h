@@ -200,7 +200,7 @@ ctls_status_t ctls_hkdf_expand(psa_key_id_t *output_key_id,
  */
 ctls_status_t ctls_nonce_generate(uint8_t *buffer,
                                   uint16_t const *sequence_number,
-                                  uint8_t const *iv_key);
+                                  psa_key_id_t const *iv_key_id);
 /**
  * AEAD open (RFC 8446 §5.2): AES-128-GCM, nonce from sequence number,
  * header bytes as AAD. Fails CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED on tag
