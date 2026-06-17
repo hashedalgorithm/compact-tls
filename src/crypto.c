@@ -397,7 +397,7 @@ ctls_status_t ctls_key_schedule() {
     return ctls_epoch_counter_increment();
 }
 
-ctls_status_t ctls_key_attributes_set(ctls_derive_operation_t const operation,
+ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
                                       psa_key_attributes_t *key_attribute) {
     ctls_crypto_t const *crypto = ctls_crypto_get();
 
@@ -408,8 +408,8 @@ ctls_status_t ctls_key_attributes_set(ctls_derive_operation_t const operation,
 
     uint16_t key_bits;
 
-    switch (operation) {
-        case CTLS_DERIVE_OPERATION_EPHEMERAL_GENERATE: {
+    switch (key_usage) {
+        case CTLS_KEY_USAGE_EPHEMERAL_GENERATE: {
             psa_set_key_type(key_attribute,
                              PSA_KEY_TYPE_ECC_KEY_PAIR(crypto->ecdhe_key_pair_type));
             psa_set_key_usage_flags(key_attribute,
@@ -420,7 +420,7 @@ ctls_status_t ctls_key_attributes_set(ctls_derive_operation_t const operation,
             if (result != CTLS_STATUS_SUCCESS) return CTLS_STATUS_CRYPTO_ECDH_FAILED;
             psa_set_key_bits(key_attribute, key_bits);
         };
-        case CTLS_DERIVE_OPERATION_HKDF_EXTRACT: {
+        case CTLS_KEY_USAGE_HKDF_EXTRACT: {
             psa_set_key_type(key_attribute, PSA_KEY_TYPE_DERIVE);
             psa_set_key_usage_flags(key_attribute,
                                     PSA_KEY_USAGE_DERIVE | PSA_KEY_USAGE_EXPORT);
@@ -432,7 +432,7 @@ ctls_status_t ctls_key_attributes_set(ctls_derive_operation_t const operation,
             psa_set_key_bits(key_attribute, key_bits);
             return result;
         }
-        case CTLS_DERIVE_OPERATION_HKDF_EXPAND: {
+        case CTLS_KEY_USAGE_HKDF_EXPAND: {
             psa_set_key_type(key_attribute, PSA_KEY_TYPE_DERIVE);
             psa_set_key_usage_flags(key_attribute,
                                     PSA_KEY_USAGE_DERIVE | PSA_KEY_USAGE_EXPORT);
@@ -444,7 +444,7 @@ ctls_status_t ctls_key_attributes_set(ctls_derive_operation_t const operation,
             psa_set_key_bits(key_attribute, key_bits);
             return result;
         }
-        case CTLS_DERIVE_OPERATION_AEAD_ENCRYPT_OR_DECRYPT: {
+        case CTLS_KEY_USAGE_AEAD_ENCRYPT_OR_DECRYPT: {
             psa_set_key_type(key_attribute, PSA_KEY_TYPE_AES);
             psa_set_key_usage_flags(key_attribute,
                                     PSA_KEY_USAGE_ENCRYPT | PSA_KEY_USAGE_DECRYPT);
@@ -455,7 +455,7 @@ ctls_status_t ctls_key_attributes_set(ctls_derive_operation_t const operation,
             psa_set_key_bits(key_attribute, key_bits);
             return result;
         }
-        case CTLS_DERIVE_OPERATION_HMAC: {
+        case CTLS_KEY_USAGE_HMAC: {
             psa_set_key_type(key_attribute, PSA_KEY_TYPE_HMAC);
             psa_set_key_usage_flags(key_attribute,
                                     PSA_KEY_USAGE_SIGN_MESSAGE | PSA_KEY_USAGE_DECRYPT);
@@ -617,11 +617,10 @@ ctls_status_t ctls_early_secret_generate(ctls_crypto_t *crypto) {
     ctls_status_t result = ctls_key_schedule_operator_reset(crypto);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
-    result = ctls_key_attributes_set(CTLS_DERIVE_OPERATION_HKDF_EXTRACT,
-                                     &salt_attributes);
+    result = ctls_key_attributes_set(CTLS_KEY_USAGE_HKDF_EXTRACT, &salt_attributes);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
-    result = ctls_key_attributes_set(CTLS_DERIVE_OPERATION_HKDF_EXTRACT, &ikm_attributes);
+    result = ctls_key_attributes_set(CTLS_KEY_USAGE_HKDF_EXTRACT, &ikm_attributes);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
     psa_st = psa_import_key(&salt_attributes, ZEROS, CTLS_SIZE_HASH, &salt);
@@ -659,7 +658,7 @@ ctls_status_t ctls_derived_secret_generate(ctls_crypto_t *crypto) {
 
     result = ctls_hkdf_expand(&crypto->derived_secret,
                               &crypto->shared_ephemeral_secret,
-                              CTLS_DERIVE_OPERATION_HKDF_EXPAND,
+                              CTLS_KEY_USAGE_HKDF_EXPAND,
                               info,
                               offset);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
@@ -696,7 +695,7 @@ ctls_status_t ctls_shared_ephemeral_secret_generate(ctls_crypto_t *crypto) {
 
     crypto->shared_ephemeral_secret = PSA_KEY_ID_NULL;
     psa_key_attributes_t shared_ephemeral_secret_attribute = PSA_KEY_ATTRIBUTES_INIT;
-    result = ctls_key_attributes_set(CTLS_DERIVE_OPERATION_EPHEMERAL_GENERATE,
+    result = ctls_key_attributes_set(CTLS_KEY_USAGE_EPHEMERAL_GENERATE,
                                      &shared_ephemeral_secret_attribute);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
@@ -753,7 +752,7 @@ ctls_status_t ctls_handshake_traffic_secret_generate(ctls_crypto_t *crypto,
                                 ? &crypto->client_handshake_traffic_secret
                                 : &crypto->server_handshake_traffic_secret,
                             &crypto->handshake_secret,
-                            CTLS_DERIVE_OPERATION_HKDF_EXPAND,
+                            CTLS_KEY_USAGE_HKDF_EXPAND,
                             info,
                             info_offset);
 
@@ -788,7 +787,7 @@ ctls_status_t ctls_handshake_key_generate(ctls_crypto_t *crypto,
                             entity == CTLS_ENTITY_CLIENT
                                 ? &crypto->client_handshake_traffic_secret
                                 : &crypto->server_handshake_traffic_secret,
-                            CTLS_DERIVE_OPERATION_AEAD_ENCRYPT_OR_DECRYPT,
+                            CTLS_KEY_USAGE_AEAD_ENCRYPT_OR_DECRYPT,
                             info,
                             info_offset);
 cleanup:
@@ -823,7 +822,7 @@ ctls_status_t ctls_handshake_iv_key_generate(ctls_crypto_t *crypto,
                             entity == CTLS_ENTITY_CLIENT
                                 ? &crypto->client_handshake_traffic_secret
                                 : &crypto->server_handshake_traffic_secret,
-                            CTLS_DERIVE_OPERATION_AEAD_ENCRYPT_OR_DECRYPT,
+                            CTLS_KEY_USAGE_AEAD_ENCRYPT_OR_DECRYPT,
                             info,
                             info_offset);
 cleanup:
@@ -846,8 +845,7 @@ ctls_status_t ctls_hkdf_extract(psa_key_id_t *output_key_id,
     psa_key_attributes_t output_key_attributes = PSA_KEY_ATTRIBUTES_INIT;
     *output_key_id = PSA_KEY_ID_NULL;
 
-    result = ctls_key_attributes_set(CTLS_DERIVE_OPERATION_HKDF_EXPAND,
-                                     &output_key_attributes);
+    result = ctls_key_attributes_set(CTLS_KEY_USAGE_HKDF_EXPAND, &output_key_attributes);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
     status = psa_key_derivation_setup(&crypto->key_schedule_operator,
@@ -879,7 +877,7 @@ cleanup:
 
 ctls_status_t ctls_hkdf_expand(psa_key_id_t *output_key_id,
                                psa_key_id_t const *prk_key_id,
-                               ctls_derive_operation_t const derive_operation,
+                               ctls_key_usage_t const key_usage,
                                uint8_t const *info,
                                ctls_size_t const info_length) {
     ctls_crypto_t *crypto = ctls_crypto_get();
@@ -893,8 +891,7 @@ ctls_status_t ctls_hkdf_expand(psa_key_id_t *output_key_id,
     psa_key_attributes_t output_key_attributes = PSA_KEY_ATTRIBUTES_INIT;
     *output_key_id = PSA_KEY_ID_NULL;
 
-    ctls_status_t result = ctls_key_attributes_set(derive_operation,
-                                                   &output_key_attributes);
+    ctls_status_t result = ctls_key_attributes_set(key_usage, &output_key_attributes);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
     result = ctls_key_schedule_operator_reset(crypto);

@@ -52,12 +52,14 @@
     do { if ((p) == NULL) return CTLS_STATUS_NULL_PTR; } while (0)
 
 typedef enum {
-    CTLS_DERIVE_OPERATION_EPHEMERAL_GENERATE = 0,
-    CTLS_DERIVE_OPERATION_HKDF_EXTRACT,
-    CTLS_DERIVE_OPERATION_HKDF_EXPAND,
-    CTLS_DERIVE_OPERATION_AEAD_ENCRYPT_OR_DECRYPT,
-    CTLS_DERIVE_OPERATION_HMAC,
-} ctls_derive_operation_t;
+    CTLS_KEY_USAGE_EPHEMERAL_GENERATE = 0,
+    CTLS_KEY_USAGE_HKDF_EXTRACT,
+    CTLS_KEY_USAGE_HKDF_EXPAND,
+    CTLS_KEY_USAGE_AEAD_ENCRYPT_OR_DECRYPT,
+    CTLS_KEY_USAGE_SIGN_MESSAGE,
+    CTLS_KEY_USAGE_VERIFY_SIGNATURE,
+    CTLS_KEY_USAGE_HMAC,
+} ctls_key_usage_t;
 
 /** Which HkdfLabel / signing context ctls_context_string_build emits. */
 typedef enum {
@@ -192,7 +194,7 @@ ctls_status_t ctls_hkdf_extract(psa_key_id_t *output_key_id,
                                 psa_key_id_t const *ikm_key_id);
 ctls_status_t ctls_hkdf_expand(psa_key_id_t *output_key_id,
                                psa_key_id_t const *prk_key_id,
-                               ctls_derive_operation_t derive_operation,
+                               ctls_key_usage_t key_usage,
                                uint8_t const *info,
                                ctls_size_t info_length);
 /**
