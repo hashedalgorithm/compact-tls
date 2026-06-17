@@ -167,7 +167,6 @@ ctls_status_t ctls_key_attributes_set(ctls_derive_operation_t operation,
  */
 ctls_status_t ctls_context_string_build(uint8_t *buffer,
                                         ctls_size_t *offset,
-                                        uint8_t const *transcript_hash,
                                         ctls_entity_t entity,
                                         ctls_key_type_t key_type);
 
