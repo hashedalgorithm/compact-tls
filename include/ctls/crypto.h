@@ -85,7 +85,9 @@ struct ctls_crypto {
     psa_key_id_t handshake_secret;
     psa_key_id_t client_handshake_traffic_secret;
     psa_key_id_t client_handshake_key;
+    psa_key_id_t client_handshake_iv_key;
     psa_key_id_t server_handshake_traffic_secret;
+    psa_key_id_t server_handshake_iv_key;
     psa_key_id_t server_handshake_key;
 };
 
@@ -181,6 +183,7 @@ ctls_status_t ctls_handshake_secret_generate(ctls_crypto_t *crypto);
 ctls_status_t ctls_handshake_traffic_secret_generate(ctls_crypto_t *crypto,
                                                      ctls_entity_t entity);
 ctls_status_t ctls_handshake_key_generate(ctls_crypto_t *crypto, ctls_entity_t entity);
+ctls_status_t ctls_handshake_iv_key_generate(ctls_crypto_t *crypto, ctls_entity_t entity);
 
 ctls_status_t ctls_hkdf_extract(psa_key_id_t *output_key_id,
                                 psa_key_id_t const *salt,

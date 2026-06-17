@@ -385,10 +385,10 @@ ctls_status_t ctls_key_schedule() {
     result = ctls_handshake_key_generate(crypto, CTLS_ENTITY_SERVER);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_handshake_iv_key_generate(crypto, hshk_data, CTLS_ENTITY_CLIENT);
+    result = ctls_handshake_iv_key_generate(crypto, CTLS_ENTITY_CLIENT);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_handshake_iv_key_generate(crypto, hshk_data, CTLS_ENTITY_SERVER);
+    result = ctls_handshake_iv_key_generate(crypto, CTLS_ENTITY_SERVER);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     /* Keys switched to handshake traffic keys — new epoch. RFC 9147 §6.1
@@ -803,14 +803,35 @@ cleanup:
  * (ctls_nonce_generate).
  */
 ctls_status_t ctls_handshake_iv_key_generate(ctls_crypto_t *crypto,
-                                             ctls_hshk_data_t *hshk_data,
                                              ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
-    CTLS_CHECK_NULL(hshk_data);
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_EXTN_INVALID_ENTITY;
 
-    psa_status_t psa_st = PSA_SUCCESS;
-    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
-    psa_key_id_t prk_key = PSA_KEY_ID_NULL;
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
+    uint8_t info[32U];
+    ctls_size_t info_offset = 0U;
+
+    result = ctls_context_string_build(info,
+                                       &info_offset,
+                                       entity,
+                                       CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_IV_KEY);
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+
+    return ctls_hkdf_expand(entity == CTLS_ENTITY_CLIENT
+                                ? &crypto->client_handshake_iv_key
+                                : &crypto->server_handshake_iv_key,
+                            entity == CTLS_ENTITY_CLIENT
+                                ? &crypto->client_handshake_traffic_secret
+                                : &crypto->server_handshake_traffic_secret,
+                            CTLS_DERIVE_OPERATION_AEAD_ENCRYPT_OR_DECRYPT,
+                            info,
+                            info_offset);
+cleanup:
+    return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
+}
+
 
     ctls_status_t result = ctls_key_schedule_operator_reset(crypto);
     if (result != CTLS_STATUS_SUCCESS) return result;
