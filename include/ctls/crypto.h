@@ -82,6 +82,7 @@ struct ctls_crypto {
     psa_key_id_t shared_ephemeral_secret;
     psa_key_id_t early_secret;
     psa_key_id_t derived_secret;
+    psa_key_id_t handshake_secret;
 };
 
 /** Map a psa_status_t onto the closest ctls_status_t. */

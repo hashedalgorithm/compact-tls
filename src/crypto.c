@@ -368,7 +368,7 @@ ctls_status_t ctls_key_schedule() {
     result = ctls_shared_ephemeral_secret_generate(crypto);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_handshake_secret_generate(crypto, hshk_data);
+    result = ctls_handshake_secret_generate(crypto);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     result = ctls_handshake_traffic_secret_generate(crypto,
@@ -722,55 +722,12 @@ cleanup:
  * handshake_secret = HKDF-Extract(salt = derived_secret,
  *                                 ikm = ECDHE shared secret) — RFC 8446 §7.1.
  */
-ctls_status_t ctls_handshake_secret_generate(ctls_crypto_t *crypto,
-                                             ctls_hshk_data_t *hshk_data) {
+ctls_status_t ctls_handshake_secret_generate(ctls_crypto_t *crypto) {
     CTLS_CHECK_NULL_STRUCT(crypto);
-    CTLS_CHECK_NULL(hshk_data);
 
-    ctls_status_t const result = ctls_key_schedule_operator_reset(crypto);
-    if (result != CTLS_STATUS_SUCCESS) return result;
-
-    psa_status_t psa_st = PSA_SUCCESS;
-    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
-    psa_key_id_t ikm_key = PSA_KEY_ID_NULL;
-
-    psa_set_key_type(&attr, PSA_KEY_TYPE_DERIVE);
-    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_DERIVE);
-    psa_set_key_algorithm(&attr, PSA_ALG_HKDF_EXTRACT(crypto->hash_algorithm));
-    psa_set_key_bits(&attr, CTLS_SIZE_KEY_SHARE * 8U);
-
-    psa_st = psa_import_key(&attr,
-                            hshk_data->shared_ephemeral_secret,
-                            CTLS_SIZE_KEY_SHARE,
-                            &ikm_key);
-    if (psa_st != PSA_SUCCESS) goto cleanup;
-
-    psa_st = psa_key_derivation_setup(&crypto->key_schedule_operator,
-                                      PSA_ALG_HKDF_EXTRACT(crypto->hash_algorithm));
-    if (psa_st != PSA_SUCCESS) goto cleanup;
-
-    psa_st = psa_key_derivation_input_bytes(&crypto->key_schedule_operator,
-                                            PSA_KEY_DERIVATION_INPUT_SALT,
-                                            hshk_data->derived_secret,
-                                            CTLS_SIZE_HASH);
-    if (psa_st != PSA_SUCCESS) goto cleanup;
-
-    psa_st = psa_key_derivation_input_key(&crypto->key_schedule_operator,
-                                          PSA_KEY_DERIVATION_INPUT_SECRET,
-                                          ikm_key);
-    if (psa_st != PSA_SUCCESS) goto cleanup;
-
-    psa_st = psa_key_derivation_output_bytes(&crypto->key_schedule_operator,
-                                             hshk_data->handshake_secret,
-                                             CTLS_SIZE_HASH);
-    if (psa_st != PSA_SUCCESS) goto cleanup;
-
-    return CTLS_STATUS_SUCCESS;
-cleanup:
-    psa_key_derivation_abort(&crypto->key_schedule_operator);
-    if (ikm_key != PSA_KEY_ID_NULL) { psa_destroy_key(ikm_key); }
-    psa_reset_key_attributes(&attr);
-    return CTLS_STATUS_CRYPTO_HKDF_FAILED;
+    return ctls_hkdf_extract(&crypto->handshake_secret,
+                             &crypto->derived_secret,
+                             &crypto->shared_ephemeral_secret);
 }
 
 /*
