@@ -971,46 +971,39 @@ ctls_status_t ctls_decrypt(uint16_t const *sequence_number,
                            size_t const ciphertext_len,
                            uint8_t *buffer,
                            size_t *bytes_written) {
-    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
-    uint8_t *handshake_key;
-    uint8_t *iv_key;
+    ctls_crypto_t *crypto = ctls_crypto_get();
 
-    CTLS_CHECK_NULL(hshk_data);
+    psa_key_id_t *handshake_key;
+    psa_key_id_t *iv_key;
+
+    CTLS_CHECK_NULL(crypto);
     CTLS_CHECK_NULL(sequence_number);
     CTLS_CHECK_NULL_BUFFER(aad);
     CTLS_CHECK_NULL_BUFFER(ciphertext);
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL(bytes_written);
 
-    if (CTLS_CLIENT) {
-        CTLS_CHECK_NULL(hshk_data->client_handshake_key);
-        CTLS_CHECK_NULL(hshk_data->client_handshake_iv_key);
-        handshake_key = hshk_data->client_handshake_key;
-        iv_key = hshk_data->client_handshake_iv_key;
-    }
+#if CTLS_CLIENT
+    handshake_key = &crypto->client_handshake_key;
+    iv_key = &crypto->client_handshake_iv_key;
+#endif
+
+#if CTLS_SERVER
+    handshake_key = &crypto->server_handshake_key;
+    iv_key = &crypto->server_handshake_iv_key;
+#endif
+
+    CTLS_CHECK_NULL_KEY_ID(handshake_key);
+    CTLS_CHECK_NULL_KEY_ID(iv_key);
 
     psa_status_t psa_st = PSA_SUCCESS;
-    ctls_status_t err = CTLS_STATUS_SUCCESS;
-    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
-    psa_key_id_t key_id = PSA_KEY_ID_NULL;
-
     uint8_t nonce[CTLS_SIZE_NONCE];
-    ctls_status_t result = ctls_nonce_generate(nonce, sequence_number, iv_key);
+
+    ctls_status_t const result = ctls_nonce_generate(nonce, sequence_number, iv_key);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    psa_set_key_type(&attr, PSA_KEY_TYPE_AES);
-    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_DECRYPT);
-    psa_set_key_algorithm(&attr, PSA_ALG_GCM);
-    psa_set_key_bits(&attr, 128U);
-
-    psa_st = psa_import_key(&attr, handshake_key, 16U, &key_id);
-    if (psa_st != PSA_SUCCESS) {
-        err = CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED;
-        goto cleanup;
-    }
-
-    psa_st = psa_aead_decrypt(key_id,
-                              PSA_ALG_GCM,
+    psa_st = psa_aead_decrypt(*handshake_key,
+                              CTLS_GCM_ALGORITHM,
                               nonce,
                               CTLS_SIZE_NONCE,
                               aad,
@@ -1020,16 +1013,11 @@ ctls_status_t ctls_decrypt(uint16_t const *sequence_number,
                               buffer,
                               ciphertext_len - 16U,
                               bytes_written);
-    if (psa_st != PSA_SUCCESS) {
-        err = CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED;
-        goto cleanup;
-    }
+    if (psa_st != PSA_SUCCESS) goto cleanup;
 
     return CTLS_STATUS_SUCCESS;
 cleanup:
-    if (key_id != PSA_KEY_ID_NULL) { psa_destroy_key(key_id); }
-    psa_reset_key_attributes(&attr);
-    return err;
+    return CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED;
 }
 
 /*
@@ -1044,11 +1032,11 @@ ctls_status_t ctls_encrypt(uint16_t const *sequence_number,
                            ctls_size_t const plaintext_length,
                            uint8_t *ciphertext_buffer,
                            size_t *bytes_written) {
-    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
-    uint8_t *handshake_key;
-    uint8_t *iv_key;
+    ctls_crypto_t *crypto = ctls_crypto_get();
+    psa_key_id_t *handshake_key;
+    psa_key_id_t *iv_key;
 
-    CTLS_CHECK_NULL(hshk_data);
+    CTLS_CHECK_NULL(crypto);
     CTLS_CHECK_NULL(sequence_number);
     CTLS_CHECK_NULL_BUFFER(aad);
     CTLS_CHECK_NULL_BUFFER(plaintext);
@@ -1056,38 +1044,27 @@ ctls_status_t ctls_encrypt(uint16_t const *sequence_number,
     CTLS_CHECK_NULL(bytes_written);
 
 #if CTLS_CLIENT
-    CTLS_CHECK_NULL(hshk_data->client_handshake_key);
-    CTLS_CHECK_NULL(hshk_data->client_handshake_iv_key);
-
-    handshake_key = hshk_data->client_handshake_key;
-    iv_key = hshk_data->client_handshake_iv_key;
+    handshake_key = &crypto->client_handshake_key;
+    iv_key = &crypto->client_handshake_iv_key;
 #endif
 
 #if CTLS_SERVER
-    CTLS_CHECK_NULL(hshk_data->server_handshake_key);
-    CTLS_CHECK_NULL(hshk_data->server_handshake_iv_key);
-    handshake_key = hshk_data->server_handshake_key;
-    iv_key = hshk_data->server_handshake_iv_key;
+    handshake_key = &crypto->server_handshake_key;
+    iv_key = &crypto->server_handshake_iv_key;
 #endif
 
+    CTLS_CHECK_NULL_KEY_ID(handshake_key);
+    CTLS_CHECK_NULL_KEY_ID(iv_key);
+
     psa_status_t psa_st = PSA_SUCCESS;
-    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
-    psa_key_id_t key_id = PSA_KEY_ID_NULL;
 
     uint8_t nonce[CTLS_SIZE_NONCE];
     ctls_status_t const result = ctls_nonce_generate(nonce, sequence_number, iv_key);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    psa_set_key_type(&attr, PSA_KEY_TYPE_AES);
-    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_ENCRYPT);
-    psa_set_key_algorithm(&attr, PSA_ALG_GCM);
-    psa_set_key_bits(&attr, 128U);
 
-    psa_st = psa_import_key(&attr, handshake_key,CTLS_SIZE_AEAD_KEY, &key_id);
-    if (psa_st != PSA_SUCCESS) goto cleanup;
-
-    psa_st = psa_aead_encrypt(key_id,
-                              PSA_ALG_GCM,
+    psa_st = psa_aead_encrypt(*handshake_key,
+                              CTLS_GCM_ALGORITHM,
                               nonce,
                               CTLS_SIZE_NONCE,
                               aad,
@@ -1101,8 +1078,6 @@ ctls_status_t ctls_encrypt(uint16_t const *sequence_number,
 
     return CTLS_STATUS_SUCCESS;
 cleanup:
-    if (key_id != PSA_KEY_ID_NULL) { psa_destroy_key(key_id); }
-    psa_reset_key_attributes(&attr);
     return CTLS_STATUS_CRYPTO_AEAD_ENCRYPT_FAILED;
 }
 
