@@ -81,6 +81,7 @@ struct ctls_crypto {
     // If client, server's pubic key and vice versa
     psa_key_id_t shared_ephemeral_secret;
     psa_key_id_t early_secret;
+    psa_key_id_t derived_secret;
 };
 
 /** Map a psa_status_t onto the closest ctls_status_t. */
@@ -169,15 +170,22 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
 
 /** Key schedule steps — see the file-header diagram for what each derives. */
 ctls_status_t ctls_early_secret_generate(ctls_crypto_t *crypto);
+ctls_status_t ctls_derived_secret_generate(ctls_crypto_t *crypto);
 /** X25519 ECDH: client private key x server public key share. */
 ctls_status_t ctls_shared_ephemeral_secret_generate(ctls_crypto_t *crypto);
 ctls_status_t ctls_handshake_secret_generate(ctls_crypto_t *crypto);
 ctls_status_t ctls_handshake_traffic_secret_generate(ctls_crypto_t *crypto,
                                                      ctls_hshk_data_t *hshk_data,
                                                      ctls_entity_t entity);
+
 ctls_status_t ctls_hkdf_extract(psa_key_id_t *output_key_id,
                                 psa_key_id_t const *salt,
                                 psa_key_id_t const *ikm_key_id);
+ctls_status_t ctls_hkdf_expand(psa_key_id_t *output_key_id,
+                               psa_key_id_t const *prk_key_id,
+                               ctls_derive_operation_t derive_operation,
+                               uint8_t const *info,
+                               ctls_size_t info_length);
 /**
  * Per-record nonce (RFC 8446 §5.3): sequence number left-padded to IV size,
  * XORed into the static IV.
