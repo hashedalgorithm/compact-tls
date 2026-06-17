@@ -252,34 +252,89 @@ ctls_status_t ctls_key_schedule_operator_reset(ctls_crypto_t *crypto) {
     return CTLS_STATUS_SUCCESS;
 }
 
-ctls_status_t ctls_ephemeral_public_key_generate(uint8_t *buffer,
-                                                 ctls_size_t *bytes_written) {
-    ctls_crypto_t *crypto = ctls_crypto_get();
+ctls_status_t ctls_ephemeral_public_key_import(uint8_t const *buffer,
+                                               ctls_size_t const buffer_length,
+                                               psa_key_id_t *ephemeral_public_key) {
+    ctls_crypto_t const *crypto = ctls_crypto_get();
 
-    CTLS_CHECK_NULL_BUFFER(buffer);
-    CTLS_CHECK_NULL(crypto);
+    CTLS_CHECK_NULL_STRUCT(crypto);
+    CTLS_CHECK_NULL(buffer);
 
-    size_t bytes_written_st = *bytes_written;
-    psa_key_attributes_t key_attributes = PSA_KEY_ATTRIBUTES_INIT;
+    psa_status_t psa_st = PSA_SUCCESS;
+    psa_key_attributes_t server_public_key_attributes = PSA_KEY_ATTRIBUTES_INIT;
+    *ephemeral_public_key = PSA_KEY_ID_NULL;
+    psa_algorithm_t const key_algorithm = PSA_ALG_ECDH;
 
-    psa_set_key_type(&key_attributes,
-                     PSA_KEY_TYPE_ECC_KEY_PAIR(crypto->ecdhe_key_pair_type));
-    psa_set_key_bits(&key_attributes, 255);
-    psa_set_key_usage_flags(&key_attributes, PSA_KEY_USAGE_DERIVE);
-    psa_set_key_algorithm(&key_attributes, PSA_ALG_ECDH);
+    psa_set_key_type(&server_public_key_attributes,
+                     PSA_KEY_TYPE_ECC_PUBLIC_KEY(crypto->ecdhe_key_pair_type));
+    psa_set_key_usage_flags(&server_public_key_attributes,
+                            PSA_KEY_USAGE_DERIVE | PSA_KEY_USAGE_EXPORT);
+    psa_set_key_algorithm(&server_public_key_attributes, key_algorithm);
 
-    psa_status_t st = psa_generate_key(&key_attributes,
-                                       &crypto->client_private_ephemeral_key_id);
-    if (st != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_KEY_GEN_FAILED;
+    ctls_size_t key_bits = 0;
+    ctls_status_t const result = ctls_key_bits_get(&key_algorithm, &key_bits);
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+    psa_set_key_bits(&server_public_key_attributes, key_bits);
 
-    st = psa_export_public_key(crypto->client_private_ephemeral_key_id,
-                               buffer,
-                               CTLS_SIZE_KEY_SHARE,
-                               &bytes_written_st);
-    *bytes_written = (ctls_size_t) bytes_written_st;
-    if (st != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_KEY_EXPORT_FAILED;
+    psa_st = psa_import_key(&server_public_key_attributes,
+                            buffer,
+                            buffer_length,
+                            ephemeral_public_key);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
 
     return CTLS_STATUS_SUCCESS;
+
+cleanup:
+    psa_reset_key_attributes(&server_public_key_attributes);
+    return CTLS_STATUS_CRYPTO_KEY_IMPORT_FAILED;
+}
+
+ctls_status_t ctls_ephemeral_public_key_export(psa_key_id_t const *ephemeral_key_pair_id,
+                                               uint8_t *buffer,
+                                               ctls_size_t const buffer_length,
+                                               ctls_size_t *buffer_bytes_written) {
+    CTLS_CHECK_NULL_KEY_ID(ephemeral_key_pair_id);
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_OFFSET(buffer_bytes_written);
+
+    size_t offset;
+    psa_status_t psa_st = psa_export_public_key(*ephemeral_key_pair_id,
+                                                buffer,
+                                                buffer_length,
+                                                &offset);
+    *buffer_bytes_written = offset;
+    if (psa_st != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_KEY_EXPORT_FAILED;
+
+    return CTLS_STATUS_SUCCESS;
+}
+
+ctls_status_t ctls_ephemeral_key_pair_generate(psa_key_id_t *ephemeral_key_pair_id) {
+    ctls_crypto_t const *crypto = ctls_crypto_get();
+    CTLS_CHECK_NULL(crypto);
+
+    psa_status_t psa_st = PSA_SUCCESS;
+    psa_key_attributes_t ephemeral_public_key_attributes = PSA_KEY_ATTRIBUTES_INIT;
+    *ephemeral_key_pair_id = PSA_KEY_ID_NULL;
+    psa_algorithm_t const public_key_algorithm = PSA_ALG_ECDH;
+
+    psa_set_key_type(&ephemeral_public_key_attributes,
+                     PSA_KEY_TYPE_ECC_KEY_PAIR(crypto->ecdhe_key_pair_type));
+    psa_set_key_usage_flags(&ephemeral_public_key_attributes,
+                            PSA_KEY_USAGE_DERIVE | PSA_KEY_USAGE_EXPORT);
+    psa_set_key_algorithm(&ephemeral_public_key_attributes, public_key_algorithm);
+    ctls_size_t key_bits = 0;
+    ctls_status_t const result = ctls_key_bits_get(&public_key_algorithm, &key_bits);
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+    psa_set_key_bits(&ephemeral_public_key_attributes, key_bits);
+
+    psa_st = psa_generate_key(&ephemeral_public_key_attributes, ephemeral_key_pair_id);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    return CTLS_STATUS_SUCCESS;
+
+cleanup:
+    psa_reset_key_attributes(&ephemeral_public_key_attributes);
+    return CTLS_STATUS_CRYPTO_KEY_GEN_FAILED;
 }
 
 ctls_status_t ctls_random_generate(uint8_t *buffer,
@@ -310,7 +365,7 @@ ctls_status_t ctls_key_schedule() {
     result = ctls_derived_secret_generate(crypto, hshk_data);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_shared_ephemeral_secret_generate(crypto, hshk_data);
+    result = ctls_shared_ephemeral_secret_generate(crypto);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     result = ctls_handshake_secret_generate(crypto, hshk_data);
@@ -659,20 +714,49 @@ cleanup:
 }
 
 
-ctls_status_t ctls_shared_ephemeral_secret_generate(ctls_crypto_t const *crypto,
-                                                    ctls_hshk_data_t *hshk_data) {
+ctls_status_t ctls_shared_ephemeral_secret_generate(ctls_crypto_t *crypto) {
+    CTLS_CHECK_NULL_STRUCT(crypto);
+
     psa_status_t psa_st = PSA_SUCCESS;
+    uint8_t peer_public_ephemeral_key[CTLS_SIZE_KEY_SHARE];
+    uint8_t shared_ephemeral_secret[CTLS_SIZE_KEY_SHARE];
+    ctls_size_t peer_public_ephemeral_key_offset = 0;
     size_t shared_ephemeral_secret_length = 0;
 
-    psa_st = psa_raw_key_agreement(PSA_ALG_ECDH,
-                                   crypto->client_private_ephemeral_key_id,
-                                   hshk_data->server_public_ephemeral_key,
+    ctls_status_t result = ctls_ephemeral_public_key_export(&crypto->
+                                                                peer_public_ephemeral_key,
+                                                                peer_public_ephemeral_key,
+                                                                CTLS_SIZE_KEY_SHARE,
+                                                                &peer_public_ephemeral_key_offset);
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+
+    psa_st = psa_raw_key_agreement(CTLS_ECDHE_ALGORITHM,
+                                   crypto->self_ephemeral_key_pair,
+                                   peer_public_ephemeral_key,
                                    CTLS_SIZE_KEY_SHARE,
-                                   hshk_data->shared_ephemeral_secret,
+                                   shared_ephemeral_secret,
                                    CTLS_SIZE_KEY_SHARE,
                                    &shared_ephemeral_secret_length);
     if (psa_st != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_ECDH_FAILED;
+
+    crypto->shared_ephemeral_secret = PSA_KEY_ID_NULL;
+    psa_key_attributes_t shared_ephemeral_secret_attribute = PSA_KEY_ATTRIBUTES_INIT;
+    result = ctls_key_attributes_set(CTLS_DERIVE_OPERATION_EPHEMERAL_GENERATE,
+                                     &shared_ephemeral_secret_attribute);
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+
+    psa_st = psa_import_key(&shared_ephemeral_secret_attribute,
+                            shared_ephemeral_secret,
+                            CTLS_SIZE_KEY_SHARE,
+                            &crypto->shared_ephemeral_secret);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    memset(shared_ephemeral_secret, 0, CTLS_SIZE_KEY_SHARE);
+    memset(peer_public_ephemeral_key, 0, CTLS_SIZE_KEY_SHARE);
     return CTLS_STATUS_SUCCESS;
+
+cleanup:
+    return CTLS_STATUS_CRYPTO_ECDH_FAILED;
 }
 
 /*

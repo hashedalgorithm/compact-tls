@@ -47,6 +47,10 @@
 
 #define CTLS_SIZE_NONCE 12U
 #define CTLS_SIZE_TRANSCRIPT_HASH 32U
+
+#define CTLS_CHECK_NULL_KEY_ID(p) \
+    do { if ((p) == NULL) return CTLS_STATUS_NULL_PTR; } while (0)
+
 typedef enum {
     CTLS_DERIVE_OPERATION_EPHEMERAL_GENERATE = 0,
     CTLS_DERIVE_OPERATION_HKDF_EXTRACT,
@@ -70,9 +74,12 @@ struct ctls_crypto {
     psa_algorithm_t hash_algorithm;
     psa_hash_operation_t transcript_hash_operator;
     psa_ecc_family_t ecdhe_key_pair_type;
-    psa_key_id_t server_private_ephemeral_key_id;
-    psa_key_id_t client_private_ephemeral_key_id;
     psa_key_derivation_operation_t key_schedule_operator;
+    psa_key_id_t self_ephemeral_key_pair;
+    // If client, client ephemeral key pair and respectively.
+    psa_key_id_t peer_public_ephemeral_key;
+    // If client, server's pubic key and vice versa
+    psa_key_id_t shared_ephemeral_secret;
 };
 
 /** Map a psa_status_t onto the closest ctls_status_t. */
@@ -121,9 +128,18 @@ ctls_status_t transcript_snapshot(psa_hash_operation_t const *hash_operator,
 /** Reset the derivation operator + select ECC family for the profile. */
 ctls_status_t ctls_hkdf_init(ctls_crypto_t *crypto, ctls_dhe_group_t ecdhe_group_type);
 ctls_status_t ctls_key_schedule_operator_reset(ctls_crypto_t *crypto);
+
+/** DOCS - TODO */
+ctls_status_t ctls_ephemeral_public_key_import(uint8_t const *buffer,
+                                               ctls_size_t buffer_length,
+                                               psa_key_id_t *ephemeral_public_key);
+ctls_status_t ctls_ephemeral_public_key_export(psa_key_id_t const *ephemeral_key_pair_id,
+                                               uint8_t *buffer,
+                                               ctls_size_t buffer_length,
+                                               ctls_size_t *buffer_bytes_written);
+
 /** Generate the client X25519 ephemeral pair; export public half to buffer. */
-ctls_status_t ctls_ephemeral_public_key_generate(uint8_t *buffer,
-                                                 ctls_size_t *bytes_written);
+ctls_status_t ctls_ephemeral_key_pair_generate(psa_key_id_t *ephemeral_key_pair_id);
 /** random_size bytes from the PSA DRBG (Hello random, RFC 8446 §4.1.2). */
 ctls_status_t ctls_random_generate(uint8_t *buffer,
                                    ctls_size_t *bytes_written,
@@ -155,10 +171,8 @@ ctls_status_t ctls_early_secret_generate(ctls_crypto_t *crypto, uint8_t *early_s
 ctls_status_t ctls_derived_secret_generate(ctls_crypto_t *crypto,
                                            ctls_hshk_data_t *hshk_data);
 /** X25519 ECDH: client private key x server public key share. */
-ctls_status_t ctls_shared_ephemeral_secret_generate(ctls_crypto_t const *crypto,
-                                                    ctls_hshk_data_t *hshk_data);
-ctls_status_t ctls_handshake_secret_generate(ctls_crypto_t *crypto,
-                                             ctls_hshk_data_t *hshk_data);
+ctls_status_t ctls_shared_ephemeral_secret_generate(ctls_crypto_t *crypto);
+ctls_status_t ctls_handshake_secret_generate(ctls_crypto_t *crypto);
 ctls_status_t ctls_handshake_traffic_secret_generate(ctls_crypto_t *crypto,
                                                      ctls_hshk_data_t *hshk_data,
                                                      ctls_entity_t entity);
