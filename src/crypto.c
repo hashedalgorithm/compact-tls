@@ -263,18 +263,11 @@ ctls_status_t ctls_ephemeral_public_key_import(uint8_t const *buffer,
     psa_status_t psa_st = PSA_SUCCESS;
     psa_key_attributes_t server_public_key_attributes = PSA_KEY_ATTRIBUTES_INIT;
     *ephemeral_public_key = PSA_KEY_ID_NULL;
-    psa_algorithm_t const key_algorithm = PSA_ALG_ECDH;
 
-    psa_set_key_type(&server_public_key_attributes,
-                     PSA_KEY_TYPE_ECC_PUBLIC_KEY(crypto->ecdhe_key_pair_type));
-    psa_set_key_usage_flags(&server_public_key_attributes,
-                            PSA_KEY_USAGE_DERIVE | PSA_KEY_USAGE_EXPORT);
-    psa_set_key_algorithm(&server_public_key_attributes, key_algorithm);
-
-    ctls_size_t key_bits = 0;
-    ctls_status_t const result = ctls_key_bits_get(&key_algorithm, &key_bits);
+    ctls_status_t const result =
+            ctls_key_attributes_set(CTLS_KEY_USAGE_EPHEMERAL_PUBLIC_KEY_EXPORT,
+                                    &server_public_key_attributes);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
-    psa_set_key_bits(&server_public_key_attributes, key_bits);
 
     psa_st = psa_import_key(&server_public_key_attributes,
                             buffer,
@@ -298,14 +291,14 @@ ctls_status_t ctls_ephemeral_public_key_export(psa_key_id_t const *ephemeral_key
     CTLS_CHECK_NULL_OFFSET(buffer_bytes_written);
 
     size_t offset;
-    psa_status_t psa_st = psa_export_public_key(*ephemeral_key_pair_id,
-                                                buffer,
-                                                buffer_length,
-                                                &offset);
+    psa_status_t const psa_st = psa_export_public_key(*ephemeral_key_pair_id,
+                                                      buffer,
+                                                      buffer_length,
+                                                      &offset);
     *buffer_bytes_written = offset;
     if (psa_st != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_KEY_EXPORT_FAILED;
 
-    return CTLS_STATUS_SUCCESS;
+    return psa_st;
 }
 
 ctls_status_t ctls_ephemeral_key_pair_generate(psa_key_id_t *ephemeral_key_pair_id) {
@@ -313,27 +306,22 @@ ctls_status_t ctls_ephemeral_key_pair_generate(psa_key_id_t *ephemeral_key_pair_
     CTLS_CHECK_NULL(crypto);
 
     psa_status_t psa_st = PSA_SUCCESS;
-    psa_key_attributes_t ephemeral_public_key_attributes = PSA_KEY_ATTRIBUTES_INIT;
+    psa_key_attributes_t ephemeral_key_pair_attributes = PSA_KEY_ATTRIBUTES_INIT;
     *ephemeral_key_pair_id = PSA_KEY_ID_NULL;
-    psa_algorithm_t const public_key_algorithm = PSA_ALG_ECDH;
 
-    psa_set_key_type(&ephemeral_public_key_attributes,
-                     PSA_KEY_TYPE_ECC_KEY_PAIR(crypto->ecdhe_key_pair_type));
-    psa_set_key_usage_flags(&ephemeral_public_key_attributes,
-                            PSA_KEY_USAGE_DERIVE | PSA_KEY_USAGE_EXPORT);
-    psa_set_key_algorithm(&ephemeral_public_key_attributes, public_key_algorithm);
-    ctls_size_t key_bits = 0;
-    ctls_status_t const result = ctls_key_bits_get(&public_key_algorithm, &key_bits);
+    ctls_status_t const result =
+            ctls_key_attributes_set(CTLS_KEY_USAGE_EPHEMERAL_KEY_PAIR_GENERATE,
+                                    &ephemeral_key_pair_attributes);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
-    psa_set_key_bits(&ephemeral_public_key_attributes, key_bits);
 
-    psa_st = psa_generate_key(&ephemeral_public_key_attributes, ephemeral_key_pair_id);
+
+    psa_st = psa_generate_key(&ephemeral_key_pair_attributes, ephemeral_key_pair_id);
     if (psa_st != PSA_SUCCESS) goto cleanup;
 
     return CTLS_STATUS_SUCCESS;
 
 cleanup:
-    psa_reset_key_attributes(&ephemeral_public_key_attributes);
+    psa_reset_key_attributes(&ephemeral_key_pair_attributes);
     return CTLS_STATUS_CRYPTO_KEY_GEN_FAILED;
 }
 
@@ -409,9 +397,14 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
     uint16_t key_bits;
 
     switch (key_usage) {
-        case CTLS_KEY_USAGE_EPHEMERAL_GENERATE: {
+        case CTLS_KEY_USAGE_EPHEMERAL_KEY_PAIR_GENERATE: {
+        case CTLS_KEY_USAGE_EPHEMERAL_PUBLIC_KEY_EXPORT: {
             psa_set_key_type(key_attribute,
-                             PSA_KEY_TYPE_ECC_KEY_PAIR(crypto->ecdhe_key_pair_type));
+                             key_usage == CTLS_KEY_USAGE_EPHEMERAL_PUBLIC_KEY_EXPORT
+                                 ? PSA_KEY_TYPE_ECC_PUBLIC_KEY(crypto->
+                                  ecdhe_key_pair_type)
+                                 : PSA_KEY_TYPE_ECC_KEY_PAIR(crypto->
+                                  ecdhe_key_pair_type));
             psa_set_key_usage_flags(key_attribute,
                                     PSA_KEY_USAGE_DERIVE | PSA_KEY_USAGE_EXPORT);
             psa_set_key_algorithm(key_attribute, CTLS_ECDHE_ALGORITHM);
@@ -420,18 +413,7 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
             if (result != CTLS_STATUS_SUCCESS) return CTLS_STATUS_CRYPTO_ECDH_FAILED;
             psa_set_key_bits(key_attribute, key_bits);
         };
-        case CTLS_KEY_USAGE_HKDF_EXTRACT: {
-            psa_set_key_type(key_attribute, PSA_KEY_TYPE_DERIVE);
-            psa_set_key_usage_flags(key_attribute,
-                                    PSA_KEY_USAGE_DERIVE | PSA_KEY_USAGE_EXPORT);
-            psa_set_key_algorithm(key_attribute,
-                                  PSA_ALG_HKDF_EXTRACT(crypto->hash_algorithm));
-            result = ctls_key_bits_get(&crypto->hash_algorithm, &key_bits);
-            if (result != CTLS_STATUS_SUCCESS)
-                return CTLS_STATUS_CRYPTO_HKDF_EXTRACT_FAILED;
-            psa_set_key_bits(key_attribute, key_bits);
-            return result;
-        }
+        case CTLS_KEY_USAGE_HKDF_EXTRACT:
         case CTLS_KEY_USAGE_HKDF_EXPAND: {
             psa_set_key_type(key_attribute, PSA_KEY_TYPE_DERIVE);
             psa_set_key_usage_flags(key_attribute,
@@ -695,7 +677,7 @@ ctls_status_t ctls_shared_ephemeral_secret_generate(ctls_crypto_t *crypto) {
 
     crypto->shared_ephemeral_secret = PSA_KEY_ID_NULL;
     psa_key_attributes_t shared_ephemeral_secret_attribute = PSA_KEY_ATTRIBUTES_INIT;
-    result = ctls_key_attributes_set(CTLS_KEY_USAGE_EPHEMERAL_GENERATE,
+    result = ctls_key_attributes_set(CTLS_KEY_USAGE_EPHEMERAL_KEY_PAIR_GENERATE,
                                      &shared_ephemeral_secret_attribute);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
