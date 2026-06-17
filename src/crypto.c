@@ -13,6 +13,9 @@
 #include "ctls/bytes.h"
 #include "ctls/templates.h"
 
+psa_algorithm_t const CTLS_ECDHE_ALGORITHM = PSA_ALG_ECDH;
+psa_algorithm_t const CTLS_GCM_ALGORITHM = PSA_ALG_GCM;
+
 
 ctls_status_t ctls_psa_error_map(psa_status_t const status) {
     switch (status) {
@@ -62,6 +65,23 @@ ctls_status_t ctls_psa_hash_algorithm_set(ctls_crypto_t *crypto,
             break;
         default: return CTLS_STATUS_CRYPTO_UNSUPPORTED_CIPHER_SUITE;
     }
+    return CTLS_STATUS_SUCCESS;
+}
+
+ctls_status_t ctls_key_bits_get(psa_algorithm_t const *algorithm, ctls_size_t *key_bits) {
+    CTLS_CHECK_NULL(algorithm);
+    CTLS_CHECK_NULL(key_bits);
+
+    switch (*algorithm) {
+        case PSA_ALG_SHA_256: *key_bits = 256U;
+            break;
+        case PSA_ALG_SHA_384: *key_bits = 384U;
+            break;
+        case PSA_ALG_ECDH: *key_bits = 255U;
+            break;
+        default: return CTLS_STATUS_CRYPTO_INVALID_ARG;
+    }
+
     return CTLS_STATUS_SUCCESS;
 }
 
@@ -324,6 +344,80 @@ ctls_status_t ctls_key_schedule() {
     result = ctls_epoch_counter_increment();
     if (result != CTLS_STATUS_SUCCESS) return result;
     return ctls_epoch_counter_increment();
+}
+
+ctls_status_t ctls_key_attributes_set(ctls_derive_operation_t const operation,
+                                      psa_key_attributes_t *key_attribute) {
+    ctls_crypto_t const *crypto = ctls_crypto_get();
+
+    CTLS_CHECK_NULL_STRUCT(crypto);
+    CTLS_CHECK_NULL(key_attribute);
+
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
+    uint16_t key_bits;
+
+    switch (operation) {
+        case CTLS_DERIVE_OPERATION_EPHEMERAL_GENERATE: {
+            psa_set_key_type(key_attribute,
+                             PSA_KEY_TYPE_ECC_KEY_PAIR(crypto->ecdhe_key_pair_type));
+            psa_set_key_usage_flags(key_attribute,
+                                    PSA_KEY_USAGE_DERIVE | PSA_KEY_USAGE_EXPORT);
+            psa_set_key_algorithm(key_attribute, CTLS_ECDHE_ALGORITHM);
+
+            result = ctls_key_bits_get(&CTLS_ECDHE_ALGORITHM, &key_bits);
+            if (result != CTLS_STATUS_SUCCESS) return CTLS_STATUS_CRYPTO_ECDH_FAILED;
+            psa_set_key_bits(key_attribute, key_bits);
+        };
+        case CTLS_DERIVE_OPERATION_HKDF_EXTRACT: {
+            psa_set_key_type(key_attribute, PSA_KEY_TYPE_DERIVE);
+            psa_set_key_usage_flags(key_attribute,
+                                    PSA_KEY_USAGE_DERIVE | PSA_KEY_USAGE_EXPORT);
+            psa_set_key_algorithm(key_attribute,
+                                  PSA_ALG_HKDF_EXTRACT(crypto->hash_algorithm));
+            result = ctls_key_bits_get(&crypto->hash_algorithm, &key_bits);
+            if (result != CTLS_STATUS_SUCCESS)
+                return CTLS_STATUS_CRYPTO_HKDF_EXTRACT_FAILED;
+            psa_set_key_bits(key_attribute, key_bits);
+            return result;
+        }
+        case CTLS_DERIVE_OPERATION_HKDF_EXPAND: {
+            psa_set_key_type(key_attribute, PSA_KEY_TYPE_DERIVE);
+            psa_set_key_usage_flags(key_attribute,
+                                    PSA_KEY_USAGE_DERIVE | PSA_KEY_USAGE_EXPORT);
+            psa_set_key_algorithm(key_attribute,
+                                  PSA_ALG_HKDF_EXPAND(crypto->hash_algorithm));
+            result = ctls_key_bits_get(&crypto->hash_algorithm, &key_bits);
+            if (result != CTLS_STATUS_SUCCESS)
+                return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
+            psa_set_key_bits(key_attribute, key_bits);
+            return result;
+        }
+        case CTLS_DERIVE_OPERATION_AEAD_ENCRYPT_OR_DECRYPT: {
+            psa_set_key_type(key_attribute, PSA_KEY_TYPE_AES);
+            psa_set_key_usage_flags(key_attribute,
+                                    PSA_KEY_USAGE_ENCRYPT | PSA_KEY_USAGE_DECRYPT);
+            psa_set_key_algorithm(key_attribute, CTLS_GCM_ALGORITHM);
+            result = ctls_key_bits_get(&CTLS_GCM_ALGORITHM, &key_bits);
+            if (result != CTLS_STATUS_SUCCESS)
+                return CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED;
+            psa_set_key_bits(key_attribute, key_bits);
+            return result;
+        }
+        case CTLS_DERIVE_OPERATION_HMAC: {
+            psa_set_key_type(key_attribute, PSA_KEY_TYPE_HMAC);
+            psa_set_key_usage_flags(key_attribute,
+                                    PSA_KEY_USAGE_SIGN_MESSAGE | PSA_KEY_USAGE_DECRYPT);
+            psa_set_key_algorithm(key_attribute, PSA_ALG_HMAC(crypto->hash_algorithm));
+            result = ctls_key_bits_get(&crypto->hash_algorithm, &key_bits);
+            if (result != CTLS_STATUS_SUCCESS)
+                return CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED;
+            psa_set_key_bits(key_attribute, key_bits);
+            return result;
+        }
+        default: CTLS_STATUS_CRYPTO_INVALID_ARG;
+    }
+    return CTLS_STATUS_SUCCESS;
 }
 
 ctls_status_t ctls_context_string_build(uint8_t *buffer,

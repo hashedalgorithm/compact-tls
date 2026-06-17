@@ -47,6 +47,13 @@
 
 #define CTLS_SIZE_NONCE 12U
 #define CTLS_SIZE_TRANSCRIPT_HASH 32U
+typedef enum {
+    CTLS_DERIVE_OPERATION_EPHEMERAL_GENERATE = 0,
+    CTLS_DERIVE_OPERATION_HKDF_EXTRACT,
+    CTLS_DERIVE_OPERATION_HKDF_EXPAND,
+    CTLS_DERIVE_OPERATION_AEAD_ENCRYPT_OR_DECRYPT,
+    CTLS_DERIVE_OPERATION_HMAC,
+} ctls_derive_operation_t;
 
 /** Which HkdfLabel / signing context ctls_context_string_build emits. */
 typedef enum {
@@ -80,6 +87,9 @@ ctls_status_t ctls_crypto_init();
 /** Cipher suite -> PSA hash algorithm (suite's HKDF hash, RFC 8446 §B.4). */
 ctls_status_t ctls_psa_hash_algorithm_set(ctls_crypto_t *crypto,
                                           ctls_cipher_suite_t cipher_suite);
+/** DOCS - TODO */
+ctls_status_t ctls_key_bits_get(psa_algorithm_t const *algorithm, ctls_size_t *key_bits);
+
 /** NamedGroup -> PSA ECC/DH family for ephemeral key generation. */
 ctls_status_t ctls_psa_ecc_family_set(ctls_crypto_t *crypto,
                                       ctls_dhe_group_t dhe_group_type);
@@ -124,6 +134,10 @@ ctls_status_t ctls_random_generate(uint8_t *buffer,
  * Call after ServerHello (needs the server key share + transcript).
  */
 ctls_status_t ctls_key_schedule();
+
+ctls_status_t ctls_key_attributes_set(ctls_derive_operation_t operation,
+                                      psa_key_attributes_t *key_attribute);
+
 /**
  * Build the info/content bytes for one derivation or signature: HkdfLabel
  * (RFC 8446 §7.1: length(u16) | label_len(u8) | "Sctls <label>" |
