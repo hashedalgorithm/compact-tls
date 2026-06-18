@@ -445,7 +445,7 @@ typedef ctls_protocol_version_t ctls_extn_supported_version_t;
 typedef struct ctls_extn_certificate_authorities ctls_extn_certificate_authorities_t;
 typedef uint8_t ctls_extn_post_handshake_auth_t;
 typedef ctls_signature_scheme_t ctls_extn_signature_algorithm_cert_t;
-typedef uint8_t *ctls_extn_key_share_t;
+typedef psa_key_id_t *ctls_extn_key_share_t;
 typedef uint8_t ctls_extn_padding_t[CTLS_SIZE_PADDING];
 typedef struct ctls_extn_pre_shared_key ctls_extn_pre_shared_key_t;
 typedef struct ctls_extn_offered_psk ctls_extn_offered_psk_t;

@@ -81,12 +81,6 @@ typedef enum {
     CTLS_HELPER_IS_TWO_BYTE = 1
 } ctls_helper_is_one_byte_t;
 
-/** Whose key material a wire field belongs to (e.g. key_share owner). */
-typedef enum {
-    CTLS_HELPER_ENTITY_OWNERSHIP_CLIENT = 0,
-    CTLS_HELPER_ENTITY_OWNERSHIP_SERVER,
-} ctls_helper_entity_ownership_t;
-
 /** Pointer + length view over bytes owned elsewhere (template or wire buffer). */
 struct ctls_hshk_buffer_block {
     uint8_t *buffer;
@@ -601,8 +595,7 @@ ctls_status_t ctls_extn_post_handshake_auth_serialize(
  */
 ctls_status_t ctls_extn_key_share_deserialize(uint8_t const *buffer,
                                               ctls_size_t *offset,
-                                              ctls_helper_entity_ownership_t
-                                              entity_ownership,
+                                              ctls_entity_t entity,
                                               ctls_extn_key_share_t *key_share);
 /**
  * Write a key_share. DEFAULT: key_exchange_length(u16) | key bytes.

@@ -1012,30 +1012,28 @@ ctls_status_t ctls_extn_post_handshake_auth_serialize(
  */
 ctls_status_t ctls_extn_key_share_deserialize(uint8_t const *buffer,
                                               ctls_size_t *offset,
-                                              ctls_helper_entity_ownership_t const
-                                              entity_ownership,
+                                              ctls_entity_t const entity,
                                               ctls_extn_key_share_t *key_share) {
-    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+    ctls_crypto_t *crypto = ctls_crypto_get();
 
     CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_STRUCT(crypto);
     CTLS_CHECK_NULL_OFFSET(offset);
     CTLS_CHECK_NULL(key_share);
-    CTLS_CHECK_NULL(hshk_data);
 
-    if (entity_ownership != CTLS_HELPER_ENTITY_OWNERSHIP_CLIENT && entity_ownership !=
-        CTLS_HELPER_ENTITY_OWNERSHIP_SERVER) return
-            CTLS_STATUS_EXTN_INVALID_ENTITY_OWNERSHIP;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
+            CTLS_STATUS_EXTN_INVALID_ENTITY;
 
-    ctls_read_bytes(entity_ownership == CTLS_HELPER_ENTITY_OWNERSHIP_SERVER
-                        ? hshk_data->server_public_ephemeral_key
-                        : hshk_data->client_public_ephemeral_key,
-                    CTLS_SIZE_KEY_SHARE,
-                    buffer,
-                    offset);
-    *key_share = entity_ownership == CTLS_HELPER_ENTITY_OWNERSHIP_SERVER
-                     ? hshk_data->server_public_ephemeral_key
-                     : hshk_data->client_public_ephemeral_key;
+    uint8_t public_ephemeral_key[CTLS_SIZE_KEY_SHARE];
 
+    ctls_read_bytes(public_ephemeral_key, CTLS_SIZE_KEY_SHARE, buffer, offset);
+    ctls_status_t result = ctls_ephemeral_public_key_import(buffer,
+                                                                CTLS_SIZE_KEY_SHARE,
+                                                                &crypto->
+                                                                peer_public_ephemeral_key);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    *key_share = &crypto->peer_public_ephemeral_key;
     return CTLS_STATUS_SUCCESS;
 }
 
@@ -1050,6 +1048,9 @@ ctls_status_t ctls_extn_key_share_serialize(uint8_t *buffer,
                                             ctls_size_t *offset,
                                             ctls_wire_format_t const wire_format,
                                             ctls_extn_key_share_t key_share) {
+    ctls_crypto_t const *crypto = ctls_crypto_get();
+
+    CTLS_CHECK_NULL_STRUCT(crypto);
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
 
@@ -1058,7 +1059,17 @@ ctls_status_t ctls_extn_key_share_serialize(uint8_t *buffer,
     }
 
     ctls_write_u16(buffer, offset, CTLS_SIZE_KEY_SHARE);
-    ctls_write_bytes(buffer, offset, CTLS_SIZE_KEY_SHARE, key_share);
+
+    uint8_t raw_bytes[CTLS_SIZE_KEY_SHARE];
+    ctls_size_t bytes_written;
+    ctls_status_t result = ctls_ephemeral_public_key_export(&crypto->
+                                                                self_ephemeral_key_pair,
+                                                                raw_bytes,
+                                                                CTLS_SIZE_KEY_SHARE,
+                                                                &bytes_written);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    ctls_write_bytes(buffer, offset, bytes_written, raw_bytes);
 
     return CTLS_STATUS_SUCCESS;
 }
@@ -1081,11 +1092,11 @@ uint8_t ctls_expected_extensions_size_get(
 ctls_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions) {
     ctls_template_t const *template = ctls_template_get();
-    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+    ctls_crypto_t *crypto = ctls_crypto_get();
 
     CTLS_CHECK_NULL_STRUCT(client_hello_extensions);
-    CTLS_CHECK_NULL(template);
-    CTLS_CHECK_NULL(hshk_data);
+    CTLS_CHECK_NULL_STRUCT(template);
+    CTLS_CHECK_NULL_STRUCT(crypto);
 
     uint8_t const size_of_expected_extensions =
             ctls_expected_extensions_size_get(&template->client_hello_extension.
@@ -1292,14 +1303,10 @@ ctls_status_t ctls_extn_client_hello_create(
         if (template->client_hello_extension.expected_extensions[i] !=
             CTLS_EXTN_TYPE_KEY_SHARE) continue;
 
-        ctls_size_t bytes_written = CTLS_SIZE_KEY_SHARE;
-        result = ctls_ephemeral_public_key_generate(hshk_data->
-                                                    client_public_ephemeral_key,
-                                                    &bytes_written);
+        result = ctls_ephemeral_key_pair_generate(&crypto->self_ephemeral_key_pair);
         if (result != CTLS_STATUS_SUCCESS) return result;
 
-        client_hello_extensions->key_share_entity = hshk_data->
-                client_public_ephemeral_key;
+        client_hello_extensions->key_share_entity = &crypto->shared_ephemeral_secret;
     }
 
     return CTLS_STATUS_SUCCESS;
@@ -1343,14 +1350,11 @@ ctls_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
         for (uint8_t i = 0; i < size_of_expected_extensions; i++) {
             if (template->client_hello_extension.expected_extensions[i] ==
                 CTLS_EXTN_TYPE_KEY_SHARE) {
-                ctls_size_t key_share_start = *offset;
-                if (template->dhe_group.key_share_length == 0) {
-                    ctls_write_u16(buffer, &key_share_start, CTLS_SIZE_KEY_SHARE);
-                }
-                ctls_write_bytes(buffer,
-                                 offset,
-                                 CTLS_SIZE_KEY_SHARE,
-                                 client_hello_extensions->key_share_entity);
+                ctls_status_t const result = ctls_extn_key_share_serialize(buffer,
+                    offset,
+                    wire_format,
+                    client_hello_extensions->key_share_entity);
+                if (result != CTLS_STATUS_SUCCESS) return result;
             }
         }
         return CTLS_STATUS_SUCCESS;
@@ -1507,7 +1511,7 @@ ctls_status_t ctls_extn_server_hello_to_struct(
 
     return ctls_extn_key_share_deserialize(buffer,
                                            offset,
-                                           CTLS_HELPER_ENTITY_OWNERSHIP_SERVER,
+                                           CTLS_ENTITY_SERVER,
                                            &server_hello_extensions->key_share_entity);
 }
 
