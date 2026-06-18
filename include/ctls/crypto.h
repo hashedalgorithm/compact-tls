@@ -96,6 +96,8 @@ struct ctls_crypto {
     psa_key_id_t server_handshake_traffic_secret;
     psa_key_id_t server_handshake_write_key;
     psa_key_id_t server_handshake_iv_key;
+    psa_key_id_t self_certificate_key_pair;
+    psa_key_id_t peer_certificate_public_key;
     psa_key_id_t client_finished_key;
     psa_key_id_t server_finished_key;
 };
@@ -234,6 +236,12 @@ ctls_status_t ctls_encrypt(uint16_t const *sequence_number,
                            uint8_t *ciphertext_buffer,
                            size_t *bytes_written);
 
+ctls_status_t ctls_certificate_bytes_offset_find(uint8_t const *certificate_der,
+                                                 size_t certificate_der_length,
+                                                 ctls_size_t *offset);
+ctls_status_t ctls_certificate_key_pair_import(uint8_t const *private_certificate_der,
+                                               size_t private_certificate_der_length,
+                                               psa_key_id_t *key_pair_id);
 /**
  * Pull the raw Ed25519 public key out of a certificate DER by scanning for
  * the SubjectPublicKeyInfo pattern (OID 1.3.101.112) and import it as a

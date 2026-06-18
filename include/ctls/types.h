@@ -40,6 +40,7 @@
 #define CTLS_COUNT_PSK_BINDERS 3U
 #define CTLS_COUNT_PSK_IDENTITIES 3U
 #define CTLS_SIZE_COOKIE 128U
+#define CTLS_SIZE_ED25519_KEY_LENGTH 32U
 
 /* config_octet — RFC 9147 §4, used verbatim by cTLS-10 §2.2
  *

@@ -16,6 +16,22 @@
 psa_algorithm_t const CTLS_ECDHE_ALGORITHM = PSA_ALG_ECDH;
 psa_algorithm_t const CTLS_GCM_ALGORITHM = PSA_ALG_GCM;
 
+psa_algorithm_t const CTLS_CERTIFICATE_SIGNATURE_ALGORITHM = PSA_ALG_PURE_EDDSA;
+psa_key_type_t const CTLS_CERTIFICATE_KEY_TYPE = PSA_ECC_FAMILY_TWISTED_EDWARDS;
+
+uint8_t const SPKI_PATTERN[20] = {
+    0x30,
+    0x05,
+    0x06,
+    0x03,
+    0x2b,
+    0x65,
+    0x70,
+    0x03,
+    0x21,
+    0x00
+};
+size_t const SPKI_PATTERN_LENGTH = sizeof(SPKI_PATTERN);
 
 ctls_status_t ctls_psa_error_map(psa_status_t const status) {
     switch (status) {
@@ -77,6 +93,7 @@ ctls_status_t ctls_key_bits_get(psa_algorithm_t const *algorithm, ctls_size_t *k
             break;
         case PSA_ALG_SHA_384: *key_bits = 384U;
             break;
+        case PSA_ALG_PURE_EDDSA:
         case PSA_ALG_ECDH: *key_bits = 255U;
             break;
         default: return CTLS_STATUS_CRYPTO_INVALID_ARG;
@@ -1096,9 +1113,61 @@ cleanup:
     return CTLS_STATUS_CRYPTO_AEAD_ENCRYPT_FAILED;
 }
 
-ctls_status_t ctls_cert_public_key_import(uint8_t const *cert_der,
-                                          size_t cert_der_length,
-                                          psa_key_id_t *key_id) {
+ctls_status_t ctls_certificate_bytes_offset_find(uint8_t const *certificate_der,
+                                                 size_t const certificate_der_length,
+                                                 ctls_size_t *offset) {
+    for (size_t i = 0; i + SPKI_PATTERN_LENGTH + CTLS_SIZE_ED25519_KEY_LENGTH <=
+                       certificate_der_length; i++) {
+        if (memcmp(&certificate_der[i], SPKI_PATTERN, SPKI_PATTERN_LENGTH) == 0) {
+            *offset = i + SPKI_PATTERN_LENGTH;
+            break;
+        }
+    }
+    if (*offset == certificate_der_length) return CTLS_STATUS_CRYPTO_KEY_IMPORT_FAILED;
+
+    return CTLS_STATUS_SUCCESS;
+}
+
+ctls_status_t ctls_certificate_key_pair_import(uint8_t const *private_certificate_der,
+                                               size_t const
+                                               private_certificate_der_length,
+                                               psa_key_id_t *key_pair_id) {
+    ctls_crypto_t const *crypto = ctls_crypto_get();
+
+    CTLS_CHECK_NULL_STRUCT(crypto);
+    CTLS_CHECK_NULL_BUFFER(private_certificate_der);
+    CTLS_CHECK_NULL_KEY_ID(key_pair_id);
+
+    /* Ed25519 SubjectPublicKeyInfo in DER:
+     * 30 05 06 03 2b 65 70  -- AlgorithmIdentifier (OID 1.3.101.112)
+     * 03 21 00              -- BIT STRING, 33 bytes, 0 unused bits
+     * <32 bytes>            -- raw Ed25519 public key */
+
+
+    ctls_size_t key_offset = 0;
+    ctls_status_t result = ctls_certificate_bytes_offset_find(private_certificate_der,
+        private_certificate_der_length,
+        &key_offset);
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+
+    *key_pair_id = PSA_KEY_ID_NULL;
+    psa_key_attributes_t certificate_private_key_attributes = PSA_KEY_ATTRIBUTES_INIT;
+
+    result = ctls_key_attributes_set(CTLS_KEY_USAGE_SIGN_MESSAGE,
+                                     &certificate_private_key_attributes);
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+
+    psa_status_t const psa_st = psa_import_key(&certificate_private_key_attributes,
+                                               &private_certificate_der[key_offset],
+                                               CTLS_SIZE_ED25519_KEY_LENGTH,
+                                               key_pair_id);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    return CTLS_STATUS_SUCCESS;
+cleanup:
+    psa_reset_key_attributes(&certificate_private_key_attributes);
+    return CTLS_STATUS_CRYPTO_KEY_IMPORT_FAILED;
+}
     ctls_crypto_t const *crypto = ctls_crypto_get();
 
     CTLS_CHECK_NULL_STRUCT(crypto);
