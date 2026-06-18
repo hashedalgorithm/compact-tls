@@ -438,13 +438,15 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
             psa_set_key_usage_flags(key_attribute,
                                     PSA_KEY_USAGE_DERIVE | PSA_KEY_USAGE_EXPORT);
             psa_set_key_algorithm(key_attribute,
-                                  PSA_ALG_HKDF_EXPAND(crypto->hash_algorithm));
+                                  key_usage == CTLS_KEY_USAGE_HKDF_EXTRACT
+                                      ? PSA_ALG_HKDF_EXTRACT(crypto->hash_algorithm)
+                                      : PSA_ALG_HKDF_EXPAND(crypto->hash_algorithm));
             result = ctls_key_bits_get(&crypto->hash_algorithm, &key_bits);
             if (result != CTLS_STATUS_SUCCESS)
                 return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
             psa_set_key_bits(key_attribute, key_bits);
-            return result;
         }
+        break;
         case CTLS_KEY_USAGE_AEAD_ENCRYPT_OR_DECRYPT: {
             psa_set_key_type(key_attribute, PSA_KEY_TYPE_AES);
             psa_set_key_usage_flags(key_attribute,
@@ -454,18 +456,20 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
             if (result != CTLS_STATUS_SUCCESS)
                 return CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED;
             psa_set_key_bits(key_attribute, key_bits);
-            return result;
         }
+        break;
         case CTLS_KEY_USAGE_HMAC: {
             psa_set_key_type(key_attribute, PSA_KEY_TYPE_HMAC);
             psa_set_key_usage_flags(key_attribute,
-                                    PSA_KEY_USAGE_SIGN_MESSAGE | PSA_KEY_USAGE_DECRYPT);
+                                    PSA_KEY_USAGE_SIGN_MESSAGE |
+                                    PSA_KEY_USAGE_VERIFY_MESSAGE | PSA_KEY_USAGE_EXPORT);
             psa_set_key_algorithm(key_attribute, PSA_ALG_HMAC(crypto->hash_algorithm));
             result = ctls_key_bits_get(&crypto->hash_algorithm, &key_bits);
             if (result != CTLS_STATUS_SUCCESS)
                 return CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED;
             psa_set_key_bits(key_attribute, key_bits);
-            return result;
+        }
+        break;
         }
         default: CTLS_STATUS_CRYPTO_INVALID_ARG;
     }
