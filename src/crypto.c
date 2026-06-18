@@ -1292,69 +1292,41 @@ cleanup:
  * certificate (SPKI scan), psa_verify_message against the received
  * signature stored in hshk_data.
  */
-ctls_status_t ctls_signed_bytes_verify(ctls_entity_t const entity) {
-    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+ctls_status_t ctls_signed_bytes_verify(psa_key_id_t const *public_key_id,
+                                       ctls_entity_t const entity) {
+    ctls_hshk_data_t const *hshk_data = ctls_hshk_data_get();
     ctls_crypto_t const *crypto = ctls_crypto_get();
 
     CTLS_CHECK_NULL_STRUCT(hshk_data);
     CTLS_CHECK_NULL_STRUCT(crypto);
+    CTLS_CHECK_NULL_KEY_ID(public_key_id);
 
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_CRYPTO_INVALID_ARG;
-
-    uint8_t *signed_bytes;
-    uint8_t *signed_bytes_length;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
+            CTLS_STATUS_CRYPTO_INVALID_ARG;
 
     psa_status_t psa_st = PSA_SUCCESS;
-    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
-    psa_key_id_t key_id = PSA_KEY_ID_NULL;
 
-
-    uint8_t content[64U + 34U + 1U + 32U]; /* max context string is 34 bytes */
-    ctls_size_t offset = 0U;
-    ctls_status_t const result = ctls_context_string_build(content,
-                                                           &offset,
-                                                           hshk_data->transcript_hash,
+    uint8_t info[64U + 34U + 1U + 32U]; /* max context string is 34 bytes */
+    ctls_size_t info_offset = 0U;
+    ctls_status_t const result = ctls_context_string_build(info,
+                                                           &info_offset,
                                                            entity,
                                                            CTLS_KEY_TYPE_SIGNED_BYTES);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
-    if (entity == CTLS_ENTITY_CLIENT) {
-        psa_st = ctls_cert_public_key_import(client_cert_der,
-                                             client_cert_der_length,
-                                             &key_id);
-        signed_bytes = hshk_data->client_certificate_signed_bytes;
-        signed_bytes_length = &hshk_data->client_certificate_signed_bytes_length;
-    } else {
-        psa_st = ctls_cert_public_key_import(server_cert_der,
-                                             server_cert_der_length,
-                                             &key_id);
-        signed_bytes = hshk_data->server_certificate_signed_bytes;
-        signed_bytes_length = &hshk_data->server_certificate_signed_bytes_length;
-    }
-
-    if (psa_st != PSA_SUCCESS) goto cleanup;
-
-    /* Import raw Ed25519 public key */
-    psa_set_key_type(&attr, PSA_KEY_TYPE_ECC_PUBLIC_KEY(crypto->ecdhe_key_pair_type));
-    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_VERIFY_MESSAGE);
-    psa_set_key_algorithm(&attr, PSA_ALG_PURE_EDDSA);
-    psa_set_key_bits(&attr, 255U);
-
-    psa_st = psa_verify_message(key_id,
-                                PSA_ALG_PURE_EDDSA,
-                                content,
-                                offset,
-                                signed_bytes,
-                                *signed_bytes_length);
+    psa_st = psa_verify_message(*public_key_id,
+                                CTLS_CERTIFICATE_SIGNATURE_ALGORITHM,
+                                info,
+                                info_offset,
+                                entity == CTLS_ENTITY_CLIENT
+                                    ? hshk_data->client_signature
+                                    : hshk_data->server_signature,
+                                CTLS_SIZE_SIGNED_BYTES);
     if (psa_st != PSA_SUCCESS) goto cleanup;
     return CTLS_STATUS_SUCCESS;
 
 cleanup:
-    if (key_id != PSA_KEY_ID_NULL) { psa_destroy_key(key_id); }
-    psa_reset_key_attributes(&attr);
-    memset(content, 0, sizeof(content));
-    return CTLS_STATUS_CRYPTO_SIGNATURE_FAILED;
+    return CTLS_STATUS_CRYPTO_SIGNATURE_VERIFY_FAILED;
 }
 
 /*

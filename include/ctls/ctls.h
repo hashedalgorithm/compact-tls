@@ -59,6 +59,8 @@ struct ctls_hshk_data {
     uint8_t server_signature[CTLS_SIZE_SIGNED_BYTES];
     uint8_t client_verify_data[CTLS_SIZE_HASH];
     uint8_t server_verify_data[CTLS_SIZE_HASH];
+    ctls_size_t client_verify_data_length;
+    ctls_size_t server_verify_data_length;
     ctls_ticket_t ticket;
     // flags
     bool isCertificateStatusRequested;

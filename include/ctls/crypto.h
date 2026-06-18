@@ -258,7 +258,8 @@ ctls_status_t ctls_certificate_public_key_import(uint8_t const *public_certifica
  */
 ctls_status_t ctls_signed_bytes_generate(ctls_entity_t entity);
 /** Verify the peer's CertificateVerify signature against the same content. */
-ctls_status_t ctls_signed_bytes_verify(ctls_entity_t entity);
+ctls_status_t ctls_signed_bytes_verify(psa_key_id_t const *public_key_id,
+                                       ctls_entity_t entity);
 /** finished_key = HKDF-Expand-Label(base key, "finished", "", 32). */
 ctls_status_t ctls_finished_key_generate(ctls_entity_t entity);
 /** verify_data = HMAC(finished_key, Transcript-Hash) — RFC 8446 §4.4.4. */
