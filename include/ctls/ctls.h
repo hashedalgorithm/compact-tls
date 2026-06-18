@@ -93,7 +93,6 @@ ctls_status_t ctls_context_init(ctls_context_t *context,
 ctls_status_t ctls_handshake_state_update(ctls_hshk_state_t *location,
                                           ctls_hshk_state_t state);
 ctls_status_t ctls_wire_buffer_clear(uint8_t *buffer, ctls_size_t *buffer_offest);
-ctls_status_t ctls_recd_buffer_clear(ctls_record_t *record_buffer);
 ctls_status_t ctls_validate_template();
 ctls_status_t ctls_connect(ctls_context_t *context);
 ctls_status_t ctls_read(ctls_context_t const *context,
