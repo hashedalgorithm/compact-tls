@@ -55,12 +55,8 @@ struct ctls_hshk_data {
     uint8_t client_random[CTLS_SIZE_RANDOM];
     uint8_t server_random[CTLS_SIZE_RANDOM];
     uint8_t certificate_request_context[CTLS_SIZE_CERTIFICATE_REQUEST_CONTEXT];
-    uint8_t client_certificate_signed_bytes[CTLS_SIZE_SIGNED_BYTES];
-    uint8_t server_certificate_signed_bytes[CTLS_SIZE_SIGNED_BYTES];
-    uint8_t client_certificate_signed_bytes_length;
-    uint8_t server_certificate_signed_bytes_length;
-    uint8_t client_finished_key[CTLS_SIZE_HASH];
-    uint8_t server_finished_key[CTLS_SIZE_HASH];
+    uint8_t client_signature[CTLS_SIZE_SIGNED_BYTES];
+    uint8_t server_signature[CTLS_SIZE_SIGNED_BYTES];
     uint8_t client_verify_data[CTLS_SIZE_HASH];
     uint8_t server_verify_data[CTLS_SIZE_HASH];
     ctls_ticket_t ticket;
