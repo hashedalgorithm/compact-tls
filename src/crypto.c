@@ -397,7 +397,7 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
     uint16_t key_bits;
 
     switch (key_usage) {
-        case CTLS_KEY_USAGE_EPHEMERAL_KEY_PAIR_GENERATE: {
+        case CTLS_KEY_USAGE_EPHEMERAL_KEY_PAIR_GENERATE:
         case CTLS_KEY_USAGE_EPHEMERAL_PUBLIC_KEY_EXPORT: {
             psa_set_key_type(key_attribute,
                              key_usage == CTLS_KEY_USAGE_EPHEMERAL_PUBLIC_KEY_EXPORT
@@ -412,7 +412,8 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
             result = ctls_key_bits_get(&CTLS_ECDHE_ALGORITHM, &key_bits);
             if (result != CTLS_STATUS_SUCCESS) return CTLS_STATUS_CRYPTO_ECDH_FAILED;
             psa_set_key_bits(key_attribute, key_bits);
-        };
+        }
+        break;
         case CTLS_KEY_USAGE_HKDF_EXTRACT:
         case CTLS_KEY_USAGE_HKDF_EXPAND: {
             psa_set_key_type(key_attribute, PSA_KEY_TYPE_DERIVE);

@@ -82,10 +82,10 @@ struct ctls_crypto {
     psa_hash_operation_t transcript_hash_operator;
     psa_ecc_family_t ecdhe_key_pair_type;
     psa_key_derivation_operation_t key_schedule_operator;
-    psa_key_id_t self_ephemeral_key_pair;
     // If client, client ephemeral key pair and respectively.
+    psa_key_id_t self_ephemeral_key_pair;
+    // If client, server's public key and vice versa
     psa_key_id_t peer_public_ephemeral_key;
-    // If client, server's pubic key and vice versa
     psa_key_id_t shared_ephemeral_secret;
     psa_key_id_t early_secret;
     psa_key_id_t derived_secret;
