@@ -746,8 +746,8 @@ cleanup:
  * AEAD write key = Expand-Label(traffic_secret, "key", "", 16)
  * — RFC 8446 §7.3.
  */
-ctls_status_t ctls_handshake_key_generate(ctls_crypto_t *crypto,
-                                          ctls_entity_t const entity) {
+ctls_status_t ctls_handshake_write_key_generate(ctls_crypto_t *crypto,
+                                                ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
     if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
         return CTLS_STATUS_EXTN_INVALID_ENTITY;
@@ -760,12 +760,12 @@ ctls_status_t ctls_handshake_key_generate(ctls_crypto_t *crypto,
     result = ctls_context_string_build(info,
                                        &info_offset,
                                        entity,
-                                       CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_KEYS);
+                                       CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_WRITE_KEYS);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
     return ctls_hkdf_expand(entity == CTLS_ENTITY_CLIENT
-                                ? &crypto->client_handshake_key
-                                : &crypto->server_handshake_key,
+                                ? &crypto->client_handshake_write_key
+                                : &crypto->server_handshake_write_key,
                             entity == CTLS_ENTITY_CLIENT
                                 ? &crypto->client_handshake_traffic_secret
                                 : &crypto->server_handshake_traffic_secret,
@@ -963,12 +963,12 @@ ctls_status_t ctls_decrypt(uint16_t const *sequence_number,
     CTLS_CHECK_NULL(bytes_written);
 
 #if CTLS_CLIENT
-    handshake_key = &crypto->client_handshake_key;
+    handshake_key = &crypto->client_handshake_write_key;
     iv_key = &crypto->client_handshake_iv_key;
 #endif
 
 #if CTLS_SERVER
-    handshake_key = &crypto->server_handshake_key;
+    handshake_key = &crypto->server_handshake_write_key;
     iv_key = &crypto->server_handshake_iv_key;
 #endif
 
@@ -1023,12 +1023,12 @@ ctls_status_t ctls_encrypt(uint16_t const *sequence_number,
     CTLS_CHECK_NULL(bytes_written);
 
 #if CTLS_CLIENT
-    handshake_key = &crypto->client_handshake_key;
+    handshake_key = &crypto->client_handshake_write_key;
     iv_key = &crypto->client_handshake_iv_key;
 #endif
 
 #if CTLS_SERVER
-    handshake_key = &crypto->server_handshake_key;
+    handshake_key = &crypto->server_handshake_write_key;
     iv_key = &crypto->server_handshake_iv_key;
 #endif
 
