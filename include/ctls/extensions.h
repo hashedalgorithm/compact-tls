@@ -589,18 +589,18 @@ ctls_status_t ctls_extn_post_handshake_auth_serialize(
  * Read a key_share (RFC 8446, Section 4.2.8) from the wire. The TLS 1.3
  * KeyShareEntry is { NamedGroup group; opaque key_exchange<1..2^16-1>; };
  * in cTLS group and length are fixed by the template, so only the raw
- * CTLS_SIZE_KEY_SHARE key bytes appear on the wire. Bytes are copied into
- * hshk_data's client or server ephemeral key per entity_ownership and
- * *key_share is pointed at that storage.
+ * CTLS_SIZE_KEY_SHARE key bytes appear on the wire. Raw bytes are imported
+ * into crypto->peer_public_ephemeral_key via ctls_ephemeral_public_key_import;
+ * *key_share is set to point at that PSA key handle.
  */
 ctls_status_t ctls_extn_key_share_deserialize(uint8_t const *buffer,
                                               ctls_size_t *offset,
                                               ctls_entity_t entity,
                                               ctls_extn_key_share_t *key_share);
 /**
- * Write a key_share. DEFAULT: key_exchange_length(u16) | key bytes.
- * TRANSCRIPT_HASH: additionally prefixed with extension_type(u16) to match
- * TLS 1.3 framing.
+ * Write a key_share. DEFAULT: key_exchange_length(u16) | public key bytes
+ * exported from crypto->self_ephemeral_key_pair via ctls_ephemeral_public_key_export.
+ * TRANSCRIPT_HASH: additionally prefixed with extension_type(u16) for TLS 1.3 framing.
  */
 ctls_status_t ctls_extn_key_share_serialize(uint8_t *buffer,
                                             ctls_size_t *offset,

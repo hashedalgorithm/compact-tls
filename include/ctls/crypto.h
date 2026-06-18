@@ -51,6 +51,7 @@
 #define CTLS_CHECK_NULL_KEY_ID(p) \
     do { if ((p) == NULL) return CTLS_STATUS_NULL_PTR; } while (0)
 
+/** PSA key attribute profile to apply; passed to ctls_key_attributes_set. */
 typedef enum {
     CTLS_KEY_USAGE_EPHEMERAL_KEY_PAIR_GENERATE = 0,
     CTLS_KEY_USAGE_EPHEMERAL_PUBLIC_KEY_EXPORT,
@@ -82,24 +83,22 @@ struct ctls_crypto {
     psa_hash_operation_t transcript_hash_operator;
     psa_ecc_family_t ecdhe_key_pair_type;
     psa_key_derivation_operation_t key_schedule_operator;
-    // If client, client ephemeral key pair and respectively.
-    psa_key_id_t self_ephemeral_key_pair;
-    // If client, server's public key and vice versa
-    psa_key_id_t peer_public_ephemeral_key;
-    psa_key_id_t shared_ephemeral_secret;
-    psa_key_id_t early_secret;
-    psa_key_id_t derived_secret;
-    psa_key_id_t handshake_secret;
+    psa_key_id_t self_ephemeral_key_pair;      // own ECDHE key pair (client or server)
+    psa_key_id_t peer_public_ephemeral_key;    // peer's ECDHE public key from KeyShare
+    psa_key_id_t shared_ephemeral_secret;      // ECDH output; IKM for handshake_secret Extract
+    psa_key_id_t early_secret;                 // HKDF-Extract(0, 0) — no-PSK baseline
+    psa_key_id_t derived_secret;               // Expand-Label(early_secret, "derived", H(""))
+    psa_key_id_t handshake_secret;             // HKDF-Extract(derived_secret, ECDHE)
     psa_key_id_t client_handshake_traffic_secret;
-    psa_key_id_t client_handshake_write_key;
-    psa_key_id_t client_handshake_iv_key;
+    psa_key_id_t client_handshake_write_key;   // Expand-Label(c_hs_traffic, "key", "", 16)
+    psa_key_id_t client_handshake_iv_key;      // Expand-Label(c_hs_traffic, "iv",  "", 12)
     psa_key_id_t server_handshake_traffic_secret;
-    psa_key_id_t server_handshake_write_key;
-    psa_key_id_t server_handshake_iv_key;
-    psa_key_id_t self_certificate_key_pair;
-    psa_key_id_t peer_certificate_public_key;
-    psa_key_id_t client_finished_key;
-    psa_key_id_t server_finished_key;
+    psa_key_id_t server_handshake_write_key;   // Expand-Label(s_hs_traffic, "key", "", 16)
+    psa_key_id_t server_handshake_iv_key;      // Expand-Label(s_hs_traffic, "iv",  "", 12)
+    psa_key_id_t self_certificate_key_pair;    // own Ed25519 private key for CertificateVerify
+    psa_key_id_t peer_certificate_public_key;  // peer's Ed25519 public key for verify
+    psa_key_id_t client_finished_key;          // Expand-Label(c_hs_traffic, "finished", "", 32)
+    psa_key_id_t server_finished_key;          // Expand-Label(s_hs_traffic, "finished", "", 32)
 };
 
 /** Map a psa_status_t onto the closest ctls_status_t. */
@@ -160,7 +159,7 @@ ctls_status_t ctls_ephemeral_public_key_export(psa_key_id_t const *ephemeral_key
                                                ctls_size_t buffer_length,
                                                ctls_size_t *buffer_bytes_written);
 
-/** Generate the client X25519 ephemeral pair; export public half to buffer. */
+/** Generate an ECDHE key pair into a transient PSA key handle. Public half exported separately via ctls_ephemeral_public_key_export. */
 ctls_status_t ctls_ephemeral_key_pair_generate(psa_key_id_t *ephemeral_key_pair_id);
 /** random_size bytes from the PSA DRBG (Hello random, RFC 8446 §4.1.2). */
 ctls_status_t ctls_random_generate(uint8_t *buffer,
@@ -190,19 +189,29 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
 
 /** Key schedule steps — see the file-header diagram for what each derives. */
 ctls_status_t ctls_early_secret_generate(ctls_crypto_t *crypto);
+/** Expand-Label(early_secret, "derived", H(""), 32); output used as salt in next Extract. */
 ctls_status_t ctls_derived_secret_generate(ctls_crypto_t *crypto);
-/** X25519 ECDH: client private key x server public key share. */
+/** psa_raw_key_agreement(ECDH, self_ephemeral_key_pair, peer_public_ephemeral_key) -> shared_ephemeral_secret. */
 ctls_status_t ctls_shared_ephemeral_secret_generate(ctls_crypto_t *crypto);
+/** HKDF-Extract(derived_secret, shared_ephemeral_secret) -> handshake_secret. */
 ctls_status_t ctls_handshake_secret_generate(ctls_crypto_t *crypto);
+/** Expand-Label(handshake_secret, "c|s hs traffic", Transcript-Hash, 32) per entity. */
 ctls_status_t ctls_handshake_traffic_secret_generate(ctls_crypto_t *crypto,
                                                      ctls_entity_t entity);
+/** Expand-Label(hs_traffic_secret, "key", "", 16) -> AES-128-GCM write key per entity. */
 ctls_status_t ctls_handshake_write_key_generate(ctls_crypto_t *crypto,
                                                 ctls_entity_t entity);
+/** Expand-Label(hs_traffic_secret, "iv", "", 12) -> static IV per entity (XORed with seq num at record time). */
 ctls_status_t ctls_handshake_iv_key_generate(ctls_crypto_t *crypto, ctls_entity_t entity);
 
+/** RFC 5869 HKDF-Extract: PRK = HMAC-Hash(salt, IKM); both inputs are PSA key handles. */
 ctls_status_t ctls_hkdf_extract(psa_key_id_t *output_key_id,
                                 psa_key_id_t const *salt,
                                 psa_key_id_t const *ikm_key_id);
+/**
+ * RFC 5869 HKDF-Expand: OKM = T(1)|T(2)|... from PRK and HkdfLabel info bytes.
+ * key_usage selects output key attributes (type, algorithm, bits) via ctls_key_attributes_set.
+ */
 ctls_status_t ctls_hkdf_expand(psa_key_id_t *output_key_id,
                                psa_key_id_t const *prk_key_id,
                                ctls_key_usage_t key_usage,
@@ -236,9 +245,11 @@ ctls_status_t ctls_encrypt(uint16_t const *sequence_number,
                            uint8_t *ciphertext_buffer,
                            size_t *bytes_written);
 
+/** Scan certificate DER for the Ed25519 SubjectPublicKeyInfo pattern (OID 1.3.101.112) and return byte offset of the raw key material. */
 ctls_status_t ctls_certificate_bytes_offset_find(uint8_t const *certificate_der,
                                                  size_t certificate_der_length,
                                                  ctls_size_t *offset);
+/** Import the Ed25519 private key from a PKCS#8 DER into a PSA signing key handle. */
 ctls_status_t ctls_certificate_key_pair_import(uint8_t const *private_certificate_der,
                                                size_t private_certificate_der_length,
                                                psa_key_id_t *key_pair_id);
@@ -253,11 +264,15 @@ ctls_status_t ctls_certificate_public_key_import(uint8_t const *public_certifica
 
 /**
  * Produce the CertificateVerify signature (RFC 8446 §4.4.3): Ed25519 over
- * 64 x 0x20 | context string | 0x00 | Transcript-Hash, using this entity's
- * PKCS#8 private key from the certs header. Result lands in hshk_data.
+ * 64 x 0x20 | context string | 0x00 | Transcript-Hash, using
+ * crypto->self_certificate_key_pair. Result written to hshk_data->client/server_signature.
  */
 ctls_status_t ctls_signed_bytes_generate(ctls_entity_t entity);
-/** Verify the peer's CertificateVerify signature against the same content. */
+/**
+ * Verify the peer's CertificateVerify against the same §4.4.3 content.
+ * public_key_id must be the peer's Ed25519 public key imported via
+ * ctls_certificate_public_key_import.
+ */
 ctls_status_t ctls_signed_bytes_verify(psa_key_id_t const *public_key_id,
                                        ctls_entity_t entity);
 /** finished_key = HKDF-Expand-Label(base key, "finished", "", 32). */
