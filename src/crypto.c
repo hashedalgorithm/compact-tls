@@ -96,6 +96,7 @@ ctls_status_t ctls_key_bits_get(psa_algorithm_t const *algorithm, ctls_size_t *k
         case PSA_ALG_PURE_EDDSA:
         case PSA_ALG_ECDH: *key_bits = 255U;
             break;
+        case PSA_ALG_GCM: *key_bits = 128U;
         default: return CTLS_STATUS_CRYPTO_INVALID_ARG;
     }
 
