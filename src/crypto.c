@@ -1358,7 +1358,7 @@ ctls_status_t ctls_finished_key_generate(ctls_entity_t const entity) {
                               entity == CTLS_ENTITY_CLIENT
                                   ? &crypto->client_handshake_traffic_secret
                                   : &crypto->server_handshake_traffic_secret,
-                              CTLS_DERIVE_OPERATION_HMAC,
+                              CTLS_KEY_USAGE_HMAC,
                               info,
                               info_offset);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
