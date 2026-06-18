@@ -247,9 +247,10 @@ ctls_status_t ctls_certificate_key_pair_import(uint8_t const *private_certificat
  * the SubjectPublicKeyInfo pattern (OID 1.3.101.112) and import it as a
  * PSA verify key. Avoids a full X.509 parser on the constrained target.
  */
-ctls_status_t ctls_cert_public_key_import(uint8_t const *cert_der,
-                                          size_t cert_der_length,
-                                          psa_key_id_t *key_id);
+ctls_status_t ctls_certificate_public_key_import(uint8_t const *public_certificate_der,
+                                                 size_t public_certificate_der_length,
+                                                 psa_key_id_t *key_id);
+
 /**
  * Produce the CertificateVerify signature (RFC 8446 §4.4.3): Ed25519 over
  * 64 x 0x20 | context string | 0x00 | Transcript-Hash, using this entity's

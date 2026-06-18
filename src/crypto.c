@@ -1168,53 +1168,46 @@ cleanup:
     psa_reset_key_attributes(&certificate_private_key_attributes);
     return CTLS_STATUS_CRYPTO_KEY_IMPORT_FAILED;
 }
+
+ctls_status_t ctls_certificate_public_key_import(uint8_t const *public_certificate_der,
+                                                 size_t const
+                                                 public_certificate_der_length,
+                                                 psa_key_id_t *key_id) {
     ctls_crypto_t const *crypto = ctls_crypto_get();
 
     CTLS_CHECK_NULL_STRUCT(crypto);
-    CTLS_CHECK_NULL_BUFFER(cert_der);
+    CTLS_CHECK_NULL_BUFFER(public_certificate_der);
     CTLS_CHECK_NULL(key_id);
 
     /* Ed25519 SubjectPublicKeyInfo in DER:
      * 30 05 06 03 2b 65 70  -- AlgorithmIdentifier (OID 1.3.101.112)
      * 03 21 00              -- BIT STRING, 33 bytes, 0 unused bits
      * <32 bytes>            -- raw Ed25519 public key */
-    static const uint8_t SPKI_PATTERN[] = {
-        0x30,
-        0x05,
-        0x06,
-        0x03,
-        0x2b,
-        0x65,
-        0x70,
-        0x03,
-        0x21,
-        0x00
-    };
-    static const size_t SPKI_PATTERN_LEN = sizeof(SPKI_PATTERN);
-    static const size_t ED25519_KEY_LEN = 32U;
 
-    size_t key_offset = cert_der_length;
-    for (size_t i = 0; i + SPKI_PATTERN_LEN + ED25519_KEY_LEN <= cert_der_length; i++) {
-        if (memcmp(&cert_der[i], SPKI_PATTERN, SPKI_PATTERN_LEN) == 0) {
-            key_offset = i + SPKI_PATTERN_LEN;
-            break;
-        }
-    }
-    if (key_offset == cert_der_length) return CTLS_STATUS_CRYPTO_UNKNOWN;
+    ctls_size_t key_offset = public_certificate_der_length;
+    ctls_status_t result = ctls_certificate_bytes_offset_find(public_certificate_der,
+        public_certificate_der_length,
+        &key_offset);
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
     *key_id = PSA_KEY_ID_NULL;
-    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
-    psa_set_key_type(&attr, PSA_KEY_TYPE_ECC_PUBLIC_KEY(crypto->ecdhe_key_pair_type));
-    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_VERIFY_MESSAGE);
-    psa_set_key_algorithm(&attr, PSA_ALG_PURE_EDDSA);
-    psa_set_key_bits(&attr, 255U);
+    psa_key_attributes_t certificate_public_key_attributes = PSA_KEY_ATTRIBUTES_INIT;
 
-    psa_status_t const psa_st = psa_import_key(&attr,
-                                               &cert_der[key_offset],
-                                               ED25519_KEY_LEN,
+    result = ctls_key_attributes_set(CTLS_KEY_USAGE_VERIFY_SIGNATURE,
+                                     &certificate_public_key_attributes);
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+
+    psa_status_t const psa_st = psa_import_key(&certificate_public_key_attributes,
+                                               &public_certificate_der[key_offset],
+                                               CTLS_SIZE_ED25519_KEY_LENGTH,
                                                key_id);
-    psa_reset_key_attributes(&attr);
-    return ctls_psa_error_map(psa_st);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    return CTLS_STATUS_SUCCESS;
+
+cleanup:
+    psa_reset_key_attributes(&certificate_public_key_attributes);
+    return CTLS_STATUS_CRYPTO_KEY_IMPORT_FAILED;
 }
 
 /*
