@@ -93,7 +93,9 @@ All errors in this band originate inside crypto operations backed by Mbed TLS PS
 | 0x0073 | `CTLS_STATUS_CRYPTO_RANDOM_FAILED`            | `psa_generate_random()` failed in `ctls_random_generate`; random nonce or client-random could not be produced.                                     |
 | 0x0074 | `CTLS_STATUS_CRYPTO_SIGNATURE_FAILED`         | PSA signature operation failed.                                                                                                                    |
 | 0x0075 | `CTLS_STATUS_CRYPTO_KEY_IMPORT_FAILED`        | `psa_import_key()` failed; key material could not be loaded into a transient PSA key handle.                                                       |
-| 0x0076 | `CTLS_STATUS_CRYPTO_UNKNOWN`                  | PSA returned an error code not explicitly mapped in `ctls_psa_error_map`. Raw PSA status must be logged separately.                                |
+| 0x0077 | `CTLS_STATUS_CRYPTO_SIGNATURE_VERIFY_FAILED`  | `psa_verify_message()` failed; peer's CertificateVerify signature did not match the reconstructed signing content.                                 |
+| 0x0078 | `CTLS_STATUS_CRYPTO_HMAC_VERIFY_DATA_FAILED`  | `psa_mac_compute()` or comparison of `verify_data` failed; received Finished message did not match the expected HMAC over the transcript hash.     |
+| 0x0079 | `CTLS_STATUS_CRYPTO_UNKNOWN`                  | PSA returned an error code not explicitly mapped in `ctls_psa_error_map`. Raw PSA status must be logged separately.                                |
 
 ---
 
