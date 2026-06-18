@@ -519,7 +519,7 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
             ctls_write_bytes(buffer, offset, CTLS_SIZE_HASH, hshk_data->transcript_hash);
         }
         break;
-        case CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_KEYS: {
+        case CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_WRITE_KEYS: {
             context_string = "Sctls key";
             context_string_length = strlen(context_string) - 1U;
 
@@ -573,6 +573,41 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
             ctls_write_u16(buffer, offset, context_string_length);
             ctls_write_char_bytes(buffer, offset, context_string_length, context_string);
             ctls_write_u8(buffer, offset, 0x00);
+        }
+        break;
+        case CTLS_KEY_TYPE_BINDER_KEY: {
+            context_string = "Sctls res binder";
+            context_string_length = strlen(context_string) - 1U;
+
+            ctls_write_u16(buffer, offset, 0x00);
+            ctls_write_u8(buffer, offset, 0x20);
+            ctls_write_u8(buffer, offset, context_string_length);
+            ctls_write_char_bytes(buffer, offset, context_string_length, context_string);
+            ctls_write_u8(buffer, offset, 0x00);
+        }
+        break;
+        case CTLS_KEY_TYPE_CLIENT_EARLY_KEY: {
+            context_string = "Sctls c e traffic";
+            context_string_length = strlen(context_string) - 1U;
+
+            ctls_write_u16(buffer, offset, 0x00);
+            ctls_write_u8(buffer, offset, 0x20);
+            ctls_write_u8(buffer, offset, context_string_length);
+            ctls_write_char_bytes(buffer, offset, context_string_length, context_string);
+            ctls_write_u8(buffer, offset, CTLS_SIZE_HASH);
+            ctls_write_bytes(buffer, offset, CTLS_SIZE_HASH, hshk_data->transcript_hash);
+        }
+        break;
+        case CTLS_KEY_TYPE_EXPORTER_MASTER_SECRET: {
+            context_string = "Sctls exp master";
+            context_string_length = strlen(context_string) - 1U;
+
+            ctls_write_u16(buffer, offset, 0x00);
+            ctls_write_u8(buffer, offset, 0x20);
+            ctls_write_u8(buffer, offset, context_string_length);
+            ctls_write_char_bytes(buffer, offset, context_string_length, context_string);
+            ctls_write_u8(buffer, offset, CTLS_SIZE_HASH);
+            ctls_write_bytes(buffer, offset, CTLS_SIZE_HASH, hshk_data->transcript_hash);
         }
         break;
         default: return CTLS_STATUS_CRYPTO_INVALID_ARG;
