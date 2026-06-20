@@ -125,6 +125,7 @@ ctls_status_t ctls_psa_ecc_family_set(ctls_crypto_t *crypto,
     return CTLS_STATUS_SUCCESS;
 }
 
+
 /*
  * Start the running transcript hash. The template's canonical wire bytes
  * are the first input — cTLS binds the profile into the transcript so
@@ -1476,8 +1477,8 @@ ctls_status_t ctls_application_traffic_secret_generate(
     ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
 
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
-            CTLS_STATUS_EXTN_INVALID_ENTITY;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_EXTN_INVALID_ENTITY;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
@@ -1529,8 +1530,8 @@ cleanup:
 ctls_status_t ctls_application_write_key_generate(ctls_crypto_t *crypto,
                                                   ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
-            CTLS_STATUS_EXTN_INVALID_ENTITY;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_EXTN_INVALID_ENTITY;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
@@ -1564,8 +1565,8 @@ cleanup:
 ctls_status_t ctls_application_iv_key_generate(ctls_crypto_t *crypto,
                                                ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
-            CTLS_STATUS_EXTN_INVALID_ENTITY;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_EXTN_INVALID_ENTITY;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
