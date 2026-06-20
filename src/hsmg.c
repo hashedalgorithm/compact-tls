@@ -626,12 +626,8 @@ ctls_status_t ctls_hsmg_certificate_verify_create(ctls_handshake_message_t *hsmg
 
     hsmg->handshake_message_body.certificate_verify.signature =
             entity == CTLS_ENTITY_CLIENT
-                ? hshk_data->client_certificate_signed_bytes
-                : hshk_data->server_certificate_signed_bytes;
-    hsmg->handshake_message_body.certificate_verify.signature_length =
-            entity == CTLS_ENTITY_CLIENT
-                ? hshk_data->client_certificate_signed_bytes_length
-                : hshk_data->server_certificate_signed_bytes_length;
+                ? hshk_data->client_signature
+                : hshk_data->server_signature;
 
     return CTLS_STATUS_SUCCESS;
 }
@@ -662,15 +658,11 @@ ctls_status_t ctls_hsmg_certificate_verify_to_struct(ctls_handshake_message_t *h
 
     ctls_size_t const signed_bytes_length = ctls_read_u16(buffer, &offset);
     ctls_read_bytes(entity == CTLS_ENTITY_CLIENT
-                        ? hshk_data->client_certificate_signed_bytes
-                        : hshk_data->server_certificate_signed_bytes,
+                        ? hshk_data->client_signature
+                        : hshk_data->server_signature,
                     signed_bytes_length,
                     buffer,
                     &offset);
-    hsmg->handshake_message_body.certificate_verify.signature =
-            entity == CTLS_ENTITY_CLIENT
-                ? hshk_data->client_certificate_signed_bytes
-                : hshk_data->server_certificate_signed_bytes;
 
     return CTLS_STATUS_SUCCESS;
 }
