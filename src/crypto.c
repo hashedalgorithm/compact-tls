@@ -672,6 +672,17 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
             ctls_write_bytes(buffer, offset, CTLS_SIZE_HASH, hshk_data->transcript_hash);
         }
         break;
+        case CTLS_KEY_TYPE_APPLICATION_TRAFFIC_WRITE_KEYS: {
+            context_string = "Sctls key";
+            context_string_length = strlen(context_string) - 1U;
+
+            ctls_write_u16(buffer, offset, 0x00);
+            ctls_write_u8(buffer, offset, 0x10);
+            ctls_write_u8(buffer, offset, context_string_length);
+            ctls_write_char_bytes(buffer, offset, context_string_length, context_string);
+            ctls_write_u8(buffer, offset, 0x00);
+        }
+        break;
         break;
         default: return CTLS_STATUS_CRYPTO_INVALID_ARG;
     }
@@ -1496,6 +1507,36 @@ ctls_status_t ctls_exporter_master_secret_generate(ctls_crypto_t *crypto) {
                             info,
                             info_offset);
 
+cleanup:
+    return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
+}
+
+ctls_status_t ctls_application_write_key_generate(ctls_crypto_t *crypto,
+                                                  ctls_entity_t const entity) {
+    CTLS_CHECK_NULL_STRUCT(crypto);
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
+            CTLS_STATUS_EXTN_INVALID_ENTITY;
+
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
+    uint8_t info[32U];
+    ctls_size_t info_offset = 0U;
+
+    result = ctls_context_string_build(info,
+                                       &info_offset,
+                                       entity,
+                                       CTLS_KEY_TYPE_APPLICATION_TRAFFIC_WRITE_KEYS);
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+
+    return ctls_hkdf_expand(entity == CTLS_ENTITY_CLIENT
+                                ? &crypto->client_application_write_key
+                                : &crypto->server_application_write_key,
+                            entity == CTLS_ENTITY_CLIENT
+                                ? &crypto->client_application_traffic_secret
+                                : &crypto->server_application_traffic_secret,
+                            CTLS_KEY_USAGE_AEAD_ENCRYPT_OR_DECRYPT,
+                            info,
+                            info_offset);
 cleanup:
     return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
 }
