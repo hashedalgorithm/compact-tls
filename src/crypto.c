@@ -683,6 +683,16 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
             ctls_write_u8(buffer, offset, 0x00);
         }
         break;
+        case CTLS_KEY_TYPE_APPLICATION_TRAFFIC_IV_KEY: {
+            context_string = "Sctls iv";
+            context_string_length = strlen(context_string) - 1U;
+
+            ctls_write_u16(buffer, offset, 0x00);
+            ctls_write_u8(buffer, offset, 0x0C);
+            ctls_write_u8(buffer, offset, context_string_length);
+            ctls_write_char_bytes(buffer, offset, context_string_length, context_string);
+            ctls_write_u8(buffer, offset, 0x00);
+        }
         break;
         default: return CTLS_STATUS_CRYPTO_INVALID_ARG;
     }
@@ -1417,6 +1427,11 @@ ctls_status_t ctls_application_key_schedule(ctls_entity_t const entity) {
     result = ctls_application_traffic_secret_generate(crypto, entity);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
+    result = ctls_application_write_key_generate(crypto, entity);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_application_iv_key_generate(crypto, entity);
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
     /* Keys switched to handshake traffic keys — new epoch. RFC 9147 §6.1
        numbering: epoch 0 plaintext, 1 early data (unsupported, skipped),
@@ -1541,3 +1556,37 @@ cleanup:
     return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
 }
 
+/*
+ * Static record IV = Expand-Label(traffic_secret, "iv", "", 12)
+ * — RFC 8446 §7.3; XORed with the sequence number per record
+ * (ctls_nonce_generate).
+ */
+ctls_status_t ctls_application_iv_key_generate(ctls_crypto_t *crypto,
+                                               ctls_entity_t const entity) {
+    CTLS_CHECK_NULL_STRUCT(crypto);
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
+            CTLS_STATUS_EXTN_INVALID_ENTITY;
+
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
+    uint8_t info[32U];
+    ctls_size_t info_offset = 0U;
+
+    result = ctls_context_string_build(info,
+                                       &info_offset,
+                                       entity,
+                                       CTLS_KEY_TYPE_APPLICATION_TRAFFIC_IV_KEY);
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+
+    return ctls_hkdf_expand(entity == CTLS_ENTITY_CLIENT
+                                ? &crypto->client_application_iv_key
+                                : &crypto->server_application_iv_key,
+                            entity == CTLS_ENTITY_CLIENT
+                                ? &crypto->client_application_traffic_secret
+                                : &crypto->server_application_traffic_secret,
+                            CTLS_KEY_USAGE_AEAD_ENCRYPT_OR_DECRYPT,
+                            info,
+                            info_offset);
+cleanup:
+    return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
+}

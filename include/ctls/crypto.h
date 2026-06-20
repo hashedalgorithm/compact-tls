@@ -77,6 +77,7 @@ typedef enum {
     CTLS_KEY_TYPE_FINISHED_KEY,
     CTLS_KEY_TYPE_APPLICATION_TRAFFIC_SECRET,
     CTLS_KEY_TYPE_APPLICATION_TRAFFIC_WRITE_KEYS,
+    CTLS_KEY_TYPE_APPLICATION_TRAFFIC_IV_KEY,
 } ctls_key_type_t;
 
 /** PSA state owned by the connection: hash/derivation operators, key ids. */
@@ -296,4 +297,7 @@ ctls_status_t ctls_application_traffic_secret_generate(
 ctls_status_t ctls_exporter_master_secret_generate(ctls_crypto_t *crypto);
 ctls_status_t ctls_application_write_key_generate(ctls_crypto_t *crypto,
                                                   ctls_entity_t entity);
+ctls_status_t ctls_application_iv_key_generate(ctls_crypto_t *crypto,
+                                               ctls_entity_t entity);
+
 #endif // CTLS_CRYPTO_H
