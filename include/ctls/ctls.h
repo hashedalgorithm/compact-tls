@@ -56,15 +56,15 @@ struct ctls_ticket {
 struct ctls_hshk_data {
     uint16_t sequence_number;
     uint64_t epoch;
-    uint8_t transcript_hash[CTLS_SIZE_TRANSCRIPT_HASH];    // running hash snapshot
+    uint8_t transcript_hash[CTLS_SIZE_TRANSCRIPT_HASH]; // running hash snapshot
     uint8_t client_random[CTLS_SIZE_RANDOM];
     uint8_t server_random[CTLS_SIZE_RANDOM];
     uint8_t certificate_request_context[CTLS_SIZE_CERTIFICATE_REQUEST_CONTEXT];
-    uint8_t client_signature[CTLS_SIZE_SIGNED_BYTES];      // CertificateVerify signature bytes
+    uint8_t client_signature[CTLS_SIZE_SIGNED_BYTES]; // CertificateVerify signature bytes
     uint8_t server_signature[CTLS_SIZE_SIGNED_BYTES];
-    uint8_t client_verify_data[CTLS_SIZE_HASH];            // Finished HMAC output
+    uint8_t client_verify_data[CTLS_SIZE_HASH]; // Finished HMAC output
     uint8_t server_verify_data[CTLS_SIZE_HASH];
-    ctls_size_t client_verify_data_length;                 // actual bytes written by psa_mac_compute
+    ctls_size_t client_verify_data_length; // actual bytes written by psa_mac_compute
     ctls_size_t server_verify_data_length;
     ctls_ticket_t ticket;
     // flags

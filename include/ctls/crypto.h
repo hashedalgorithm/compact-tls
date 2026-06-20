@@ -86,16 +86,23 @@ struct ctls_crypto {
     psa_hash_operation_t transcript_hash_operator;
     psa_ecc_family_t ecdhe_key_pair_type;
     psa_key_derivation_operation_t key_schedule_operator;
-    psa_key_id_t self_ephemeral_key_pair;      // own ECDHE key pair (client or server)
-    psa_key_id_t peer_public_ephemeral_key;    // peer's ECDHE public key from KeyShare
-    psa_key_id_t shared_ephemeral_secret;      // ECDH output; IKM for handshake_secret Extract
-    psa_key_id_t early_secret;                 // HKDF-Extract(0, 0) — no-PSK baseline
-    psa_key_id_t derived_secret;               // Expand-Label(early_secret, "derived", H(""))
-    psa_key_id_t handshake_secret;             // HKDF-Extract(derived_secret, ECDHE)
+    psa_key_id_t self_ephemeral_key_pair; // own ECDHE key pair (client or server)
+    psa_key_id_t peer_public_ephemeral_key; // peer's ECDHE public key from KeyShare
+    psa_key_id_t shared_ephemeral_secret; // ECDH output; IKM for handshake_secret Extract
+    psa_key_id_t early_secret; // HKDF-Extract(0, 0) — no-PSK baseline
+    psa_key_id_t derived_secret; // Expand-Label(early_secret, "derived", H(""))
+    psa_key_id_t handshake_secret; // HKDF-Extract(derived_secret, ECDHE)
     psa_key_id_t client_handshake_traffic_secret;
-    psa_key_id_t client_handshake_write_key;   // Expand-Label(c_hs_traffic, "key", "", 16)
-    psa_key_id_t client_handshake_iv_key;      // Expand-Label(c_hs_traffic, "iv",  "", 12)
+    psa_key_id_t client_handshake_write_key; // Expand-Label(c_hs_traffic, "key", "", 16)
+    psa_key_id_t client_handshake_iv_key; // Expand-Label(c_hs_traffic, "iv",  "", 12)
     psa_key_id_t server_handshake_traffic_secret;
+    psa_key_id_t server_handshake_write_key; // Expand-Label(s_hs_traffic, "key", "", 16)
+    psa_key_id_t server_handshake_iv_key; // Expand-Label(s_hs_traffic, "iv",  "", 12)
+    psa_key_id_t self_certificate_key_pair;
+    // own Ed25519 private key for CertificateVerify
+    psa_key_id_t peer_certificate_public_key; // peer's Ed25519 public key for verify
+    psa_key_id_t client_finished_key; // Expand-Label(c_hs_traffic, "finished", "", 32)
+    psa_key_id_t server_finished_key; // Expand-Label(s_hs_traffic, "finished", "", 32)
     psa_key_id_t master_secret;
     psa_key_id_t client_application_traffic_secret;
     psa_key_id_t server_application_traffic_secret;
