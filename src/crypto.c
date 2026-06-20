@@ -1024,45 +1024,30 @@ ctls_status_t ctls_nonce_generate(uint8_t *buffer,
  * tag simultaneously authenticates the header. Key/IV selected by
  * compile-time role.
  */
-ctls_status_t ctls_decrypt(uint16_t const *sequence_number,
+ctls_status_t ctls_decrypt(psa_key_id_t const *write_key_id,
+                           psa_key_id_t const *iv_key_id,
+                           uint16_t const *sequence_number,
                            uint8_t const *aad,
                            size_t const aad_len,
                            uint8_t const *ciphertext,
                            size_t const ciphertext_len,
                            uint8_t *buffer,
                            size_t *bytes_written) {
-    ctls_crypto_t *crypto = ctls_crypto_get();
-
-    psa_key_id_t *handshake_key;
-    psa_key_id_t *iv_key;
-
-    CTLS_CHECK_NULL(crypto);
     CTLS_CHECK_NULL(sequence_number);
     CTLS_CHECK_NULL_BUFFER(aad);
     CTLS_CHECK_NULL_BUFFER(ciphertext);
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL(bytes_written);
-
-#if CTLS_CLIENT
-    handshake_key = &crypto->client_handshake_write_key;
-    iv_key = &crypto->client_handshake_iv_key;
-#endif
-
-#if CTLS_SERVER
-    handshake_key = &crypto->server_handshake_write_key;
-    iv_key = &crypto->server_handshake_iv_key;
-#endif
-
-    CTLS_CHECK_NULL_KEY_ID(handshake_key);
-    CTLS_CHECK_NULL_KEY_ID(iv_key);
+    CTLS_CHECK_NULL_KEY_ID(write_key_id);
+    CTLS_CHECK_NULL_KEY_ID(iv_key_id);
 
     psa_status_t psa_st = PSA_SUCCESS;
     uint8_t nonce[CTLS_SIZE_NONCE];
 
-    ctls_status_t const result = ctls_nonce_generate(nonce, sequence_number, iv_key);
+    ctls_status_t const result = ctls_nonce_generate(nonce, sequence_number, iv_key_id);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    psa_st = psa_aead_decrypt(*handshake_key,
+    psa_st = psa_aead_decrypt(*write_key_id,
                               CTLS_GCM_ALGORITHM,
                               nonce,
                               CTLS_SIZE_NONCE,
@@ -1085,45 +1070,31 @@ cleanup:
  * is ciphertext | tag(16); bytes_written = plaintext_length + 16. Own
  * role's handshake key + IV (compile-time CTLS_CLIENT / CTLS_SERVER).
  */
-ctls_status_t ctls_encrypt(uint16_t const *sequence_number,
+ctls_status_t ctls_encrypt(psa_key_id_t const *write_key_id,
+                           psa_key_id_t const *iv_key_id,
+                           uint16_t const *sequence_number,
                            uint8_t const *aad,
                            ctls_size_t const aad_len,
                            uint8_t const *plaintext,
                            ctls_size_t const plaintext_length,
                            uint8_t *ciphertext_buffer,
                            size_t *bytes_written) {
-    ctls_crypto_t *crypto = ctls_crypto_get();
-    psa_key_id_t *handshake_key;
-    psa_key_id_t *iv_key;
-
-    CTLS_CHECK_NULL(crypto);
     CTLS_CHECK_NULL(sequence_number);
     CTLS_CHECK_NULL_BUFFER(aad);
     CTLS_CHECK_NULL_BUFFER(plaintext);
     CTLS_CHECK_NULL_BUFFER(ciphertext_buffer);
     CTLS_CHECK_NULL(bytes_written);
-
-#if CTLS_CLIENT
-    handshake_key = &crypto->client_handshake_write_key;
-    iv_key = &crypto->client_handshake_iv_key;
-#endif
-
-#if CTLS_SERVER
-    handshake_key = &crypto->server_handshake_write_key;
-    iv_key = &crypto->server_handshake_iv_key;
-#endif
-
-    CTLS_CHECK_NULL_KEY_ID(handshake_key);
-    CTLS_CHECK_NULL_KEY_ID(iv_key);
+    CTLS_CHECK_NULL_KEY_ID(write_key_id);
+    CTLS_CHECK_NULL_KEY_ID(iv_key_id);
 
     psa_status_t psa_st = PSA_SUCCESS;
 
     uint8_t nonce[CTLS_SIZE_NONCE];
-    ctls_status_t const result = ctls_nonce_generate(nonce, sequence_number, iv_key);
+    ctls_status_t const result = ctls_nonce_generate(nonce, sequence_number, iv_key_id);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
 
-    psa_st = psa_aead_encrypt(*handshake_key,
+    psa_st = psa_aead_encrypt(*write_key_id,
                               CTLS_GCM_ALGORITHM,
                               nonce,
                               CTLS_SIZE_NONCE,

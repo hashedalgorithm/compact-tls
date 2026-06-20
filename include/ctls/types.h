@@ -423,6 +423,11 @@ typedef enum {
     CTLS_ENTITY_SERVER = 1,
 } ctls_entity_t;
 
+typedef enum {
+    CTLS_PHASE_HANDSHAKE = 0,
+    CTLS_PHASE_APPLICATION_DATA
+} ctls_phase_t;
+
 typedef struct ctls_extn_server_name_item ctls_extn_server_name_item_t;
 typedef struct ctls_extn_server_name ctls_extn_server_name_t;
 typedef ctls_max_fragment_length_t ctls_extn_max_fragment_length_t;

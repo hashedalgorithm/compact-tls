@@ -93,12 +93,10 @@ struct ctls_crypto {
     psa_key_id_t client_handshake_write_key;   // Expand-Label(c_hs_traffic, "key", "", 16)
     psa_key_id_t client_handshake_iv_key;      // Expand-Label(c_hs_traffic, "iv",  "", 12)
     psa_key_id_t server_handshake_traffic_secret;
-    psa_key_id_t server_handshake_write_key;   // Expand-Label(s_hs_traffic, "key", "", 16)
-    psa_key_id_t server_handshake_iv_key;      // Expand-Label(s_hs_traffic, "iv",  "", 12)
-    psa_key_id_t self_certificate_key_pair;    // own Ed25519 private key for CertificateVerify
-    psa_key_id_t peer_certificate_public_key;  // peer's Ed25519 public key for verify
-    psa_key_id_t client_finished_key;          // Expand-Label(c_hs_traffic, "finished", "", 32)
-    psa_key_id_t server_finished_key;          // Expand-Label(s_hs_traffic, "finished", "", 32)
+    psa_key_id_t client_application_write_key;
+    psa_key_id_t server_application_write_key;
+    psa_key_id_t client_application_iv_key;
+    psa_key_id_t server_application_iv_key;
 };
 
 /** Map a psa_status_t onto the closest ctls_status_t. */
@@ -229,7 +227,9 @@ ctls_status_t ctls_nonce_generate(uint8_t *buffer,
  * header bytes as AAD. Fails CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED on tag
  * mismatch — that check authenticates the AAD/header too.
  */
-ctls_status_t ctls_decrypt(uint16_t const *sequence_number,
+ctls_status_t ctls_decrypt(psa_key_id_t const *write_key_id,
+                           psa_key_id_t const *iv_key_id,
+                           uint16_t const *sequence_number,
                            uint8_t const *aad,
                            size_t aad_len,
                            const uint8_t *ciphertext,
@@ -237,7 +237,9 @@ ctls_status_t ctls_decrypt(uint16_t const *sequence_number,
                            uint8_t *buffer,
                            size_t *bytes_written);
 /** AEAD seal — inverse of ctls_decrypt; output = ciphertext | tag(16). */
-ctls_status_t ctls_encrypt(uint16_t const *sequence_number,
+ctls_status_t ctls_encrypt(psa_key_id_t const *write_key_id,
+                           psa_key_id_t const *iv_key_id,
+                           uint16_t const *sequence_number,
                            uint8_t const *aad,
                            ctls_size_t aad_len,
                            uint8_t const *plaintext,
