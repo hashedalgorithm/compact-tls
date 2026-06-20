@@ -8,12 +8,15 @@ static ctls_hshk_data_t *g_hshk_data;
 static ctls_crypto_t *g_crypto;
 static ctls_hshk_buffer_t *g_hshk_buffer;
 static ctls_hshk_buffer_t g_hshk_buffer_storage;
+static ctls_transport_t *g_transport;
 
 
 ctls_template_t const *ctls_template_get(void) { return g_template; }
 ctls_hshk_data_t *ctls_hshk_data_get(void) { return g_hshk_data; }
 ctls_crypto_t *ctls_crypto_get(void) { return g_crypto; }
+ctls_transport_t *ctls_transport_get(void) { return g_transport; }
 ctls_hshk_buffer_t *ctls_hshk_buffer_get(void) { return g_hshk_buffer; }
+ctls_transport_t *ctls_transport_get(void) { return g_transport; }
 
 
 ctls_status_t ctls_handshake_state_update(ctls_hshk_state_t *location,
@@ -60,6 +63,7 @@ ctls_status_t ctls_context_init(ctls_context_t *context,
     g_hshk_data = &context->hshk_data;
     g_crypto = &context->crypto;
     g_hshk_buffer = context->hshk_buffer;
+    g_transport = &context->transport;
 
     result = ctls_crypto_init();
     if (result != CTLS_STATUS_SUCCESS) return result;
