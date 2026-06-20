@@ -267,5 +267,8 @@ ctls_status_t ctls_recd_client_flight_to_wire(uint8_t *buffer,
                                               ctls_record_t const *record,
                                               ctls_wire_format_t wire_format);
 
+ctls_status_t ctls_recd_application_data_deserialize(uint8_t const *buffer,
+                                                     uint8_t *application_data,
+                                                     ctls_size_t application_data_length);
 
 #endif

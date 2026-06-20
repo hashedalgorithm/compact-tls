@@ -1094,3 +1094,25 @@ ctls_status_t ctls_recd_client_flight_to_wire(uint8_t *buffer,
                                &ciphertext_length,
                                CTLS_PHASE_HANDSHAKE);
 }
+
+ctls_status_t ctls_recd_application_data_deserialize(uint8_t const *buffer,
+                                                     uint8_t *application_data,
+                                                     ctls_size_t
+                                                     application_data_length) {
+    ctls_record_t *record = ctls_record_get();
+
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_BUFFER(application_data);
+    CTLS_CHECK_NULL_STRUCT(record);
+
+    ctls_status_t const result = ctls_recd_buffer_clear(record);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    return ctls_record_decrypt(record,
+                               buffer,
+                               application_data,
+                               &application_data_length,
+                               CTLS_PHASE_APPLICATION_DATA);
+}
+
+

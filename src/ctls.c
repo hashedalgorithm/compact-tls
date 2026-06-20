@@ -177,3 +177,30 @@ ctls_status_t ctls_connect(ctls_context_t *context) {
 
     return ctls_handshake(context);
 }
+
+ctls_status_t ctls_read(uint8_t *buffer,
+                        uint8_t const *application_data,
+                        ctls_size_t const application_data_length) {
+    ctls_transport_t const *transport = ctls_transport_get();
+    ctls_record_t *record = ctls_record_get();
+
+    CTLS_CHECK_NULL_BUFFER(application_data);
+    CTLS_CHECK_NULL_STRUCT(transport);
+    CTLS_CHECK_NULL_STRUCT(record);
+
+    ctls_size_t buffer_offset = 0;
+    ctls_status_t result = transport->recd_receive(buffer,
+                                                   &buffer_offset,
+                                                   CTLS_SIZE_WIRE_BUFFER);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_unified_header_deserialize(&record->unified_header,
+                                             buffer,
+                                             &buffer_offset);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    return ctls_recd_application_data_deserialize(buffer,
+                                                  application_data,
+                                                  application_data_length);
+}
+
