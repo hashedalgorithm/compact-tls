@@ -285,4 +285,7 @@ ctls_status_t ctls_verify_data_generate(ctls_entity_t entity);
 
 ctls_status_t ctls_application_key_schedule(ctls_entity_t entity);
 ctls_status_t ctls_master_secret_generate(ctls_crypto_t *crypto);
+ctls_status_t ctls_application_traffic_secret_generate(
+    ctls_crypto_t *crypto,
+    ctls_entity_t entity);
 #endif // CTLS_CRYPTO_H
