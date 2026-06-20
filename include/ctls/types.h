@@ -494,7 +494,7 @@ typedef struct ctls_record ctls_record_t;
 typedef struct ctls_unified_header ctls_unified_header_t;
 typedef struct ctls_recd_config_octet ctls_recd_config_octet_t;
 typedef struct ctls_handshake_message ctls_handshake_message_t;
-
+typedef struct ctls_application_data ctls_application_data_t;
 
 typedef struct ctls_template ctls_template_t;
 typedef struct ctls_template_bytes ctls_template_bytes_t;

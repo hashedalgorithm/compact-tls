@@ -179,7 +179,7 @@ ctls_status_t ctls_transcript_hash_update(ctls_record_t const *record) {
     uint8_t buffer[CTLS_SIZE_WIRE_BUFFER];
     ctls_size_t offset = 0;
 
-    switch (record->record_body.message_type) {
+    switch (record->record_body.handshake.message_type) {
         case CTLS_HSMG_TYPE_CLIENT_HELLO:
             ctls_recd_client_hello_to_wire(buffer,
                                            &offset,

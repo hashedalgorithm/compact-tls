@@ -81,13 +81,21 @@ struct ctls_unified_header {
     ctls_size_t aad_length;
 };
 
+struct ctls_application_data {
+    uint8_t buffer[CTLS_SIZE_WIRE_BUFFER];
+    ctls_size_t length;
+};
+
 /** One record: framing fields + the handshake message body it carries. */
 struct ctls_record {
     uint8_t content_type; // Used only in CH, SH
     uint8_t profile_id; // Used only in CH, SH
     ctls_record_type_t type; // For internal reference
     ctls_unified_header_t unified_header;
-    ctls_handshake_message_t record_body;
+    union {
+        ctls_handshake_message_t handshake;
+        ctls_application_data_t application;
+    } record_body;
 };
 
 /*
