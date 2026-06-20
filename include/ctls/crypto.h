@@ -75,6 +75,7 @@ typedef enum {
     CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_IV_KEY,
     CTLS_KEY_TYPE_SIGNED_BYTES,
     CTLS_KEY_TYPE_FINISHED_KEY,
+    CTLS_KEY_TYPE_APPLICATION_TRAFFIC_SECRET,
     CTLS_KEY_TYPE_APPLICATION_TRAFFIC_WRITE_KEYS,
 } ctls_key_type_t;
 
@@ -95,6 +96,8 @@ struct ctls_crypto {
     psa_key_id_t client_handshake_iv_key;      // Expand-Label(c_hs_traffic, "iv",  "", 12)
     psa_key_id_t server_handshake_traffic_secret;
     psa_key_id_t master_secret;
+    psa_key_id_t client_application_traffic_secret;
+    psa_key_id_t server_application_traffic_secret;
     psa_key_id_t exporter_master_secret;
     psa_key_id_t client_application_write_key;
     psa_key_id_t server_application_write_key;
