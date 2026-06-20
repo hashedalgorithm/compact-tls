@@ -204,3 +204,23 @@ ctls_status_t ctls_read(uint8_t *buffer,
                                                   application_data_length);
 }
 
+ctls_status_t ctls_write(uint8_t const *application_data,
+                         ctls_size_t const application_data_length) {
+    ctls_transport_t const *transport = ctls_transport_get();
+    ctls_record_t const *record = ctls_record_get();
+
+    CTLS_CHECK_NULL_BUFFER(application_data);
+    CTLS_CHECK_NULL_STRUCT(transport);
+    CTLS_CHECK_NULL_STRUCT(record);
+
+    uint8_t buffer[CTLS_SIZE_WIRE_BUFFER];
+    ctls_size_t buffer_offset = 0;
+
+    ctls_status_t result = ctls_recd_application_data_serialize(buffer,
+        &buffer_offset,
+        application_data,
+        application_data_length);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    return transport->recd_send(buffer, buffer_offset);
+}

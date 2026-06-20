@@ -1116,3 +1116,28 @@ ctls_status_t ctls_recd_application_data_deserialize(uint8_t const *buffer,
 }
 
 
+ctls_status_t ctls_recd_application_data_serialize(uint8_t *buffer,
+                                                   ctls_size_t *offset,
+                                                   uint8_t const *application_data,
+                                                   ctls_size_t const
+                                                   application_data_length) {
+    ctls_record_t *record = ctls_record_get();
+
+    CTLS_CHECK_NULL_BUFFER(application_data);
+    CTLS_CHECK_NULL_STRUCT(record);
+
+    ctls_status_t result = ctls_recd_buffer_clear(record);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_unified_header_build(&record->unified_header, 0);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    ctls_size_t ciphertext_length = 0;
+    return ctls_record_encrypt(buffer,
+                               offset,
+                               &record->unified_header,
+                               application_data,
+                               application_data_length,
+                               &ciphertext_length,
+                               CTLS_PHASE_APPLICATION_DATA);
+}

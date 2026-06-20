@@ -271,4 +271,8 @@ ctls_status_t ctls_recd_application_data_deserialize(uint8_t const *buffer,
                                                      uint8_t *application_data,
                                                      ctls_size_t application_data_length);
 
+ctls_status_t ctls_recd_application_data_serialize(uint8_t *buffer,
+                                                   ctls_size_t *offset,
+                                                   uint8_t const *application_data,
+                                                   ctls_size_t application_data_length);
 #endif

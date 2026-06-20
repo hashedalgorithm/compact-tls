@@ -115,9 +115,6 @@ ctls_status_t ctls_read(uint8_t *buffer,
                         uint8_t const *application_data,
                         ctls_size_t application_data_length);
 /** Encrypt and send application data from buffer. */
-ctls_status_t ctls_write(ctls_context_t const *context,
-                         uint8_t *buffer,
-                         size_t buffer_length);
-
-
+ctls_status_t ctls_write(uint8_t const *application_data,
+                         ctls_size_t application_data_length);
 #endif
