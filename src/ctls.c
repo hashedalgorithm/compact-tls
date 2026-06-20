@@ -148,7 +148,13 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
         result = ctls_transcript_hash_update(&context->record);
         if (result != CTLS_STATUS_SUCCESS) goto onerror;
     }
+
+    result = ctls_application_key_schedule(CTLS_ENTITY_CLIENT);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
     context->state = CTLS_HSHK_STATE_CONNECTED;
+    context->hshk_data.isHandshakeComplete = true;
+
     return CTLS_STATUS_SUCCESS;
 
 onerror:

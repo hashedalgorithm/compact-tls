@@ -68,6 +68,7 @@ struct ctls_hshk_data {
     ctls_size_t server_verify_data_length;
     ctls_ticket_t ticket;
     // flags
+    bool isHandshakeComplete;
     bool isCertificateStatusRequested;
     bool isSignedCertificateTimestampRequested;
 };
