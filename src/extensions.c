@@ -1062,11 +1062,11 @@ ctls_status_t ctls_extn_key_share_serialize(uint8_t *buffer,
 
     uint8_t raw_bytes[CTLS_SIZE_KEY_SHARE];
     ctls_size_t bytes_written;
-    ctls_status_t result = ctls_ephemeral_public_key_export(&crypto->
-                                                                self_ephemeral_key_pair,
-                                                                raw_bytes,
-                                                                CTLS_SIZE_KEY_SHARE,
-                                                                &bytes_written);
+    ctls_status_t const result = ctls_ephemeral_public_key_export(&crypto->
+        self_ephemeral_key_pair,
+        raw_bytes,
+        CTLS_SIZE_KEY_SHARE,
+        &bytes_written);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     ctls_write_bytes(buffer, offset, bytes_written, raw_bytes);
@@ -1854,7 +1854,7 @@ ctls_status_t ctls_extn_certificate_create(ctls_extn_certificate_t *ctls_certifi
     if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
         return CTLS_STATUS_EXTN_INVALID_ENTITY;
 
-    ctls_status_t result;
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
     if (hshk_data->isCertificateStatusRequested) {
         result = ctls_extn_certificate_status_request_create(&ctls_certificate->
             certificate_status_request,
