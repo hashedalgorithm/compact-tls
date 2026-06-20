@@ -96,6 +96,7 @@ ctls_hshk_data_t *ctls_hshk_data_get(void);
 ctls_crypto_t *ctls_crypto_get(void);
 ctls_hshk_buffer_t *ctls_hshk_buffer_get(void);
 ctls_transport_t *ctls_transport_get(void);
+ctls_record_t *ctls_record_get(void);
 
 /** Initialize context with transport callbacks and run ctls_crypto_init. */
 ctls_status_t ctls_context_init(ctls_context_t *context,
