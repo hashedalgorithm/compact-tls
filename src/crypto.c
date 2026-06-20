@@ -1378,3 +1378,50 @@ ctls_status_t ctls_verify_data_generate(ctls_entity_t const entity) {
 cleanup:
     return CTLS_STATUS_CRYPTO_HMAC_VERIFY_DATA_FAILED;
 }
+
+ctls_status_t ctls_application_key_schedule(ctls_entity_t const entity) {
+    ctls_crypto_t *crypto = ctls_crypto_get();
+    CTLS_CHECK_NULL_STRUCT(crypto);
+
+    ctls_status_t result = ctls_master_secret_generate(crypto);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+
+    /* Keys switched to handshake traffic keys — new epoch. RFC 9147 §6.1
+       numbering: epoch 0 plaintext, 1 early data (unsupported, skipped),
+       2 handshake keys. */
+    result = ctls_epoch_counter_increment();
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    return ctls_epoch_counter_increment();
+}
+
+ctls_status_t ctls_master_secret_generate(ctls_crypto_t *crypto) {
+    CTLS_CHECK_NULL_STRUCT(crypto);
+
+    static const uint8_t ZEROS[32] = {0};
+    psa_status_t psa_st = PSA_SUCCESS;
+
+    psa_key_attributes_t ikm_attributes = PSA_KEY_ATTRIBUTES_INIT;
+    psa_key_id_t ikm = PSA_KEY_ID_NULL;
+
+    ctls_status_t result = ctls_key_schedule_operator_reset(crypto);
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+
+    result = ctls_key_attributes_set(CTLS_KEY_USAGE_HKDF_EXTRACT, &ikm_attributes);
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+
+    psa_st = psa_import_key(&ikm_attributes, ZEROS, CTLS_SIZE_HASH, &ikm);
+    if (psa_st != PSA_SUCCESS) goto cleanup;
+
+    result = ctls_hkdf_extract(&crypto->master_secret, &crypto->derived_secret, &ikm);
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+
+    return CTLS_STATUS_SUCCESS;
+cleanup:
+    psa_key_derivation_abort(&crypto->key_schedule_operator);
+    if (ikm != PSA_KEY_ID_NULL) { psa_destroy_key(ikm); }
+    psa_reset_key_attributes(&ikm_attributes);
+
+    return CTLS_STATUS_CRYPTO_HKDF_EXTRACT_FAILED;
+}
+

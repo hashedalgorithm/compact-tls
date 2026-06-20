@@ -93,6 +93,7 @@ struct ctls_crypto {
     psa_key_id_t client_handshake_write_key;   // Expand-Label(c_hs_traffic, "key", "", 16)
     psa_key_id_t client_handshake_iv_key;      // Expand-Label(c_hs_traffic, "iv",  "", 12)
     psa_key_id_t server_handshake_traffic_secret;
+    psa_key_id_t master_secret;
     psa_key_id_t client_application_write_key;
     psa_key_id_t server_application_write_key;
     psa_key_id_t client_application_iv_key;
@@ -281,4 +282,7 @@ ctls_status_t ctls_signed_bytes_verify(psa_key_id_t const *public_key_id,
 ctls_status_t ctls_finished_key_generate(ctls_entity_t entity);
 /** verify_data = HMAC(finished_key, Transcript-Hash) — RFC 8446 §4.4.4. */
 ctls_status_t ctls_verify_data_generate(ctls_entity_t entity);
+
+ctls_status_t ctls_application_key_schedule(ctls_entity_t entity);
+ctls_status_t ctls_master_secret_generate(ctls_crypto_t *crypto);
 #endif // CTLS_CRYPTO_H
