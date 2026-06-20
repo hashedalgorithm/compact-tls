@@ -3,6 +3,21 @@
 // Created by Sanjay Kumar Kumaravelan on 31/03/26.
 //
 
+/**
+ * @file types.h
+ * @brief Shared type vocabulary for the cTLS implementation.
+ *
+ * Defines every enum, typedef, and forward declaration used across the
+ * library. Headers for individual subsystems (crypto.h, record.h, etc.)
+ * include this file and add their own structs on top of it.
+ *
+ * References:
+ *   - RFC 8446     — TLS 1.3 (cipher suites, alert codes, extension types,
+ *                    handshake message types, handshake states)
+ *   - RFC 9147 §4  — DTLS 1.3 unified header (epoch / sequence numbering)
+ *   - draft-ietf-tls-ctls — Compact TLS template and profile model
+ */
+
 #ifndef CTLS_TYPES_H
 #define CTLS_TYPES_H
 
@@ -352,6 +367,11 @@ typedef enum {
     CTLS_EXTN_CERTIFICATE_TYPE_SENTINEL = 0xFF,
 } ctls_extn_certificate_type_t;
 
+/**
+ * Record protection mode. PLAINTEXT applies to CH/SH only (before key
+ * schedule). ENCRYPTED applies to every subsequent record (AEAD with
+ * handshake or application traffic keys).
+ */
 typedef enum {
     CTLS_RECORD_TYPE_PLAINTEXT = 0,
     CTLS_RECORD_TYPE_ENCRYPTED,
@@ -379,6 +399,12 @@ typedef enum {
     CTLS_EXTN_HEARTBEAT_MODE_PEER_NOT_ALLOWED_TO_SEND = 2,
 } ctls_extn_heartbeat_mode_t;
 
+/**
+ * Wire serialization mode for record/extension/hsmg serializers.
+ * DEFAULT produces compact cTLS bytes sent on the wire. TRANSCRIPT_HASH
+ * produces reconstructed TLS 1.3 bytes fed to the running transcript hash
+ * so the key schedule matches a regular TLS 1.3 handshake (never sent).
+ */
 typedef enum {
     CTLS_WIRE_FORMAT_DEFAULT = 0,
     CTLS_WIRE_FORMAT_TRANSCRIPT_HASH = 1,
@@ -390,6 +416,12 @@ typedef enum {
     CTLS_EXTN_PSK_KEY_EXCHANGE_MODE_SENTINEL = 0xFF,
 } ctls_extn_psk_key_exchange_mode_t;
 
+/**
+ * Representation tag for blob-like extension structs. OPAQUE means the
+ * struct aliases a raw byte buffer (zero-copy, typically from the template).
+ * PARSED means the struct holds decoded fields. SENTINEL means the
+ * extension is absent for this profile.
+ */
 typedef enum {
     CTLS_DATA_FORM_SENTINEL = 0,
     CTLS_DATA_FORM_OPAQUE = 1,
@@ -423,6 +455,12 @@ typedef enum {
     CTLS_ENTITY_SERVER = 1,
 } ctls_entity_t;
 
+/**
+ * Active connection phase. Passed to ctls_record_encrypt/decrypt to select
+ * the correct key pair: handshake traffic keys (epoch 2) during the
+ * handshake, application traffic keys (epoch 3+) once
+ * CTLS_HSHK_STATE_CONNECTED is reached.
+ */
 typedef enum {
     CTLS_PHASE_HANDSHAKE = 0,
     CTLS_PHASE_APPLICATION_DATA
@@ -529,7 +567,12 @@ typedef struct ctls_hshk_buffer_block ctls_hshk_buffer_block_t;
 /*  VIRTUAL FUNCTIONS                                                 */
 /* ------------------------------------------------------------------ */
 
+/** Send buffer_length bytes from buffer over the underlying transport. */
 typedef ctls_status_t (*ctls_recd_send)(uint8_t *buffer, ctls_size_t buffer_length);
+/**
+ * Receive up to buffer_size bytes into buffer; set *buffer_length to the
+ * number of bytes actually received.
+ */
 typedef ctls_status_t (*ctls_recd_receive)(uint8_t *buffer,
                                            ctls_size_t *buffer_length,
                                            ctls_size_t buffer_size);

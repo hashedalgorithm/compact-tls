@@ -3,11 +3,15 @@
 #include "ctls/templates.h"
 #include "ctls/core.h"
 
+/* Singleton connection state — set once in ctls_context_init, read via the
+ * ctls_*_get() accessors. Using file-scope pointers keeps every subsystem
+ * (crypto, record, extension) free of context parameters while still
+ * allowing a single context to be swapped in future multi-connection work. */
 static ctls_template_t const *g_template;
 static ctls_hshk_data_t *g_hshk_data;
 static ctls_crypto_t *g_crypto;
 static ctls_hshk_buffer_t *g_hshk_buffer;
-static ctls_hshk_buffer_t g_hshk_buffer_storage;
+static ctls_hshk_buffer_t g_hshk_buffer_storage; /* backing storage for hshk_buffer */
 static ctls_transport_t *g_transport;
 static ctls_record_t *g_record;
 
@@ -76,6 +80,18 @@ ctls_status_t ctls_context_init(ctls_context_t *context,
 }
 
 
+/*
+ * Full client-side TLS 1.3 handshake sequence (RFC 8446 §2):
+ *   1. Send ClientHello (plaintext)
+ *   2. Receive ServerHello — triggers key schedule
+ *   3. Receive server flight (EE + Certificate + CertificateVerify + Finished)
+ *      decrypted with handshake keys
+ *   4. If mutual_auth: send client flight (Certificate + CertVerify + Finished)
+ *   5. Derive application traffic keys
+ *
+ * On any error the state machine moves to CTLS_HSHK_STATE_ERROR, buffers
+ * are cleared, and the error is propagated to the caller.
+ */
 ctls_status_t ctls_handshake(ctls_context_t *context) {
     uint8_t buffer[CTLS_SIZE_WIRE_BUFFER];
     ctls_size_t buffer_offset = 0;
