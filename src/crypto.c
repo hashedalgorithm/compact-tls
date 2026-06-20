@@ -1476,3 +1476,27 @@ cleanup:
     return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
 }
 
+ctls_status_t ctls_exporter_master_secret_generate(ctls_crypto_t *crypto) {
+    CTLS_CHECK_NULL_STRUCT(crypto);
+
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
+    uint8_t info[80U];
+    ctls_size_t info_offset = 0U;
+
+    result = ctls_context_string_build(info,
+                                       &info_offset,
+                                       CTLS_ENTITY_CLIENT,
+                                       CTLS_KEY_TYPE_EXPORTER_MASTER_SECRET);
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+
+    return ctls_hkdf_expand(&crypto->exporter_master_secret,
+                            &crypto->master_secret,
+                            CTLS_KEY_USAGE_HKDF_EXPAND,
+                            info,
+                            info_offset);
+
+cleanup:
+    return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
+}
+

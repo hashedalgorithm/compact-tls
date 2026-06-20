@@ -94,6 +94,7 @@ struct ctls_crypto {
     psa_key_id_t client_handshake_iv_key;      // Expand-Label(c_hs_traffic, "iv",  "", 12)
     psa_key_id_t server_handshake_traffic_secret;
     psa_key_id_t master_secret;
+    psa_key_id_t exporter_master_secret;
     psa_key_id_t client_application_write_key;
     psa_key_id_t server_application_write_key;
     psa_key_id_t client_application_iv_key;
@@ -288,4 +289,5 @@ ctls_status_t ctls_master_secret_generate(ctls_crypto_t *crypto);
 ctls_status_t ctls_application_traffic_secret_generate(
     ctls_crypto_t *crypto,
     ctls_entity_t entity);
+ctls_status_t ctls_exporter_master_secret_generate(ctls_crypto_t *crypto);
 #endif // CTLS_CRYPTO_H
