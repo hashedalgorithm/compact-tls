@@ -13,7 +13,6 @@ include_directories(src)
 include_directories(examples)
 
 add_executable(compact_tls
-        examples/main.c
         examples/client.c
         include/certs/ctls_certs.h
         include/ctls/bytes.h
