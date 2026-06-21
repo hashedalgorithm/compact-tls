@@ -478,6 +478,7 @@ ctls_status_t ctls_recd_client_hello_create(ctls_record_t *record) {
     ctls_status_t const result = ctls_recd_buffer_clear(record);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
+    record->content_type = CTLS_RECD_CONTENT_TYPE_HANDSHAKE;
     record->profile_id = template->profile_id;
     record->type = CTLS_RECORD_TYPE_PLAINTEXT;
     record->record_body.handshake.message_type = CTLS_HSMG_TYPE_CLIENT_HELLO;
