@@ -96,7 +96,7 @@ ctls_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
 
     ctls_size_t body_start = *offset;
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
-        offset += 2;
+        *offset += 2; /* reserve 2 bytes for body length (u16), backfilled below */
 
         ctls_write_u8(buffer, offset, hsmg->message_type);
         ctls_write_u16(buffer, offset, hsmg->sequence_number);
