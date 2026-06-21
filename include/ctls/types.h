@@ -23,6 +23,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <psa/crypto.h>
 #include "config.h"
 
 /* --------------------------------------------------------------------  */
