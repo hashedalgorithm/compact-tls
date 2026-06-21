@@ -22,12 +22,15 @@
 
 #include "ctls/ctls.h"
 
-static int              g_sock = -1;
+static int g_sock = -1;
 static struct sockaddr_in g_server_addr;
 
 static ctls_status_t udp_send(uint8_t *buffer, ctls_size_t length) {
-    ssize_t sent = sendto(g_sock, buffer, length, 0,
-                          (struct sockaddr *)&g_server_addr,
+    ssize_t sent = sendto(g_sock,
+                          buffer,
+                          length,
+                          0,
+                          (struct sockaddr *) &g_server_addr,
                           sizeof(g_server_addr));
     if (sent < 0) {
         fprintf(stderr, "send: %s\n", strerror(errno));
@@ -37,9 +40,7 @@ static ctls_status_t udp_send(uint8_t *buffer, ctls_size_t length) {
     return CTLS_STATUS_SUCCESS;
 }
 
-static ctls_status_t udp_receive(uint8_t *buffer,
-                                 ctls_size_t *length,
-                                 ctls_size_t size) {
+static ctls_status_t udp_receive(uint8_t *buffer, ctls_size_t *length, ctls_size_t size) {
     ssize_t received = recv(g_sock, buffer, size, 0);
     if (received < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -49,14 +50,14 @@ static ctls_status_t udp_receive(uint8_t *buffer,
         }
         return CTLS_STATUS_TRANSPORT_RECV_FAILED;
     }
-    *length = (ctls_size_t)received;
+    *length = (ctls_size_t) received;
     printf("[transport] received %zd bytes\n", received);
     return CTLS_STATUS_SUCCESS;
 }
 
 int main(int argc, char *argv[]) {
     const char *host = (argc > 1) ? argv[1] : "127.0.0.1";
-    int         port = (argc > 2) ? atoi(argv[2]) : 4433;
+    int port = (argc > 2) ? atoi(argv[2]) : 4433;
 
     g_sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (g_sock < 0) {
@@ -65,12 +66,12 @@ int main(int argc, char *argv[]) {
     }
 
     /* 2-second receive timeout — exits cleanly when no server is present */
-    struct timeval tv = { .tv_sec = 2, .tv_usec = 0 };
+    struct timeval tv = {.tv_sec = 2, .tv_usec = 0};
     setsockopt(g_sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
     memset(&g_server_addr, 0, sizeof(g_server_addr));
-    g_server_addr.sin_family      = AF_INET;
-    g_server_addr.sin_port        = htons((uint16_t)port);
+    g_server_addr.sin_family = AF_INET;
+    g_server_addr.sin_port = htons((uint16_t)port);
     if (inet_pton(AF_INET, host, &g_server_addr.sin_addr) != 1) {
         fprintf(stderr, "invalid address: %s\n", host);
         close(g_sock);
@@ -79,10 +80,7 @@ int main(int argc, char *argv[]) {
 
     printf("connecting to %s:%d\n", host, port);
 
-    ctls_transport_t transport = {
-        .recd_send    = udp_send,
-        .recd_receive = udp_receive,
-    };
+    ctls_transport_t transport = {.recd_send = udp_send, .recd_receive = udp_receive,};
 
     ctls_context_t ctx;
     ctls_status_t result = ctls_context_init(&ctx, &transport);
