@@ -167,7 +167,7 @@ ctls_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
 
         return CTLS_STATUS_SUCCESS;
     }
-    return CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_HSMG_CH_INVALID_WIRE_FORMAT;
 }
 
 ctls_status_t ctls_hsmg_server_hello_create(void) {
@@ -285,7 +285,7 @@ ctls_status_t ctls_hsmg_server_hello_to_wire(uint8_t *buffer,
         return CTLS_STATUS_SUCCESS;
     }
 
-    return CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_HSMG_SH_INVALID_WIRE_FORMAT;
 }
 
 ctls_status_t ctls_hsmg_encrypted_extensions_create(void) {
@@ -342,7 +342,7 @@ ctls_status_t ctls_hsmg_encrypted_extensions_to_wire(uint8_t *buffer,
         return CTLS_STATUS_SUCCESS;
     }
 
-    return CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_HSMG_EE_INVALID_WIRE_FORMAT;
 }
 
 ctls_status_t ctls_hsmg_certificate_request_create(void) {
@@ -597,7 +597,7 @@ ctls_status_t ctls_hsmg_certificate_to_wire(uint8_t *buffer,
         return CTLS_STATUS_SUCCESS;
     }
 
-    return CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_HSMG_CERT_INVALID_WIRE_FORMAT;
 }
 
 /*
@@ -699,7 +699,7 @@ ctls_status_t ctls_hsmg_certificate_verify_to_wire(uint8_t *buffer,
         return CTLS_STATUS_SUCCESS;
     }
 
-    return CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_HSMG_CV_INVALID_WIRE_FORMAT;
 }
 
 /*
@@ -790,5 +790,5 @@ ctls_status_t ctls_hsmg_finished_to_wire(uint8_t *buffer,
         return CTLS_STATUS_SUCCESS;
     }
 
-    return CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_HSMG_FIN_INVALID_WIRE_FORMAT;
 }

@@ -97,7 +97,7 @@ ctls_status_t ctls_key_bits_get(psa_algorithm_t const *algorithm, ctls_size_t *k
         case PSA_ALG_ECDH: *key_bits = 255U;
             break;
         case PSA_ALG_GCM: *key_bits = 128U;
-        default: return CTLS_STATUS_CRYPTO_INVALID_ARG;
+        default: return CTLS_STATUS_CRYPTO_KEY_BITS_UNKNOWN_ALG;
     }
 
     return CTLS_STATUS_SUCCESS;
@@ -142,7 +142,7 @@ ctls_status_t ctls_transcript_hash_init(ctls_crypto_t *crypto,
 
     psa_status_t const result = psa_hash_setup(&crypto->transcript_hash_operator,
                                                crypto->hash_algorithm);
-    if (result != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_HASH_FAILED;
+    if (result != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_HASH_INIT_FAILED;
 
     ctls_status_t const res = ctls_template_to_wire(transcript_hash);
     if (res != CTLS_STATUS_SUCCESS) return res;
@@ -159,7 +159,7 @@ ctls_status_t ctls_transcript_hash_calculate(psa_hash_operation_t *hash_operator
     psa_status_t const result = psa_hash_update(hash_operator,
                                                 transcript_hash,
                                                 CTLS_SIZE_TRANSCRIPT_HASH);
-    if (result != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_HASH_FAILED;
+    if (result != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_HASH_CALC_FAILED;
     return CTLS_STATUS_SUCCESS;
 }
 
@@ -179,6 +179,8 @@ ctls_status_t ctls_transcript_hash_update(ctls_record_t const *record) {
 
     uint8_t buffer[CTLS_SIZE_WIRE_BUFFER];
     ctls_size_t offset = 0;
+
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
 
     switch (record->record_body.handshake.message_type) {
         case CTLS_HSMG_TYPE_CLIENT_HELLO:
@@ -231,8 +233,8 @@ ctls_status_t ctls_transcript_hash_update(ctls_record_t const *record) {
         case CTLS_HSMG_TYPE_SENTINEL: default: return CTLS_STATUS_HSMG_UNKNOWN_MSG_TYPE;
     }
 
-    return ctls_transcript_hash_calculate(&crypto->transcript_hash_operator,
-                                          hshk_data->transcript_hash);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
 }
 
 /*
@@ -245,11 +247,11 @@ ctls_status_t transcript_snapshot(psa_hash_operation_t const *hash_operator,
     psa_hash_operation_t clone = PSA_HASH_OPERATION_INIT;
 
     psa_status_t result = psa_hash_clone(hash_operator, &clone);
-    if (result != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_HASH_FAILED;
+    if (result != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_HASH_SNAP_CLONE_FAILED;
 
     size_t out_len;
     result = psa_hash_finish(&clone, buffer, CTLS_SIZE_TRANSCRIPT_HASH, &out_len);
-    if (result != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_HASH_FAILED;
+    if (result != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_HASH_SNAP_FINISH_FAILED;
     return CTLS_STATUS_SUCCESS;
 }
 
@@ -298,7 +300,7 @@ ctls_status_t ctls_ephemeral_public_key_import(uint8_t const *buffer,
 
 cleanup:
     psa_reset_key_attributes(&server_public_key_attributes);
-    return CTLS_STATUS_CRYPTO_KEY_IMPORT_FAILED;
+    return CTLS_STATUS_CRYPTO_EPHEM_PUB_KEY_IMPORT_FAILED;
 }
 
 ctls_status_t ctls_ephemeral_public_key_export(psa_key_id_t const *ephemeral_key_pair_id,
@@ -315,7 +317,7 @@ ctls_status_t ctls_ephemeral_public_key_export(psa_key_id_t const *ephemeral_key
                                                       buffer_length,
                                                       &offset);
     *buffer_bytes_written = offset;
-    if (psa_st != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_KEY_EXPORT_FAILED;
+    if (psa_st != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_EPHEM_KEY_EXPORT_FAILED;
 
     return psa_st;
 }
@@ -429,7 +431,7 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
             psa_set_key_algorithm(key_attribute, CTLS_ECDHE_ALGORITHM);
 
             result = ctls_key_bits_get(&CTLS_ECDHE_ALGORITHM, &key_bits);
-            if (result != CTLS_STATUS_SUCCESS) return CTLS_STATUS_CRYPTO_ECDH_FAILED;
+            if (result != CTLS_STATUS_SUCCESS) return CTLS_STATUS_CRYPTO_KEY_ATTR_ECDH_BITS_FAILED;
             psa_set_key_bits(key_attribute, key_bits);
         }
         break;
@@ -444,7 +446,7 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
                                       : PSA_ALG_HKDF_EXPAND(crypto->hash_algorithm));
             result = ctls_key_bits_get(&crypto->hash_algorithm, &key_bits);
             if (result != CTLS_STATUS_SUCCESS)
-                return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
+                return CTLS_STATUS_CRYPTO_KEY_ATTR_HKDF_BITS_FAILED;
             psa_set_key_bits(key_attribute, key_bits);
         }
         break;
@@ -455,7 +457,7 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
             psa_set_key_algorithm(key_attribute, CTLS_GCM_ALGORITHM);
             result = ctls_key_bits_get(&CTLS_GCM_ALGORITHM, &key_bits);
             if (result != CTLS_STATUS_SUCCESS)
-                return CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED;
+                return CTLS_STATUS_CRYPTO_KEY_ATTR_AEAD_BITS_FAILED;
             psa_set_key_bits(key_attribute, key_bits);
         }
         break;
@@ -467,7 +469,7 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
             psa_set_key_algorithm(key_attribute, PSA_ALG_HMAC(crypto->hash_algorithm));
             result = ctls_key_bits_get(&crypto->hash_algorithm, &key_bits);
             if (result != CTLS_STATUS_SUCCESS)
-                return CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED;
+                return CTLS_STATUS_CRYPTO_KEY_ATTR_HMAC_BITS_FAILED;
             psa_set_key_bits(key_attribute, key_bits);
         }
         break;
@@ -479,7 +481,7 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
             psa_set_key_algorithm(key_attribute, CTLS_CERTIFICATE_SIGNATURE_ALGORITHM);
 
             result = ctls_key_bits_get(&CTLS_CERTIFICATE_SIGNATURE_ALGORITHM, &key_bits);
-            if (result != CTLS_STATUS_SUCCESS) return CTLS_STATUS_CRYPTO_ECDH_FAILED;
+            if (result != CTLS_STATUS_SUCCESS) return CTLS_STATUS_CRYPTO_KEY_ATTR_SIGN_BITS_FAILED;
             psa_set_key_bits(key_attribute, key_bits);
         }
         break;
@@ -491,11 +493,11 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
             psa_set_key_algorithm(key_attribute, CTLS_CERTIFICATE_SIGNATURE_ALGORITHM);
 
             result = ctls_key_bits_get(&CTLS_CERTIFICATE_SIGNATURE_ALGORITHM, &key_bits);
-            if (result != CTLS_STATUS_SUCCESS) return CTLS_STATUS_CRYPTO_ECDH_FAILED;
+            if (result != CTLS_STATUS_SUCCESS) return CTLS_STATUS_CRYPTO_KEY_ATTR_VERIFY_BITS_FAILED;
             psa_set_key_bits(key_attribute, key_bits);
         }
         break;
-        default: return CTLS_STATUS_CRYPTO_INVALID_ARG;
+        default: return CTLS_STATUS_CRYPTO_KEY_ATTR_UNKNOWN_USAGE;
     }
     return CTLS_STATUS_SUCCESS;
 }
@@ -695,7 +697,7 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
             ctls_write_u8(buffer, offset, 0x00);
         }
         break;
-        default: return CTLS_STATUS_CRYPTO_INVALID_ARG;
+        default: return CTLS_STATUS_CRYPTO_CONTEXT_STR_UNKNOWN_KEY_TYPE;
     }
 
     return CTLS_STATUS_SUCCESS;
@@ -742,7 +744,7 @@ cleanup:
     psa_reset_key_attributes(&salt_attributes);
     psa_reset_key_attributes(&ikm_attributes);
 
-    return CTLS_STATUS_CRYPTO_HKDF_EXTRACT_FAILED;
+    return CTLS_STATUS_CRYPTO_EARLY_SECRET_EXTRACT_FAILED;
 }
 
 
@@ -759,14 +761,14 @@ ctls_status_t ctls_derived_secret_generate(ctls_crypto_t *crypto) {
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
     result = ctls_hkdf_expand(&crypto->derived_secret,
-                              &crypto->shared_ephemeral_secret,
+                              &crypto->early_secret,
                               CTLS_KEY_USAGE_HKDF_EXPAND,
                               info,
                               offset);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
     return CTLS_STATUS_SUCCESS;
 cleanup:
-    return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
+    return CTLS_STATUS_CRYPTO_DERIVED_SECRET_EXPAND_FAILED;
 }
 
 
@@ -793,7 +795,7 @@ ctls_status_t ctls_shared_ephemeral_secret_generate(ctls_crypto_t *crypto) {
                                    shared_ephemeral_secret,
                                    CTLS_SIZE_KEY_SHARE,
                                    &shared_ephemeral_secret_length);
-    if (psa_st != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_ECDH_FAILED;
+    if (psa_st != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_RAW_KEY_AGREEMENT_FAILED;
 
     crypto->shared_ephemeral_secret = PSA_KEY_ID_NULL;
     psa_key_attributes_t shared_ephemeral_secret_attribute = PSA_KEY_ATTRIBUTES_INIT;
@@ -812,7 +814,7 @@ ctls_status_t ctls_shared_ephemeral_secret_generate(ctls_crypto_t *crypto) {
     return CTLS_STATUS_SUCCESS;
 
 cleanup:
-    return CTLS_STATUS_CRYPTO_ECDH_FAILED;
+    return CTLS_STATUS_CRYPTO_SHARED_SECRET_IMPORT_FAILED;
 }
 
 /*
@@ -836,7 +838,7 @@ ctls_status_t ctls_handshake_traffic_secret_generate(ctls_crypto_t *crypto,
                                                      ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
     if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_EXTN_INVALID_ENTITY;
+        return CTLS_STATUS_EXTN_HS_TRAFFIC_SECRET_INVALID_ENTITY;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
@@ -859,7 +861,7 @@ ctls_status_t ctls_handshake_traffic_secret_generate(ctls_crypto_t *crypto,
                             info_offset);
 
 cleanup:
-    return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
+    return CTLS_STATUS_CRYPTO_HS_TRAFFIC_SECRET_EXPAND_FAILED;
 }
 
 /*
@@ -870,7 +872,7 @@ ctls_status_t ctls_handshake_write_key_generate(ctls_crypto_t *crypto,
                                                 ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
     if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_EXTN_INVALID_ENTITY;
+        return CTLS_STATUS_EXTN_HS_WRITE_KEY_INVALID_ENTITY;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
@@ -893,7 +895,7 @@ ctls_status_t ctls_handshake_write_key_generate(ctls_crypto_t *crypto,
                             info,
                             info_offset);
 cleanup:
-    return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
+    return CTLS_STATUS_CRYPTO_HS_WRITE_KEY_EXPAND_FAILED;
 }
 
 /*
@@ -905,7 +907,7 @@ ctls_status_t ctls_handshake_iv_key_generate(ctls_crypto_t *crypto,
                                              ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
     if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_EXTN_INVALID_ENTITY;
+        return CTLS_STATUS_EXTN_HS_IV_KEY_INVALID_ENTITY;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
@@ -928,7 +930,7 @@ ctls_status_t ctls_handshake_iv_key_generate(ctls_crypto_t *crypto,
                             info,
                             info_offset);
 cleanup:
-    return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
+    return CTLS_STATUS_CRYPTO_HS_IV_KEY_EXPAND_FAILED;
 }
 
 ctls_status_t ctls_hkdf_extract(psa_key_id_t *output_key_id,
@@ -974,7 +976,7 @@ cleanup:
     psa_key_derivation_abort(&crypto->key_schedule_operator);
     if (*output_key_id != PSA_KEY_ID_NULL) { psa_destroy_key(*output_key_id); }
     psa_reset_key_attributes(&output_key_attributes);
-    return CTLS_STATUS_CRYPTO_HKDF_EXTRACT_FAILED;
+    return CTLS_STATUS_CRYPTO_HKDF_EXTRACT_OP_FAILED;
 }
 
 ctls_status_t ctls_hkdf_expand(psa_key_id_t *output_key_id,
@@ -1024,7 +1026,7 @@ cleanup:
     psa_key_derivation_abort(&crypto->key_schedule_operator);
     if (*output_key_id != PSA_KEY_ID_NULL) { psa_destroy_key(*output_key_id); }
     psa_reset_key_attributes(&output_key_attributes);
-    return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
+    return CTLS_STATUS_CRYPTO_HKDF_EXPAND_OP_FAILED;
 }
 
 /*
@@ -1047,7 +1049,7 @@ ctls_status_t ctls_nonce_generate(uint8_t *buffer,
                                                 iv_key,
                                                 CTLS_SIZE_AEAD_KEY,
                                                 &iv_key_offset);
-    if (result != CTLS_STATUS_SUCCESS) return CTLS_STATUS_CRYPTO_KEY_EXPORT_FAILED;
+    if (result != CTLS_STATUS_SUCCESS) return CTLS_STATUS_CRYPTO_NONCE_IV_EXPORT_FAILED;
 
     ctls_write_bytes(buffer, 0, CTLS_SIZE_NONCE, iv_key);
     for (int i = 0; i < 8; i++) {
@@ -1161,7 +1163,7 @@ ctls_status_t ctls_certificate_bytes_offset_find(uint8_t const *certificate_der,
             break;
         }
     }
-    if (*offset == certificate_der_length) return CTLS_STATUS_CRYPTO_KEY_IMPORT_FAILED;
+    if (*offset == certificate_der_length) return CTLS_STATUS_CRYPTO_CERT_SPKI_NOT_FOUND;
 
     return CTLS_STATUS_SUCCESS;
 }
@@ -1204,7 +1206,7 @@ ctls_status_t ctls_certificate_key_pair_import(uint8_t const *private_certificat
     return CTLS_STATUS_SUCCESS;
 cleanup:
     psa_reset_key_attributes(&certificate_private_key_attributes);
-    return CTLS_STATUS_CRYPTO_KEY_IMPORT_FAILED;
+    return CTLS_STATUS_CRYPTO_CERT_KEY_PAIR_IMPORT_FAILED;
 }
 
 ctls_status_t ctls_certificate_public_key_import(uint8_t const *public_certificate_der,
@@ -1245,7 +1247,7 @@ ctls_status_t ctls_certificate_public_key_import(uint8_t const *public_certifica
 
 cleanup:
     psa_reset_key_attributes(&certificate_public_key_attributes);
-    return CTLS_STATUS_CRYPTO_KEY_IMPORT_FAILED;
+    return CTLS_STATUS_CRYPTO_CERT_PUB_KEY_IMPORT_FAILED;
 }
 
 /*
@@ -1375,7 +1377,7 @@ ctls_status_t ctls_finished_key_generate(ctls_entity_t const entity) {
     return CTLS_STATUS_SUCCESS;
 
 cleanup:
-    return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
+    return CTLS_STATUS_CRYPTO_FINISHED_KEY_EXPAND_FAILED;
 }
 
 
@@ -1469,7 +1471,7 @@ cleanup:
     if (ikm != PSA_KEY_ID_NULL) { psa_destroy_key(ikm); }
     psa_reset_key_attributes(&ikm_attributes);
 
-    return CTLS_STATUS_CRYPTO_HKDF_EXTRACT_FAILED;
+    return CTLS_STATUS_CRYPTO_MASTER_SECRET_EXTRACT_FAILED;
 }
 
 ctls_status_t ctls_application_traffic_secret_generate(
@@ -1478,7 +1480,7 @@ ctls_status_t ctls_application_traffic_secret_generate(
     CTLS_CHECK_NULL_STRUCT(crypto);
 
     if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_EXTN_INVALID_ENTITY;
+        return CTLS_STATUS_EXTN_APP_TRAFFIC_SECRET_INVALID_ENTITY;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
@@ -1500,7 +1502,7 @@ ctls_status_t ctls_application_traffic_secret_generate(
                             info_offset);
 
 cleanup:
-    return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
+    return CTLS_STATUS_CRYPTO_APP_TRAFFIC_SECRET_EXPAND_FAILED;
 }
 
 ctls_status_t ctls_exporter_master_secret_generate(ctls_crypto_t *crypto) {
@@ -1524,14 +1526,14 @@ ctls_status_t ctls_exporter_master_secret_generate(ctls_crypto_t *crypto) {
                             info_offset);
 
 cleanup:
-    return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
+    return CTLS_STATUS_CRYPTO_EXPORTER_SECRET_EXPAND_FAILED;
 }
 
 ctls_status_t ctls_application_write_key_generate(ctls_crypto_t *crypto,
                                                   ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
     if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_EXTN_INVALID_ENTITY;
+        return CTLS_STATUS_EXTN_APP_WRITE_KEY_INVALID_ENTITY;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
@@ -1554,7 +1556,7 @@ ctls_status_t ctls_application_write_key_generate(ctls_crypto_t *crypto,
                             info,
                             info_offset);
 cleanup:
-    return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
+    return CTLS_STATUS_CRYPTO_APP_WRITE_KEY_EXPAND_FAILED;
 }
 
 /*
@@ -1566,7 +1568,7 @@ ctls_status_t ctls_application_iv_key_generate(ctls_crypto_t *crypto,
                                                ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
     if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_EXTN_INVALID_ENTITY;
+        return CTLS_STATUS_EXTN_APP_IV_KEY_INVALID_ENTITY;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
@@ -1589,5 +1591,5 @@ ctls_status_t ctls_application_iv_key_generate(ctls_crypto_t *crypto,
                             info,
                             info_offset);
 cleanup:
-    return CTLS_STATUS_CRYPTO_HKDF_EXPAND_FAILED;
+    return CTLS_STATUS_CRYPTO_APP_IV_KEY_EXPAND_FAILED;
 }

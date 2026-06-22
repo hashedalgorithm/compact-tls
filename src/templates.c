@@ -250,7 +250,7 @@ ctls_status_t ctls_tmpl_extension_to_wire(uint8_t *buffer,
     for (size_t i = 0; i < sizeof(extensions->expected_extensions) / sizeof(extensions->
                            expected_extensions[0]); i++) {
         if (extensions->expected_extensions[i] == CTLS_EXTN_TYPE_KEY_SHARE)
-            return CTLS_STATUS_TMPL_INVALID_EXTENSION;
+            return CTLS_STATUS_TMPL_EXTN_KEY_SHARE_IN_EXPECTED;
 
         ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_KEY_SHARE);
     }
@@ -263,7 +263,7 @@ ctls_status_t ctls_tmpl_extension_to_wire(uint8_t *buffer,
     for (size_t i = 0; i < sizeof(extensions->self_delimiting_aextensions) / sizeof(
                            extensions->self_delimiting_aextensions[0]); i++) {
         if (extensions->self_delimiting_aextensions[i] == CTLS_EXTN_TYPE_KEY_SHARE)
-            return CTLS_STATUS_TMPL_INVALID_EXTENSION;
+            return CTLS_STATUS_TMPL_EXTN_KEY_SHARE_IN_SELF_DELIM;
 
         ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_KEY_SHARE);
     }
@@ -414,7 +414,7 @@ ctls_status_t ctls_template_element_to_wire(uint8_t *buffer,
  */
 ctls_status_t ctls_template_to_wire(uint8_t *buffer) {
     ctls_template_t const *tmpl = ctls_template_get();
-    if (!tmpl) return CTLS_STATUS_TMPL_NULL;
+    if (!tmpl) return CTLS_STATUS_TMPL_TO_WIRE_NULL;
 
     ctls_size_t offset = 0, template_body_length;
 

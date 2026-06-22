@@ -26,7 +26,7 @@
 ctls_status_t ctls_aad_length_calculate(ctls_unified_header_t *unified_header) {
     CTLS_CHECK_NULL_STRUCT(unified_header);
 
-    if (unified_header->config_octet.c_bit != 0) return CTLS_STATUS_RECD_UNSUPPORTED_CID;
+    if (unified_header->config_octet.c_bit != 0) return CTLS_STATUS_RECD_AAD_LEN_CID;
 
     unified_header->aad_length = 1U + (unified_header->config_octet.s_bit ? 2U : 1U) + (
                                      unified_header->config_octet.l_bit ? 2U : 1U);
@@ -136,10 +136,10 @@ ctls_status_t ctls_unified_header_serialize(ctls_unified_header_t const *unified
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
 
-    if (unified_header->config_octet.c_bit != 0) return CTLS_STATUS_RECD_UNSUPPORTED_CID;
+    if (unified_header->config_octet.c_bit != 0) return CTLS_STATUS_RECD_HDR_SERIALIZE_CID;
 
     if (unified_header->config_octet.s_bit != 0 && unified_header->config_octet.s_bit !=
-        1) return CTLS_STATUS_RECD_INVALID_SEQ_LEN;
+        1) return CTLS_STATUS_RECD_HDR_SERIALIZE_SEQ;
 
     uint8_t octet = CTLS_RECD_CONFIG_OCTET_FIXED_VALUE;
     if (unified_header->config_octet.c_bit) octet |= CTLS_RECD_CONFIG_OCTET_C_MASK;
@@ -188,10 +188,10 @@ ctls_status_t ctls_unified_header_deserialize(ctls_unified_header_t *unified_hea
             (first_part & CTLS_RECD_CONFIG_OCTET_L_MASK) != 0;
     unified_header->config_octet.epoch = first_part & CTLS_RECD_CONFIG_OCTET_EPOCH_MASK;
 
-    if (unified_header->config_octet.c_bit == 1) return CTLS_STATUS_RECD_UNSUPPORTED_CID;
+    if (unified_header->config_octet.c_bit == 1) return CTLS_STATUS_RECD_HDR_DESERIALIZE_CID;
 
     if (unified_header->config_octet.s_bit > 1 || unified_header->config_octet.s_bit < 0)
-        return CTLS_STATUS_RECD_INVALID_SEQ_LEN;
+        return CTLS_STATUS_RECD_HDR_DESERIALIZE_SEQ;
 
     if (unified_header->config_octet.s_bit == 0) {
         unified_header->sequence_number = ctls_read_u8(buffer, offset);
@@ -242,9 +242,9 @@ ctls_status_t ctls_record_serialize(ctls_record_t const *record,
             case CTLS_HSMG_TYPE_FINISHED:
             case CTLS_HSMG_TYPE_CLIENT_FLIGHT:
             case CTLS_HSMG_TYPE_SERVER_FLIGHT:
-                return CTLS_STATUS_RECD_INVALID_MSG_TYPE;
+                return CTLS_STATUS_RECD_SER_PLAIN_ENCRYPTED_MSG;
             default:
-                return CTLS_STATUS_RECD_UNKNOWN_MSG_TYPE;
+                return CTLS_STATUS_RECD_SER_PLAIN_UNKNOWN_MSG;
         }
     }
     if (record->type == CTLS_RECORD_TYPE_ENCRYPTED) {
@@ -272,8 +272,8 @@ ctls_status_t ctls_record_serialize(ctls_record_t const *record,
             case CTLS_HSMG_TYPE_CERTIFICATE_REQUEST:
             case CTLS_HSMG_TYPE_CERTIFICATE:
             case CTLS_HSMG_TYPE_CERTIFICATE_VERIFY:
-            case CTLS_HSMG_TYPE_FINISHED: return CTLS_STATUS_RECD_INVALID_MSG_TYPE;
-            default: return CTLS_STATUS_RECD_UNKNOWN_MSG_TYPE;
+            case CTLS_HSMG_TYPE_FINISHED: return CTLS_STATUS_RECD_SER_ENC_PLAINTEXT_MSG;
+            default: return CTLS_STATUS_RECD_SER_ENC_UNKNOWN_MSG;
         }
     }
     if (result != CTLS_STATUS_SUCCESS) return result;
@@ -315,9 +315,10 @@ ctls_status_t ctls_record_deserialize(ctls_record_t *record,
         case CTLS_HSMG_TYPE_CERTIFICATE:
         case CTLS_HSMG_TYPE_CERTIFICATE_VERIFY:
         case CTLS_HSMG_TYPE_FINISHED:
-            result = CTLS_STATUS_RECD_INVALID_MSG_TYPE;
+            result = CTLS_STATUS_RECD_DESER_STANDALONE_MSG;
+            break;
         default:
-            result = CTLS_STATUS_RECD_UNKNOWN_MSG_TYPE;
+            result = CTLS_STATUS_RECD_DESER_UNKNOWN_MSG;
     }
     if (result != CTLS_STATUS_SUCCESS) return result;
 
@@ -546,7 +547,7 @@ ctls_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
 
         return CTLS_STATUS_SUCCESS;
     }
-    return CTLS_STATUS_RECD_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_RECD_CH_INVALID_WIRE_FORMAT;
 }
 
 
@@ -611,7 +612,7 @@ ctls_status_t ctls_recd_server_hello_to_wire(uint8_t *buffer,
         return CTLS_STATUS_SUCCESS;
     }
 
-    return CTLS_STATUS_RECD_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_RECD_SH_INVALID_WIRE_FORMAT;
 }
 
 ctls_status_t ctls_recd_encrypted_extensions_create(void) {
@@ -672,7 +673,7 @@ ctls_status_t ctls_recd_encrypted_extensions_to_wire(uint8_t *buffer,
                                                       CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
     }
 
-    return CTLS_STATUS_RECD_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_RECD_EE_INVALID_WIRE_FORMAT;
 }
 
 ctls_status_t ctls_recd_certificate_request_create(void) {
@@ -689,7 +690,7 @@ ctls_status_t ctls_recd_certificate_request_to_struct(ctls_record_t *record,
     CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL_BUFFER(buffer);
 
-    if (template->mutual_auth == 0) return CTLS_STATUS_RECD_NO_MUTUAL_AUTH;
+    if (template->mutual_auth == 0) return CTLS_STATUS_RECD_CR_NO_MUTUAL_AUTH;
 
     uint8_t plaintext[CTLS_SIZE_WIRE_BUFFER];
     ctls_size_t plaintext_offset = 0;
@@ -728,7 +729,7 @@ ctls_status_t ctls_recd_certificate_request_to_wire(uint8_t *buffer,
         return CTLS_STATUS_SUCCESS;
     }
 
-    return CTLS_STATUS_RECD_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_RECD_CR_INVALID_WIRE_FORMAT;
 }
 
 ctls_status_t ctls_recd_certificate_create(ctls_record_t *record,
@@ -788,7 +789,7 @@ ctls_status_t ctls_recd_certificate_to_wire(uint8_t *buffer,
         return CTLS_STATUS_SUCCESS;
     }
 
-    return CTLS_STATUS_RECD_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_RECD_CERT_INVALID_WIRE_FORMAT;
 }
 
 ctls_status_t ctls_recd_certificate_verify_create(ctls_record_t *record,
@@ -796,7 +797,7 @@ ctls_status_t ctls_recd_certificate_verify_create(ctls_record_t *record,
     CTLS_CHECK_NULL_STRUCT(record);
 
     if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_RECD_INVALID_ENTITY;
+        return CTLS_STATUS_RECD_CV_CREATE_INVALID_ENTITY;
 
     ctls_status_t const result = ctls_recd_buffer_clear(record);
     if (result != CTLS_STATUS_SUCCESS) return result;
@@ -851,7 +852,7 @@ ctls_status_t ctls_recd_certificate_verify_to_wire(uint8_t *buffer,
         return CTLS_STATUS_SUCCESS;
     }
 
-    return CTLS_STATUS_RECD_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_RECD_CV_INVALID_WIRE_FORMAT;
 }
 
 ctls_status_t ctls_recd_finished_create(ctls_record_t *record,
@@ -859,7 +860,7 @@ ctls_status_t ctls_recd_finished_create(ctls_record_t *record,
     CTLS_CHECK_NULL_STRUCT(record);
 
     if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_RECD_INVALID_ENTITY;
+        return CTLS_STATUS_RECD_FIN_CREATE_INVALID_ENTITY;
 
     ctls_status_t const result = ctls_recd_buffer_clear(record);
     if (result != CTLS_STATUS_SUCCESS) return result;
@@ -914,7 +915,7 @@ ctls_status_t ctls_recd_finished_to_wire(uint8_t *buffer,
         return CTLS_STATUS_SUCCESS;
     }
 
-    return CTLS_STATUS_RECD_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_RECD_FIN_INVALID_WIRE_FORMAT;
 }
 
 
@@ -973,7 +974,7 @@ ctls_status_t ctls_recd_server_flight_to_wire(uint8_t *buffer,
     CTLS_CHECK_NULL_OFFSET(offset);
 
     if (wire_format != CTLS_WIRE_FORMAT_DEFAULT && wire_format !=
-        CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) return CTLS_STATUS_RECD_INVALID_WIRE_FORMAT;
+        CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) return CTLS_STATUS_RECD_SF_INVALID_WIRE_FORMAT;
 
     ctls_status_t result = ctls_unified_header_serialize(&record->unified_header,
                                                          buffer,
@@ -1060,7 +1061,7 @@ ctls_status_t ctls_recd_client_flight_to_wire(uint8_t *buffer,
     CTLS_CHECK_NULL_OFFSET(offset);
 
     if (wire_format != CTLS_WIRE_FORMAT_DEFAULT && wire_format !=
-        CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) return CTLS_STATUS_RECD_INVALID_WIRE_FORMAT;
+        CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) return CTLS_STATUS_RECD_CF_INVALID_WIRE_FORMAT;
 
     ctls_status_t result = ctls_unified_header_serialize(&record->unified_header,
                                                          buffer,

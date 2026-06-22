@@ -36,7 +36,7 @@ ctls_status_t ctls_extn_enum_deserialize(void const *source,
     CTLS_CHECK_NULL(destination);
 
     if (isOneByte != CTLS_HELPER_IS_ONE_BYTE && isOneByte != CTLS_HELPER_IS_TWO_BYTE)
-        return CTLS_STATUS_EXTN_INVALID_SIZE_FLAG;
+        return CTLS_STATUS_EXTN_DESER_ENUM_SIZE_FLAG;
 
     memcpy(destination, source, isOneByte == CTLS_HELPER_IS_ONE_BYTE ? 1 : 2);
 
@@ -61,7 +61,7 @@ ctls_status_t ctls_extn_enum_serialize(uint8_t *buffer,
     CTLS_CHECK_NULL_OFFSET(offset);
 
     if (isOneByte != CTLS_HELPER_IS_ONE_BYTE && isOneByte != CTLS_HELPER_IS_TWO_BYTE)
-        return CTLS_STATUS_EXTN_INVALID_SIZE_FLAG;
+        return CTLS_STATUS_EXTN_SER_ENUM_SIZE_FLAG;
 
     ctls_write_u16(buffer, offset, extn_type);
     ctls_write_u16(buffer, offset, isOneByte == CTLS_HELPER_IS_ONE_BYTE ? 1 : 2);
@@ -367,7 +367,7 @@ ctls_status_t ctls_extn_certificate_status_request_create(
     CTLS_CHECK_NULL_STRUCT(hshk_data);
 
     if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_EXTN_INVALID_ENTITY;
+        return CTLS_STATUS_EXTN_CERT_STATUS_INVALID_ENTITY;
 
     if (!hshk_data->isCertificateStatusRequested) {
         certificate_status_request->form = CTLS_DATA_FORM_SENTINEL;
@@ -637,7 +637,7 @@ ctls_status_t ctls_extn_alpn_serialize(uint8_t *buffer,
     CTLS_CHECK_NULL_OFFSET(offset);
     CTLS_CHECK_NULL_STRUCT(alpn);
 
-    if (alpn->form == CTLS_DATA_FORM_SENTINEL) return CTLS_STATUS_EXTN_INVALID_FORM;
+    if (alpn->form == CTLS_DATA_FORM_SENTINEL) return CTLS_STATUS_EXTN_ALPN_INVALID_FORM;
 
     ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_APPLICATION_LAYER_PROTOCOL_NEGOTIATION);
 
@@ -948,7 +948,7 @@ ctls_status_t ctls_extn_certificate_authorities_serialize(
     CTLS_CHECK_NULL_STRUCT(certificate_authorities);
 
     if (certificate_authorities->form == CTLS_DATA_FORM_SENTINEL)
-        return CTLS_STATUS_EXTN_INVALID_FORM;
+        return CTLS_STATUS_EXTN_CERT_AUTH_INVALID_FORM;
 
     ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_CERTIFICATE_AUTHORITIES);
     if (certificate_authorities->form == CTLS_DATA_FORM_OPAQUE) {
@@ -1027,10 +1027,10 @@ ctls_status_t ctls_extn_key_share_deserialize(uint8_t const *buffer,
     uint8_t public_ephemeral_key[CTLS_SIZE_KEY_SHARE];
 
     ctls_read_bytes(public_ephemeral_key, CTLS_SIZE_KEY_SHARE, buffer, offset);
-    ctls_status_t result = ctls_ephemeral_public_key_import(buffer,
-                                                                CTLS_SIZE_KEY_SHARE,
-                                                                &crypto->
-                                                                peer_public_ephemeral_key);
+    ctls_status_t result = ctls_ephemeral_public_key_import(public_ephemeral_key,
+                                                            CTLS_SIZE_KEY_SHARE,
+                                                            &crypto->
+                                                            peer_public_ephemeral_key);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     *key_share = &crypto->peer_public_ephemeral_key;
@@ -1449,7 +1449,7 @@ ctls_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
         return CTLS_STATUS_SUCCESS;
     }
 
-    return CTLS_STATUS_EXTN_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_EXTN_CH_INVALID_WIRE_FORMAT;
 }
 
 ctls_status_t ctls_extn_server_hello_create(void) {
@@ -1484,7 +1484,7 @@ ctls_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
                                              server_hello_extensions->key_share_entity);
     }
 
-    return CTLS_STATUS_EXTN_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_EXTN_SH_INVALID_WIRE_FORMAT;
 }
 
 /*
@@ -1695,7 +1695,7 @@ ctls_status_t ctls_extn_encrypted_extensions_to_wire(uint8_t *buffer,
         return CTLS_STATUS_SUCCESS;
     }
 
-    return CTLS_STATUS_EXTN_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_EXTN_EE_INVALID_WIRE_FORMAT;
 }
 
 ctls_status_t ctls_extn_certificate_request_create(void) {
@@ -1835,7 +1835,7 @@ ctls_status_t ctls_extn_certificate_request_to_wire(uint8_t *buffer,
         return CTLS_STATUS_SUCCESS;
     }
 
-    return CTLS_STATUS_EXTN_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_EXTN_CR_INVALID_WIRE_FORMAT;
 }
 
 /*
@@ -1852,7 +1852,7 @@ ctls_status_t ctls_extn_certificate_create(ctls_extn_certificate_t *ctls_certifi
     CTLS_CHECK_NULL_STRUCT(hshk_data);
 
     if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_EXTN_INVALID_ENTITY;
+        return CTLS_STATUS_EXTN_CERT_CREATE_INVALID_ENTITY;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
     if (hshk_data->isCertificateStatusRequested) {
@@ -1955,5 +1955,5 @@ ctls_status_t ctls_extn_certificate_to_wire(uint8_t *buffer,
         return CTLS_STATUS_SUCCESS;
     }
 
-    return CTLS_STATUS_EXTN_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_EXTN_CERT_INVALID_WIRE_FORMAT;
 }

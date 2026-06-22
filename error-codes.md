@@ -116,14 +116,71 @@ All errors in this band originate inside crypto operations backed by Mbed TLS PS
 
 ## 0x012C–0x015D — Record Layer Errors
 
-| Code   | Name                                 | Reason / Trigger                                                                                                                                                                     |
-|--------|--------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 0x012C | `CTLS_STATUS_RECD_UNSUPPORTED_CID`      | Record unified header has the C bit set (connection ID present). CID is not implemented; any record with C=1 must be rejected.                                                       |
-| 0x012D | `CTLS_STATUS_RECD_INVALID_SEQ_LEN`      | S bit in the unified header is outside `{0, 1}`. This means the header byte is malformed or corrupted.                                                                               |
-| 0x012E | `CTLS_STATUS_RECD_INVALID_CONTENT_TYPE` | Content type byte in the plaintext record header does not match any known `ctls_recd_content_type_t` value. Peer sent an unknown record type.                                        |
-| 0x012F | `CTLS_STATUS_RECD_INVALID_WIRE_FORMAT`  | Wire format passed to `ctls_recd_client_hello_to_wire` or `ctls_recd_server_hello_to_wire` is not `DEFAULT` or `TRANSCRIPT_HASH`.                                                    |
-| 0x0130 | `CTLS_STATUS_RECD_UNKNOWN_MSG_TYPE`     | `ctls_record_serialize` or `ctls_record_deserialize` received a `message_type` with no case in its switch. New handshake message type added without updating record dispatch.        |
-| 0x0131 | `CTLS_STATUS_RECD_NO_MUTUAL_AUTH`       | `ctls_recd_certificate_request_to_struct` was called but `template->mutual_auth == 0`. A CertificateRequest was received on a non-mutual-auth profile; this is a protocol violation. |
+Sub-band layout:
+```
+0x012C–0x015D  Record Layer
+  ├─ 0x012C–0x0133  Existing shared codes (preserved, never renumbered)
+  ├─ 0x0134–0x013B  Header field violations (per call-site; 0x0139–0x013B reserved)
+  ├─ 0x013C–0x0147  Message-type dispatch failures (per call-site; 0x0142–0x0147 reserved)
+  ├─ 0x0148–0x0155  Wire-format guard, one code per _to_wire function (0x0151–0x0155 reserved)
+  └─ 0x0156–0x015D  Entity / protocol violations (per call-site; 0x0159–0x015D reserved)
+```
+
+### 0x012C–0x0133: Existing shared codes (preserved)
+
+| Code   | Name                                  | Reason / Trigger                                                                                                                                                                     |
+|--------|---------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 0x012C | `CTLS_STATUS_RECD_UNSUPPORTED_CID`    | Legacy shared code — C bit set anywhere in the header path. Replaced by per-site codes below; kept for backward-compat.                                                              |
+| 0x012D | `CTLS_STATUS_RECD_INVALID_SEQ_LEN`    | Legacy shared code — S bit outside {0,1} anywhere in the header path. Replaced by per-site codes below; kept for backward-compat.                                                   |
+| 0x012E | `CTLS_STATUS_RECD_INVALID_CONTENT_TYPE` | Content type byte in the plaintext record header does not match any known `ctls_recd_content_type_t` value. Peer sent an unknown record type.                                      |
+| 0x012F | `CTLS_STATUS_RECD_INVALID_WIRE_FORMAT`  | Legacy shared code — wire_format not DEFAULT/TRANSCRIPT_HASH in any `_to_wire` function. Replaced by per-function codes below; kept for backward-compat.                           |
+| 0x0130 | `CTLS_STATUS_RECD_UNKNOWN_MSG_TYPE`     | Legacy shared code — unknown message type in serialize/deserialize dispatch. Replaced by per-site codes below; kept for backward-compat.                                            |
+| 0x0131 | `CTLS_STATUS_RECD_NO_MUTUAL_AUTH`       | Legacy shared code — mutual_auth == 0 in `ctls_recd_certificate_request_to_struct`. Replaced by 0x0158; kept for backward-compat.                                                  |
+| 0x0132 | `CTLS_STATUS_RECD_INVALID_MSG_TYPE`     | Legacy shared code — wrong message type in serialize dispatch. Replaced by per-site codes below; kept for backward-compat.                                                          |
+| 0x0133 | `CTLS_STATUS_RECD_INVALID_ENTITY`       | Legacy shared code — entity not CLIENT/SERVER in create functions. Replaced by per-site codes below; kept for backward-compat.                                                      |
+
+### 0x0134–0x013B: Header field violations
+
+| Code   | Name                                    | Reason / Trigger                                                                                                                          |
+|--------|-----------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| 0x0134 | `CTLS_STATUS_RECD_AAD_LEN_CID`          | `ctls_aad_length_calculate`: `unified_header->config_octet.c_bit != 0`. CID not supported; fired before length calc.                     |
+| 0x0135 | `CTLS_STATUS_RECD_HDR_SERIALIZE_CID`    | `ctls_unified_header_serialize`: `unified_header->config_octet.c_bit != 0`. CID present on a record being serialized.                    |
+| 0x0136 | `CTLS_STATUS_RECD_HDR_SERIALIZE_SEQ`    | `ctls_unified_header_serialize`: `s_bit` not in {0, 1}. Struct was mutated after construction.                                           |
+| 0x0137 | `CTLS_STATUS_RECD_HDR_DESERIALIZE_CID`  | `ctls_unified_header_deserialize`: parsed C bit = 1 from wire byte. Peer sent a CID-bearing record.                                      |
+| 0x0138 | `CTLS_STATUS_RECD_HDR_DESERIALIZE_SEQ`  | `ctls_unified_header_deserialize`: parsed `s_bit > 1`. Wire header byte is malformed.                                                    |
+
+### 0x013C–0x0147: Message-type dispatch failures
+
+| Code   | Name                                       | Reason / Trigger                                                                                                                                                    |
+|--------|--------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 0x013C | `CTLS_STATUS_RECD_SER_PLAIN_ENCRYPTED_MSG` | `ctls_record_serialize` plaintext branch: `message_type` is EE/CR/Cert/CV/Finished/Client-Flight/Server-Flight — these require encryption, not plain serialization. |
+| 0x013D | `CTLS_STATUS_RECD_SER_PLAIN_UNKNOWN_MSG`   | `ctls_record_serialize` plaintext branch `default`: `message_type` has no registered plaintext serializer.                                                          |
+| 0x013E | `CTLS_STATUS_RECD_SER_ENC_PLAINTEXT_MSG`   | `ctls_record_serialize` encrypted branch: `message_type` is EE/CR/Cert/CV/Finished — these are sub-messages, not top-level encrypted record types.                  |
+| 0x013F | `CTLS_STATUS_RECD_SER_ENC_UNKNOWN_MSG`     | `ctls_record_serialize` encrypted branch `default`: `message_type` has no registered encrypted serializer.                                                          |
+| 0x0140 | `CTLS_STATUS_RECD_DESER_STANDALONE_MSG`    | `ctls_record_deserialize`: caller passed a standalone HS message type (EE/CR/Cert/CV/Finished) that must be deserialized via sub-functions, not the top-level call.  |
+| 0x0141 | `CTLS_STATUS_RECD_DESER_UNKNOWN_MSG`       | `ctls_record_deserialize` `default`: `hsmg_type` argument has no deserializer case registered.                                                                      |
+
+### 0x0148–0x0155: Wire-format guard, per `_to_wire` function
+
+| Code   | Name                                      | Reason / Trigger                                                                                                           |
+|--------|-------------------------------------------|----------------------------------------------------------------------------------------------------------------------------|
+| 0x0148 | `CTLS_STATUS_RECD_CH_INVALID_WIRE_FORMAT`   | `ctls_recd_client_hello_to_wire`: `wire_format` is not DEFAULT or TRANSCRIPT_HASH.                                        |
+| 0x0149 | `CTLS_STATUS_RECD_SH_INVALID_WIRE_FORMAT`   | `ctls_recd_server_hello_to_wire`: `wire_format` is not DEFAULT or TRANSCRIPT_HASH.                                        |
+| 0x014A | `CTLS_STATUS_RECD_EE_INVALID_WIRE_FORMAT`   | `ctls_recd_encrypted_extensions_to_wire`: `wire_format` is not DEFAULT or TRANSCRIPT_HASH.                                |
+| 0x014B | `CTLS_STATUS_RECD_CR_INVALID_WIRE_FORMAT`   | `ctls_recd_certificate_request_to_wire`: `wire_format` is not DEFAULT or TRANSCRIPT_HASH.                                 |
+| 0x014C | `CTLS_STATUS_RECD_CERT_INVALID_WIRE_FORMAT` | `ctls_recd_certificate_to_wire`: `wire_format` is not DEFAULT or TRANSCRIPT_HASH.                                         |
+| 0x014D | `CTLS_STATUS_RECD_CV_INVALID_WIRE_FORMAT`   | `ctls_recd_certificate_verify_to_wire`: `wire_format` is not DEFAULT or TRANSCRIPT_HASH.                                  |
+| 0x014E | `CTLS_STATUS_RECD_FIN_INVALID_WIRE_FORMAT`  | `ctls_recd_finished_to_wire`: `wire_format` is not DEFAULT or TRANSCRIPT_HASH.                                            |
+| 0x014F | `CTLS_STATUS_RECD_SF_INVALID_WIRE_FORMAT`   | `ctls_recd_server_flight_to_wire`: `wire_format` is not DEFAULT or TRANSCRIPT_HASH.                                       |
+| 0x0150 | `CTLS_STATUS_RECD_CF_INVALID_WIRE_FORMAT`   | `ctls_recd_client_flight_to_wire`: `wire_format` is not DEFAULT or TRANSCRIPT_HASH.                                       |
+
+### 0x0156–0x015D: Entity / protocol violations
+
+| Code   | Name                                       | Reason / Trigger                                                                                                                                          |
+|--------|--------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 0x0156 | `CTLS_STATUS_RECD_CV_CREATE_INVALID_ENTITY`  | `ctls_recd_certificate_verify_create`: `entity` is neither `CTLS_ENTITY_CLIENT` nor `CTLS_ENTITY_SERVER`.                                                |
+| 0x0157 | `CTLS_STATUS_RECD_FIN_CREATE_INVALID_ENTITY` | `ctls_recd_finished_create`: `entity` is neither `CTLS_ENTITY_CLIENT` nor `CTLS_ENTITY_SERVER`.                                                          |
+| 0x0158 | `CTLS_STATUS_RECD_CR_NO_MUTUAL_AUTH`         | `ctls_recd_certificate_request_to_struct`: `template->mutual_auth == 0`. CertificateRequest received on a non-mutual-auth profile; protocol violation.   |
 
 ---
 

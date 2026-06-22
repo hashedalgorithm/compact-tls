@@ -319,6 +319,62 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_CRYPTO_HMAC_VERIFY_DATA_FAILED  ((ctls_status_t)0x0078u)
 #define CTLS_STATUS_CRYPTO_UNKNOWN                  ((ctls_status_t)0x0079u)
 
+/* --- 0x007A-0x0083: hash operation failures (per call-site) --- */
+#define CTLS_STATUS_CRYPTO_HASH_INIT_FAILED                  ((ctls_status_t)0x007Au)
+#define CTLS_STATUS_CRYPTO_HASH_CALC_FAILED                  ((ctls_status_t)0x007Bu)
+#define CTLS_STATUS_CRYPTO_HASH_UPD_FAILED                   ((ctls_status_t)0x007Cu)
+#define CTLS_STATUS_CRYPTO_HASH_SNAP_CLONE_FAILED            ((ctls_status_t)0x007Du)
+#define CTLS_STATUS_CRYPTO_HASH_SNAP_FINISH_FAILED           ((ctls_status_t)0x007Eu)
+/* 0x007F-0x0083 reserved */
+
+/* --- 0x0084-0x008B: HKDF-Extract per function --- */
+#define CTLS_STATUS_CRYPTO_EARLY_SECRET_EXTRACT_FAILED       ((ctls_status_t)0x0084u)
+#define CTLS_STATUS_CRYPTO_HKDF_EXTRACT_OP_FAILED           ((ctls_status_t)0x0085u)
+#define CTLS_STATUS_CRYPTO_MASTER_SECRET_EXTRACT_FAILED      ((ctls_status_t)0x0086u)
+/* 0x0087-0x008B reserved */
+
+/* --- 0x008C-0x009C: HKDF-Expand per function --- */
+#define CTLS_STATUS_CRYPTO_KEY_ATTR_HKDF_BITS_FAILED         ((ctls_status_t)0x008Cu)
+#define CTLS_STATUS_CRYPTO_DERIVED_SECRET_EXPAND_FAILED      ((ctls_status_t)0x008Du)
+#define CTLS_STATUS_CRYPTO_HS_TRAFFIC_SECRET_EXPAND_FAILED   ((ctls_status_t)0x008Eu)
+#define CTLS_STATUS_CRYPTO_HS_WRITE_KEY_EXPAND_FAILED        ((ctls_status_t)0x008Fu)
+#define CTLS_STATUS_CRYPTO_HS_IV_KEY_EXPAND_FAILED           ((ctls_status_t)0x0090u)
+#define CTLS_STATUS_CRYPTO_HKDF_EXPAND_OP_FAILED            ((ctls_status_t)0x0091u)
+#define CTLS_STATUS_CRYPTO_FINISHED_KEY_EXPAND_FAILED        ((ctls_status_t)0x0092u)
+#define CTLS_STATUS_CRYPTO_APP_TRAFFIC_SECRET_EXPAND_FAILED  ((ctls_status_t)0x0093u)
+#define CTLS_STATUS_CRYPTO_EXPORTER_SECRET_EXPAND_FAILED     ((ctls_status_t)0x0094u)
+#define CTLS_STATUS_CRYPTO_APP_WRITE_KEY_EXPAND_FAILED       ((ctls_status_t)0x0095u)
+#define CTLS_STATUS_CRYPTO_APP_IV_KEY_EXPAND_FAILED          ((ctls_status_t)0x0096u)
+/* 0x0097-0x009C reserved */
+
+/* --- 0x009D-0x00A9: ECDH / key-attribute failures --- */
+#define CTLS_STATUS_CRYPTO_KEY_ATTR_ECDH_BITS_FAILED         ((ctls_status_t)0x009Du)
+#define CTLS_STATUS_CRYPTO_KEY_ATTR_SIGN_BITS_FAILED         ((ctls_status_t)0x009Eu)
+#define CTLS_STATUS_CRYPTO_KEY_ATTR_VERIFY_BITS_FAILED       ((ctls_status_t)0x009Fu)
+#define CTLS_STATUS_CRYPTO_RAW_KEY_AGREEMENT_FAILED          ((ctls_status_t)0x00A0u)
+#define CTLS_STATUS_CRYPTO_SHARED_SECRET_IMPORT_FAILED       ((ctls_status_t)0x00A1u)
+/* 0x00A2-0x00A9 reserved */
+
+/* --- 0x00AA-0x00B3: key import per function --- */
+#define CTLS_STATUS_CRYPTO_EPHEM_PUB_KEY_IMPORT_FAILED       ((ctls_status_t)0x00AAu)
+#define CTLS_STATUS_CRYPTO_CERT_SPKI_NOT_FOUND               ((ctls_status_t)0x00ABu)
+#define CTLS_STATUS_CRYPTO_CERT_KEY_PAIR_IMPORT_FAILED       ((ctls_status_t)0x00ACu)
+#define CTLS_STATUS_CRYPTO_CERT_PUB_KEY_IMPORT_FAILED        ((ctls_status_t)0x00ADu)
+/* 0x00AE-0x00B3 reserved */
+
+/* --- 0x00B4-0x00BB: key export / attribute lookup --- */
+#define CTLS_STATUS_CRYPTO_EPHEM_KEY_EXPORT_FAILED           ((ctls_status_t)0x00B4u)
+#define CTLS_STATUS_CRYPTO_KEY_ATTR_AEAD_BITS_FAILED         ((ctls_status_t)0x00B5u)
+#define CTLS_STATUS_CRYPTO_KEY_ATTR_HMAC_BITS_FAILED         ((ctls_status_t)0x00B6u)
+#define CTLS_STATUS_CRYPTO_NONCE_IV_EXPORT_FAILED            ((ctls_status_t)0x00B7u)
+/* 0x00B8-0x00BB reserved */
+
+/* --- 0x00BC-0x00C7: invalid-arg / unknown-default --- */
+#define CTLS_STATUS_CRYPTO_KEY_BITS_UNKNOWN_ALG              ((ctls_status_t)0x00BCu)
+#define CTLS_STATUS_CRYPTO_KEY_ATTR_UNKNOWN_USAGE            ((ctls_status_t)0x00BDu)
+#define CTLS_STATUS_CRYPTO_CONTEXT_STR_UNKNOWN_KEY_TYPE      ((ctls_status_t)0x00BEu)
+/* 0x00BF-0x00C7 reserved */
+
 /* Extension Ser/Deser (0x00C8-0x012B) */
 #define CTLS_STATUS_EXTN_INVALID_SIZE_FLAG          ((ctls_status_t)0x00C8u)
 #define CTLS_STATUS_EXTN_INVALID_FORM               ((ctls_status_t)0x00C9u)
@@ -330,7 +386,46 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_EXTN_UNEXPECTED_EXPECTED_EXTNS  ((ctls_status_t)0x00CFu)
 #define CTLS_STATUS_EXTN_INVALID_ENTITY             ((ctls_status_t)0x00D0u)
 
-/* Record Layer (0x012C-0x015D) */
+/* --- 0x00D1-0x00D8: INVALID_SIZE_FLAG per function --- */
+#define CTLS_STATUS_EXTN_DESER_ENUM_SIZE_FLAG                ((ctls_status_t)0x00D1u)
+#define CTLS_STATUS_EXTN_SER_ENUM_SIZE_FLAG                  ((ctls_status_t)0x00D2u)
+/* 0x00D3-0x00D8 reserved */
+
+/* --- 0x00D9-0x00E0: INVALID_FORM per function --- */
+#define CTLS_STATUS_EXTN_ALPN_INVALID_FORM                   ((ctls_status_t)0x00D9u)
+#define CTLS_STATUS_EXTN_CERT_AUTH_INVALID_FORM              ((ctls_status_t)0x00DAu)
+/* 0x00DB-0x00E0 reserved */
+
+/* --- 0x00E1-0x00F0: INVALID_ENTITY per function --- */
+#define CTLS_STATUS_EXTN_CERT_STATUS_INVALID_ENTITY          ((ctls_status_t)0x00E1u)
+#define CTLS_STATUS_EXTN_CERT_CREATE_INVALID_ENTITY          ((ctls_status_t)0x00E2u)
+#define CTLS_STATUS_EXTN_HS_TRAFFIC_SECRET_INVALID_ENTITY    ((ctls_status_t)0x00E3u)
+#define CTLS_STATUS_EXTN_HS_WRITE_KEY_INVALID_ENTITY         ((ctls_status_t)0x00E4u)
+#define CTLS_STATUS_EXTN_HS_IV_KEY_INVALID_ENTITY            ((ctls_status_t)0x00E5u)
+#define CTLS_STATUS_EXTN_APP_TRAFFIC_SECRET_INVALID_ENTITY   ((ctls_status_t)0x00E6u)
+#define CTLS_STATUS_EXTN_APP_WRITE_KEY_INVALID_ENTITY        ((ctls_status_t)0x00E7u)
+#define CTLS_STATUS_EXTN_APP_IV_KEY_INVALID_ENTITY           ((ctls_status_t)0x00E8u)
+/* 0x00E9-0x00F0 reserved */
+
+/* --- 0x00F1-0x00FC: INVALID_WIRE_FORMAT per _to_wire function --- */
+#define CTLS_STATUS_EXTN_CH_INVALID_WIRE_FORMAT              ((ctls_status_t)0x00F1u)
+#define CTLS_STATUS_EXTN_SH_INVALID_WIRE_FORMAT              ((ctls_status_t)0x00F2u)
+#define CTLS_STATUS_EXTN_EE_INVALID_WIRE_FORMAT              ((ctls_status_t)0x00F3u)
+#define CTLS_STATUS_EXTN_CR_INVALID_WIRE_FORMAT              ((ctls_status_t)0x00F4u)
+#define CTLS_STATUS_EXTN_CERT_INVALID_WIRE_FORMAT            ((ctls_status_t)0x00F5u)
+/* 0x00F6-0x012B reserved */
+
+/* Record Layer (0x012C-0x015D)
+ *
+ * Sub-band layout:
+ *   0x012C-0x0133  Existing shared codes (preserved, never renumbered)
+ *   0x0134-0x013B  Header field violations (per call-site)
+ *   0x013C-0x0147  Message-type dispatch failures (per call-site)
+ *   0x0148-0x0155  Wire-format guard, per _to_wire function
+ *   0x0156-0x015D  Entity / protocol violations (per call-site)
+ */
+
+/* --- 0x012C-0x0133: existing shared codes (preserved) --- */
 #define CTLS_STATUS_RECD_UNSUPPORTED_CID            ((ctls_status_t)0x012Cu)
 #define CTLS_STATUS_RECD_INVALID_SEQ_LEN            ((ctls_status_t)0x012Du)
 #define CTLS_STATUS_RECD_INVALID_CONTENT_TYPE       ((ctls_status_t)0x012Eu)
@@ -340,10 +435,55 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_RECD_INVALID_MSG_TYPE           ((ctls_status_t)0x0132u)
 #define CTLS_STATUS_RECD_INVALID_ENTITY             ((ctls_status_t)0x0133u)
 
+/* --- 0x0134-0x013B: header field violations --- */
+#define CTLS_STATUS_RECD_AAD_LEN_CID                ((ctls_status_t)0x0134u)
+#define CTLS_STATUS_RECD_HDR_SERIALIZE_CID          ((ctls_status_t)0x0135u)
+#define CTLS_STATUS_RECD_HDR_SERIALIZE_SEQ          ((ctls_status_t)0x0136u)
+#define CTLS_STATUS_RECD_HDR_DESERIALIZE_CID        ((ctls_status_t)0x0137u)
+#define CTLS_STATUS_RECD_HDR_DESERIALIZE_SEQ        ((ctls_status_t)0x0138u)
+/* 0x0139-0x013B reserved */
+
+/* --- 0x013C-0x0147: message-type dispatch failures --- */
+#define CTLS_STATUS_RECD_SER_PLAIN_ENCRYPTED_MSG    ((ctls_status_t)0x013Cu)
+#define CTLS_STATUS_RECD_SER_PLAIN_UNKNOWN_MSG      ((ctls_status_t)0x013Du)
+#define CTLS_STATUS_RECD_SER_ENC_PLAINTEXT_MSG      ((ctls_status_t)0x013Eu)
+#define CTLS_STATUS_RECD_SER_ENC_UNKNOWN_MSG        ((ctls_status_t)0x013Fu)
+#define CTLS_STATUS_RECD_DESER_STANDALONE_MSG       ((ctls_status_t)0x0140u)
+#define CTLS_STATUS_RECD_DESER_UNKNOWN_MSG          ((ctls_status_t)0x0141u)
+/* 0x0142-0x0147 reserved */
+
+/* --- 0x0148-0x0155: wire-format guard, one code per _to_wire function --- */
+#define CTLS_STATUS_RECD_CH_INVALID_WIRE_FORMAT     ((ctls_status_t)0x0148u)
+#define CTLS_STATUS_RECD_SH_INVALID_WIRE_FORMAT     ((ctls_status_t)0x0149u)
+#define CTLS_STATUS_RECD_EE_INVALID_WIRE_FORMAT     ((ctls_status_t)0x014Au)
+#define CTLS_STATUS_RECD_CR_INVALID_WIRE_FORMAT     ((ctls_status_t)0x014Bu)
+#define CTLS_STATUS_RECD_CERT_INVALID_WIRE_FORMAT   ((ctls_status_t)0x014Cu)
+#define CTLS_STATUS_RECD_CV_INVALID_WIRE_FORMAT     ((ctls_status_t)0x014Du)
+#define CTLS_STATUS_RECD_FIN_INVALID_WIRE_FORMAT    ((ctls_status_t)0x014Eu)
+#define CTLS_STATUS_RECD_SF_INVALID_WIRE_FORMAT     ((ctls_status_t)0x014Fu)
+#define CTLS_STATUS_RECD_CF_INVALID_WIRE_FORMAT     ((ctls_status_t)0x0150u)
+/* 0x0151-0x0155 reserved */
+
+/* --- 0x0156-0x015D: entity / protocol violations --- */
+#define CTLS_STATUS_RECD_CV_CREATE_INVALID_ENTITY   ((ctls_status_t)0x0156u)
+#define CTLS_STATUS_RECD_FIN_CREATE_INVALID_ENTITY  ((ctls_status_t)0x0157u)
+#define CTLS_STATUS_RECD_CR_NO_MUTUAL_AUTH          ((ctls_status_t)0x0158u)
+/* 0x0159-0x015D reserved */
+
 /* Handshake Messages (0x015E-0x018F) */
 #define CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT        ((ctls_status_t)0x015Eu)
 #define CTLS_STATUS_HSMG_UNKNOWN_MSG_TYPE           ((ctls_status_t)0x015Fu)
 #define CTLS_STATUS_HSMG_INVALID_ENTITY             ((ctls_status_t)0x0160u)
+
+/* --- 0x0161-0x0167: INVALID_WIRE_FORMAT per _to_wire function --- */
+#define CTLS_STATUS_HSMG_CH_INVALID_WIRE_FORMAT              ((ctls_status_t)0x0161u)
+#define CTLS_STATUS_HSMG_SH_INVALID_WIRE_FORMAT              ((ctls_status_t)0x0162u)
+#define CTLS_STATUS_HSMG_EE_INVALID_WIRE_FORMAT              ((ctls_status_t)0x0163u)
+#define CTLS_STATUS_HSMG_CR_INVALID_WIRE_FORMAT              ((ctls_status_t)0x0164u)
+#define CTLS_STATUS_HSMG_CERT_INVALID_WIRE_FORMAT            ((ctls_status_t)0x0165u)
+#define CTLS_STATUS_HSMG_CV_INVALID_WIRE_FORMAT              ((ctls_status_t)0x0166u)
+#define CTLS_STATUS_HSMG_FIN_INVALID_WIRE_FORMAT             ((ctls_status_t)0x0167u)
+/* 0x0168-0x018F reserved */
 
 /* Template / Profile (0x0190-0x01C1) */
 #define CTLS_STATUS_TMPL_NULL                       ((ctls_status_t)0x0190u)
@@ -353,6 +493,12 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_TMPL_UNKNOWN_PROFILE            ((ctls_status_t)0x0194u)
 #define CTLS_STATUS_TMPL_INVALID_EXTENSION          ((ctls_status_t)0x0195u)
 #define CTLS_STATUS_TMPL_UNKNOWN_ELEMENT            ((ctls_status_t)0x0196u)
+
+/* --- 0x0197-0x019C: per call-site disambiguation --- */
+#define CTLS_STATUS_TMPL_TO_WIRE_NULL                        ((ctls_status_t)0x0197u)
+#define CTLS_STATUS_TMPL_EXTN_KEY_SHARE_IN_EXPECTED          ((ctls_status_t)0x0198u)
+#define CTLS_STATUS_TMPL_EXTN_KEY_SHARE_IN_SELF_DELIM        ((ctls_status_t)0x0199u)
+/* 0x019A-0x01C1 reserved */
 
 /* Transport (0x01C2-0x01F3) */
 #define CTLS_STATUS_TRANSPORT_SEND_FAILED           ((ctls_status_t)0x01C2u)
