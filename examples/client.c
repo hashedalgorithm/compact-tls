@@ -103,6 +103,14 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "ctls_connect: 0x%04X\n", result);
     } else {
         printf("handshake complete\n");
+
+        static const uint8_t msg[] = "Hello world!!";
+        result = ctls_write(msg, sizeof(msg) - 1);
+        if (result != CTLS_STATUS_SUCCESS) {
+            fprintf(stderr, "ctls_write: 0x%04X\n", result);
+        } else {
+            printf("sent: %s\n", (char *)msg);
+        }
     }
 
     close(g_sock);
