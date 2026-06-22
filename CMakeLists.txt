@@ -25,8 +25,14 @@ include_directories(include/ctls)
 include_directories(src)
 include_directories(examples)
 
+if(CTLS_CLIENT)
+    set(CTLS_EXAMPLE_SRC examples/client.c)
+else()
+    set(CTLS_EXAMPLE_SRC examples/server.c)
+endif()
+
 add_executable(compact_tls
-        examples/client.c
+        ${CTLS_EXAMPLE_SRC}
         include/certs/ctls_certs.h
         include/ctls/bytes.h
         include/ctls/config.h
