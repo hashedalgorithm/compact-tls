@@ -26,8 +26,12 @@
  * targets only ever play one role, so the other side's code paths (key
  * selection, message direction checks) compile out entirely.
  */
+#ifndef CTLS_CLIENT
 #define CTLS_CLIENT  1
+#endif
+#ifndef CTLS_SERVER
 #define CTLS_SERVER  0
+#endif
 
 // default profile parameters — mandatory when CTLS_CLIENT is active
 
