@@ -1,6 +1,8 @@
 # compact_tls
 
-A compact TLS 1.3 implementation (cTLS) based on [draft-ietf-tls-ctls](https://datatracker.ietf.org/doc/draft-ietf-tls-ctls/). Both peers share a pre-negotiated template (profile) that eliminates redundant wire bytes from the TLS handshake.
+A compact TLS 1.3 implementation (cTLS) based
+on [draft-ietf-tls-ctls](https://datatracker.ietf.org/doc/draft-ietf-tls-ctls/). Both peers share a pre-negotiated
+template (profile) that eliminates redundant wire bytes from the TLS handshake.
 
 ## Prerequisites
 
@@ -16,23 +18,31 @@ brew install mbedtls
 
 ## Build
 
+Role is selected at configure time. Exactly one of `CTLS_CLIENT` / `CTLS_SERVER` must be `ON`.
+
 ```sh
-cmake -B build
-cmake --build build
+./build.sh          # client (default) → build/client/compact_tls
+./build.sh client   # same
+./build.sh server   # server build    → build/server/compact_tls
 ```
 
-This produces `build/compact_tls` — the example client binary.
+Or manually:
+
+```sh
+# Client
+cmake -B build/client -DCTLS_CLIENT=ON -DCTLS_SERVER=OFF
+cmake --build build/client
+
+# Server
+cmake -B build/server -DCTLS_CLIENT=OFF -DCTLS_SERVER=ON
+cmake --build build/server
+```
 
 ## Configuration
 
-Before building, set the role and profile in `include/ctls/config.h`:
+Set the profile in `include/ctls/config.h` to match the peer:
 
 ```c
-/* Role — exactly one must be 1 */
-#define CTLS_CLIENT  1
-#define CTLS_SERVER  0
-
-/* Profile — must match the server's profile */
 #define CTLS_PROFILE_ID  0x01
 ```
 
@@ -42,13 +52,14 @@ See `profile-registry.md` for available profile IDs and their algorithm combinat
 
 ```sh
 # Connect to default address (127.0.0.1:4433)
-./build/compact_tls
+./build/<client/server>/compact_tls
 
 # Connect to a specific host and port
-./build/compact_tls <host> <port>
+./build/<client/server>/compact_tls <host> <port>
 ```
 
-With no server running, the client sends a ClientHello and exits after a 2-second receive timeout. The packet is visible in Wireshark with filter `udp.port == 4433`.
+With no server running, the client sends a ClientHello and exits after a 2-second receive timeout. The packet is visible
+in Wireshark with filter `udp.port == 4433`.
 
 Expected output (no server):
 
