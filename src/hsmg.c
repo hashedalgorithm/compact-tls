@@ -617,8 +617,10 @@ ctls_status_t ctls_hsmg_certificate_to_struct(ctls_hsmg_certificate_t *certifica
                         buffer,
                         offset);
     } else ctls_read_u8(buffer, offset);
-    certificate->certificate_request_context.buffer = hshk_data->certificate_request_context;
-    certificate->certificate_request_context.buffer_length = certificate_request_context_length;
+    certificate->certificate_request_context.buffer = hshk_data->
+            certificate_request_context;
+    certificate->certificate_request_context.buffer_length =
+            certificate_request_context_length;
 
     ctls_size_t const certificate_entries_length = ctls_read_u24(buffer, offset);
     ctls_size_t certificate_entries_index = 0;
@@ -666,6 +668,46 @@ ctls_status_t ctls_hsmg_certificate_to_wire(uint8_t *buffer,
     CTLS_CHECK_NULL(certificate);
 
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
+        ctls_write_u8(buffer, offset, CTLS_HSMG_TYPE_CERTIFICATE);
+
+        ctls_size_t const certificate_request_context_length = certificate->
+                certificate_request_context.buffer_length;
+        ctls_write_u8(buffer, offset, (uint8_t) certificate_request_context_length);
+        if (certificate_request_context_length > 0) {
+            ctls_write_bytes(buffer,
+                             offset,
+                             certificate_request_context_length,
+                             certificate->certificate_request_context.buffer);
+        } else {
+            ctls_write_u8(buffer, offset, 0); /* pad byte required by _to_struct */
+        }
+
+        ctls_size_t cert_list_length_offset = *offset;
+        *offset += 3; /* u24 placeholder */
+
+        for (uint8_t i = 0; i < certificate->certificate_count; i++) {
+            ctls_write_u16(buffer,
+                           offset,
+                           (uint16_t) sizeof(certificate->certificate_entries[i].
+                               certificate_id));
+            ctls_write_u16(buffer,
+                           offset,
+                           certificate->certificate_entries[i].certificate_id);
+            ctls_size_t ext_length_offset = *offset;
+            *offset += 3; /* u24 placeholder */
+            ctls_status_t const result = ctls_extn_certificate_to_wire(buffer,
+                offset,
+                &certificate->certificate_entries[i].extensions,
+                wire_format);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            ctls_write_u24(buffer, &ext_length_offset, *offset - ext_length_offset - 3);
+        }
+
+        ctls_write_u24(buffer,
+                       &cert_list_length_offset,
+                       *offset - cert_list_length_offset - 3);
+
+        return CTLS_STATUS_SUCCESS;
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
         ctls_write_u8(buffer, offset, CTLS_HSMG_TYPE_CERTIFICATE);
