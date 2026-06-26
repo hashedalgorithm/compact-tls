@@ -1056,13 +1056,15 @@ ctls_status_t ctls_nonce_generate(uint8_t *buffer,
     uint8_t iv_key[CTLS_SIZE_AEAD_KEY];
 
     size_t iv_key_offset = 0;
-    ctls_status_t const result = psa_export_key(*iv_key_id,
-                                                iv_key,
-                                                CTLS_SIZE_AEAD_KEY,
-                                                &iv_key_offset);
-    if (result != CTLS_STATUS_SUCCESS) return CTLS_STATUS_CRYPTO_NONCE_IV_EXPORT_FAILED;
+    psa_status_t const psa_st = psa_export_key(*iv_key_id,
+                                               iv_key,
+                                               CTLS_SIZE_AEAD_KEY,
+                                               &iv_key_offset);
+    if (psa_st != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_NONCE_IV_EXPORT_FAILED;
 
-    ctls_write_bytes(buffer, 0, CTLS_SIZE_NONCE, iv_key);
+    ctls_size_t offset = 0;
+
+    ctls_write_bytes(buffer, &offset, CTLS_SIZE_NONCE, iv_key);
     for (int i = 0; i < 8; i++) {
         buffer[11 - i] ^= (uint8_t) (*sequence_number >> (i * 8U));
     }
