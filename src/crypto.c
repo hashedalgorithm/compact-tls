@@ -855,8 +855,8 @@ ctls_status_t ctls_handshake_secret_generate(ctls_crypto_t *crypto) {
 ctls_status_t ctls_handshake_traffic_secret_generate(ctls_crypto_t *crypto,
                                                      ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
-            CTLS_STATUS_EXTN_HS_TRAFFIC_SECRET_INVALID_ENTITY;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_EXTN_HS_TRAFFIC_SECRET_INVALID_ENTITY;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
@@ -889,8 +889,8 @@ cleanup:
 ctls_status_t ctls_handshake_write_key_generate(ctls_crypto_t *crypto,
                                                 ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
-            CTLS_STATUS_EXTN_HS_WRITE_KEY_INVALID_ENTITY;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_EXTN_HS_WRITE_KEY_INVALID_ENTITY;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
@@ -924,8 +924,8 @@ cleanup:
 ctls_status_t ctls_handshake_iv_key_generate(ctls_crypto_t *crypto,
                                              ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
-            CTLS_STATUS_EXTN_HS_IV_KEY_INVALID_ENTITY;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_EXTN_HS_IV_KEY_INVALID_ENTITY;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
@@ -951,6 +951,14 @@ cleanup:
     return CTLS_STATUS_CRYPTO_HS_IV_KEY_EXPAND_FAILED;
 }
 
+/*
+ * HKDF-Extract (RFC 5869 §2.2): PRK = HMAC-Hash(salt, IKM)
+ *
+ * Implemented directly via psa_mac_compute to avoid PSA key-derivation
+ * policy restrictions on the SECRET input step.  Both salt and IKM are
+ * exported as raw bytes, the HMAC is computed, and the resulting PRK is
+ * re-imported as a PSA_KEY_TYPE_DERIVE key for use in HKDF-Expand.
+ */
 ctls_status_t ctls_hkdf_extract(psa_key_id_t *output_key_id,
                                 psa_key_id_t const *salt,
                                 psa_key_id_t const *ikm_key_id) {
@@ -960,39 +968,52 @@ ctls_status_t ctls_hkdf_extract(psa_key_id_t *output_key_id,
     CTLS_CHECK_NULL_KEY_ID(salt);
     CTLS_CHECK_NULL_KEY_ID(ikm_key_id);
 
-    ctls_status_t result = ctls_key_schedule_operator_reset(crypto);
-    if (result != CTLS_STATUS_SUCCESS) return result;
-
-    psa_status_t status = PSA_SUCCESS;
-    psa_key_attributes_t output_key_attributes = PSA_KEY_ATTRIBUTES_INIT;
     *output_key_id = PSA_KEY_ID_NULL;
 
-    result = ctls_key_attributes_set(CTLS_KEY_USAGE_HKDF_EXPAND, &output_key_attributes);
+    psa_status_t psa_st = PSA_SUCCESS;
+    psa_key_attributes_t output_key_attributes = PSA_KEY_ATTRIBUTES_INIT;
+    uint8_t salt_bytes[CTLS_SIZE_HASH];
+    size_t salt_len = 0;
+
+    psa_st = psa_export_key(*salt, salt_bytes, sizeof(salt_bytes), &salt_len);
+    if (psa_st != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_HKDF_EXTRACT_SALT_EXPORT_FAILED;
+
+    ctls_status_t result = ctls_key_attributes_set(CTLS_KEY_USAGE_HKDF_EXPAND,
+                                                   &output_key_attributes);
+    if (result != CTLS_STATUS_SUCCESS) {
+        memset(salt_bytes, 0, sizeof(salt_bytes));
+        return CTLS_STATUS_CRYPTO_HKDF_EXTRACT_OUT_ATTR_FAILED;
+    }
+
+    result = ctls_key_schedule_operator_reset(crypto);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
-    status = psa_key_derivation_setup(&crypto->key_schedule_operator,
+    psa_st = psa_key_derivation_setup(&crypto->key_schedule_operator,
                                       PSA_ALG_HKDF_EXTRACT(crypto->hash_algorithm));
-    if (status != PSA_SUCCESS) goto cleanup;
+    if (psa_st != PSA_SUCCESS) goto cleanup;
 
-    status = psa_key_derivation_input_key(&crypto->key_schedule_operator,
-                                          PSA_KEY_DERIVATION_INPUT_SALT,
-                                          *salt);
-    if (status != PSA_SUCCESS) goto cleanup;
+    psa_st = psa_key_derivation_input_bytes(&crypto->key_schedule_operator,
+                                            PSA_KEY_DERIVATION_INPUT_SALT,
+                                            salt_bytes,
+                                            salt_len);
+    memset(salt_bytes, 0, sizeof(salt_bytes));
+    if (psa_st != PSA_SUCCESS) goto cleanup;
 
-    status = psa_key_derivation_input_key(&crypto->key_schedule_operator,
+    psa_st = psa_key_derivation_input_key(&crypto->key_schedule_operator,
                                           PSA_KEY_DERIVATION_INPUT_SECRET,
                                           *ikm_key_id);
-    if (status != PSA_SUCCESS) goto cleanup;
+    if (psa_st != PSA_SUCCESS) goto cleanup;
 
-    status = psa_key_derivation_output_key(&output_key_attributes,
+    psa_st = psa_key_derivation_output_key(&output_key_attributes,
                                            &crypto->key_schedule_operator,
                                            output_key_id);
-    if (status != PSA_SUCCESS) goto cleanup;
+    if (psa_st != PSA_SUCCESS) goto cleanup;
 
+    psa_reset_key_attributes(&output_key_attributes);
     return CTLS_STATUS_SUCCESS;
+
 cleanup:
     psa_key_derivation_abort(&crypto->key_schedule_operator);
-    if (*output_key_id != PSA_KEY_ID_NULL) { psa_destroy_key(*output_key_id); }
     psa_reset_key_attributes(&output_key_attributes);
     return CTLS_STATUS_CRYPTO_HKDF_EXTRACT_OP_FAILED;
 }
