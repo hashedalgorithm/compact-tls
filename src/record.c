@@ -207,6 +207,15 @@ ctls_status_t ctls_unified_header_deserialize(ctls_unified_header_t *unified_hea
     return ctls_aad_length_calculate(unified_header);
 }
 
+ctls_status_t ctls_unified_header_length_update(ctls_unified_header_t *unified_header,
+                                                uint16_t const length) {
+    CTLS_CHECK_NULL_STRUCT(unified_header);
+
+    unified_header->length = length;
+    unified_header->config_octet.l_bit = (length > 0u) ? 1u : 0u;
+    return ctls_aad_length_calculate(unified_header);
+}
+
 /*
  * Record struct -> final wire bytes, dispatched on record type + message
  * type. PLAINTEXT (CH/SH) serializes straight into buffer. ENCRYPTED

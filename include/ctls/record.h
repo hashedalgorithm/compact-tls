@@ -136,6 +136,8 @@ ctls_status_t ctls_unified_header_deserialize(ctls_unified_header_t *unified_hea
                                               uint8_t const *buffer,
                                               ctls_size_t *offset);
 
+ctls_status_t ctls_unified_header_length_update(ctls_unified_header_t *unified_header,
+                                                uint16_t length);
 /**
  * Record struct -> final wire bytes. PLAINTEXT records serialize directly;
  * ENCRYPTED records serialize body into a scratch buffer and go through
