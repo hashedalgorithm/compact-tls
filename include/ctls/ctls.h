@@ -110,6 +110,8 @@ ctls_status_t ctls_wire_buffer_clear(uint8_t *buffer, ctls_size_t *buffer_offest
 ctls_status_t ctls_validate_template();
 /** Run the full client-side TLS 1.3 handshake to completion. */
 ctls_status_t ctls_connect(ctls_context_t *context);
+/** Run the full server-side TLS 1.3 handshake to completion. */
+ctls_status_t ctls_accept(ctls_context_t *context);
 /** Read decrypted application data into buffer. */
 ctls_status_t ctls_read(uint8_t *buffer,
                         uint8_t *application_data,

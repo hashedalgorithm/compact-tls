@@ -212,6 +212,97 @@ onerror:
  */
 #if CTLS_SERVER
 ctls_status_t ctls_server_handshake(ctls_context_t *context) {
+    uint8_t buffer[CTLS_SIZE_WIRE_BUFFER];
+    ctls_size_t buffer_offset = 0;
+
+    // Client Hello
+    ctls_status_t result = context->transport.recd_receive(buffer,
+                                                           &buffer_offset,
+                                                           sizeof(buffer));
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    result = ctls_record_deserialize(&context->record,
+                                     CTLS_HSMG_TYPE_CLIENT_HELLO,
+                                     buffer);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    result = ctls_core_client_hello_internal_op(&context->record);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    result = ctls_transcript_hash_update(&context->record, CTLS_HSMG_TYPE_CLIENT_HELLO);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    context->state = CTLS_HSHK_STATE_WAIT_SERVER_HELLO;
+
+    // Server Hello
+    result = ctls_wire_buffer_clear(buffer, &buffer_offset);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    result = ctls_recd_server_hello_create(&context->record);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    result = ctls_record_serialize(&context->record,
+                                   CTLS_HSMG_TYPE_SERVER_HELLO,
+                                   buffer,
+                                   &buffer_offset,
+                                   CTLS_ENTITY_SERVER);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    result = context->transport.recd_send(buffer, buffer_offset);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    result = ctls_transcript_hash_update(&context->record, CTLS_HSMG_TYPE_SERVER_HELLO);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    context->state = CTLS_HSHK_STATE_KEY_SCHEDULED;
+
+    // Key schedule
+    result = ctls_key_schedule();
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    context->state = CTLS_HSHK_STATE_WAIT_ENCRYPTED_EXTENSIONS;
+    result = ctls_wire_buffer_clear(buffer, &buffer_offset);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    // Server Flight
+    result = ctls_recd_server_flight_create(&context->record);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    result = ctls_record_serialize(&context->record,
+                                   CTLS_HSMG_TYPE_SERVER_FLIGHT,
+                                   buffer,
+                                   &buffer_offset,
+                                   CTLS_ENTITY_SERVER);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    result = context->transport.recd_send(buffer, buffer_offset);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    result = ctls_transcript_hash_update(&context->record, CTLS_HSMG_TYPE_SERVER_FLIGHT);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    // Client Flight (mutual auth)
+    if (context->template->mutual_auth == 1) {
+        result = ctls_wire_buffer_clear(buffer, &buffer_offset);
+        if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+        result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
+        if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+        result = ctls_record_deserialize(&context->record,
+                                         CTLS_HSMG_TYPE_CLIENT_FLIGHT,
+                                         buffer);
+        if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+        result = ctls_core_client_flight_op(&context->record);
+        if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+        result = ctls_transcript_hash_update(&context->record,
+                                             CTLS_HSMG_TYPE_CLIENT_FLIGHT);
+        if (result != CTLS_STATUS_SUCCESS) goto onerror;
+    }
+
+    result = ctls_application_key_schedule();
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     context->state = CTLS_HSHK_STATE_CONNECTED;
@@ -232,7 +323,23 @@ ctls_status_t ctls_connect(ctls_context_t *context) {
     ctls_status_t const result = ctls_validate_template();
     if (result != CTLS_STATUS_SUCCESS) return result;
 
+#if CTLS_CLIENT
     return ctls_handshake(context);
+#else
+    (void) context; return CTLS_STATUS_NOT_IMPLEMENTED;
+#endif
+}
+
+ctls_status_t ctls_accept(ctls_context_t *context) {
+    ctls_status_t const result = ctls_validate_template();
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+#if CTLS_SERVER
+    return ctls_server_handshake(context);
+#else
+    (void) context;
+    return CTLS_STATUS_NOT_IMPLEMENTED;
+#endif
 }
 
 ctls_status_t ctls_read(uint8_t *buffer,

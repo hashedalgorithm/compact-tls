@@ -193,13 +193,20 @@ ctls_status_t ctls_recd_buffer_clear(ctls_record_t *record_buffer);
 /* ------------------------------------------------------------------ */
 
 ctls_status_t ctls_recd_client_hello_create(ctls_record_t *record);
-ctls_status_t ctls_recd_client_hello_to_struct();
+/**
+ * Parse a compact ClientHello record from buffer+*offset: reads content_type,
+ * profile_id, then dispatches to ctls_hsmg_client_hello_to_struct.
+ */
+ctls_status_t ctls_recd_client_hello_to_struct(ctls_record_t *record,
+                                               uint8_t const *buffer,
+                                               ctls_size_t *offset);
 ctls_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
                                              ctls_size_t *offset,
                                              ctls_record_t const *record,
                                              ctls_wire_format_t wire_format);
 
-ctls_status_t ctls_recd_server_hello_create(void);
+/** Build a ServerHello record struct: generate server random, fill extensions, set framing fields. */
+ctls_status_t ctls_recd_server_hello_create(ctls_record_t *record);
 ctls_status_t ctls_recd_server_hello_to_struct(ctls_record_t *record,
                                                uint8_t const *buffer,
                                                ctls_size_t *offset);

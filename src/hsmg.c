@@ -53,18 +53,55 @@ ctls_status_t ctls_hsmg_client_hello_create(ctls_hsmg_client_hello_t *client_hel
 }
 
 
+/*
+ * Parse a compact ClientHello body (server-side receive).
+ *
+ *     body_length(u16, consumed but not stored)
+ *     | message_type(u8)
+ *     | sequence_number(u16)
+ *     | random (template->random bytes, saved to hshk_data->client_random)
+ *     | cipher_suite(u16) — only present when template->cipher_suite == 0
+ *     | extensions (key_share only; see ctls_extn_client_hello_to_struct)
+ */
+ctls_status_t ctls_hsmg_client_hello_to_struct(ctls_handshake_message_t *hsmg,
+                                               uint8_t const *buffer,
+                                               ctls_size_t *offset) {
+    ctls_template_t const *template = ctls_template_get();
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+
+    CTLS_CHECK_NULL_STRUCT(hsmg);
+    CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(hshk_data);
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_OFFSET(offset);
+
+    ctls_read_u16(buffer, offset); /* body_length — advance past it */
+
+    ctls_hsmg_type_t const type = ctls_read_u8(buffer, offset);
+    if (type != CTLS_HSMG_TYPE_CLIENT_HELLO) return CTLS_STATUS_HSMG_INVALID_MSG_TYPE;
+
+    hsmg->sequence_number = ctls_read_u16(buffer, offset);
+
+    ctls_read_bytes(hshk_data->client_random, template->random, buffer, offset);
+    hsmg->handshake_message_body.client_hello.random.buffer = hshk_data->client_random;
+    hsmg->handshake_message_body.client_hello.random.buffer_length = template->random;
+
+    if (template->cipher_suite == 0) {
+        hsmg->handshake_message_body.client_hello.cipher_suite =
+                ctls_read_u16(buffer, offset);
+    } else {
+        hsmg->handshake_message_body.client_hello.cipher_suite = template->cipher_suite;
+    }
+
     hsmg->handshake_message_body.client_hello.protocol_version = template->
             protocol_version;
     hsmg->handshake_message_body.client_hello.legacy_session_id = 0x00;
     hsmg->handshake_message_body.client_hello.legacy_compression_methods = 0x00;
 
-    return ctls_extn_client_hello_create(&hsmg->handshake_message_body.client_hello.
-                                         extensions);
-}
-
-
-ctls_status_t ctls_hsmg_client_hello_to_struct() {
-    return CTLS_STATUS_NOT_IMPLEMENTED;
+    return ctls_extn_client_hello_to_struct(&hsmg->handshake_message_body.client_hello.
+                                            extensions,
+                                            buffer,
+                                            offset);
 }
 
 /*
@@ -177,8 +214,37 @@ ctls_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
     return CTLS_STATUS_HSMG_CH_INVALID_WIRE_FORMAT;
 }
 
-ctls_status_t ctls_hsmg_server_hello_create(void) {
-    return CTLS_STATUS_NOT_IMPLEMENTED;
+/*
+ * Build a ServerHello from the template (server-side create), mirroring
+ * ctls_hsmg_client_hello_create:
+ *   - Generate server random of template->random bytes.
+ *   - Copy pinned fields (cipher_suite, protocol_version) from template.
+ *   - Generate server ephemeral key pair and set key_share extension via
+ *     ctls_extn_server_hello_create.
+ */
+ctls_status_t ctls_hsmg_server_hello_create(ctls_hsmg_server_hello_t *server_hello) {
+    ctls_template_t const *template = ctls_template_get();
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+
+    CTLS_CHECK_NULL_STRUCT(server_hello);
+    CTLS_CHECK_NULL(template);
+    CTLS_CHECK_NULL(hshk_data);
+
+    ctls_size_t random_length = 0;
+    ctls_status_t const result = ctls_random_generate(hshk_data->server_random,
+                                                      &random_length,
+                                                      template->random);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    server_hello->random.buffer = hshk_data->server_random;
+    server_hello->random.buffer_length = random_length;
+
+    server_hello->cipher_suite = template->cipher_suite;
+    server_hello->protocol_version = template->protocol_version;
+    server_hello->legacy_session_id_echo = 0;
+    server_hello->legacy_compression_method = 0;
+
+    return ctls_extn_server_hello_create(&server_hello->extensions);
 }
 
 /*
@@ -248,6 +314,28 @@ ctls_status_t ctls_hsmg_server_hello_to_wire(uint8_t *buffer,
     CTLS_CHECK_NULL_STRUCT(hsmg);
 
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
+        /*
+         * Compact ServerHello body (matches ctls_hsmg_server_hello_to_struct parse order):
+         *     message_type(u8)
+         *     | random (template->random bytes)
+         *     | cipher_suite(u16) — only when template does not pin a suite
+         *     | key_share bytes via ctls_extn_server_hello_to_wire DEFAULT
+         */
+        ctls_write_u8(buffer, offset, CTLS_HSMG_TYPE_SERVER_HELLO);
+        ctls_write_bytes(buffer,
+                         offset,
+                         hsmg->handshake_message_body.server_hello.random.buffer_length,
+                         hsmg->handshake_message_body.server_hello.random.buffer);
+        if (ctls_template_get()->cipher_suite == 0) {
+            ctls_write_u16(buffer,
+                           offset,
+                           hsmg->handshake_message_body.server_hello.cipher_suite);
+        }
+        return ctls_extn_server_hello_to_wire(buffer,
+                                              offset,
+                                              &hsmg->handshake_message_body.server_hello.
+                                              extensions,
+                                              wire_format);
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
         ctls_write_u8(buffer, offset, CTLS_HSMG_TYPE_SERVER_HELLO);

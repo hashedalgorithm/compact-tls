@@ -199,13 +199,17 @@ ctls_status_t ctls_hsmg_client_hello_create(ctls_hsmg_client_hello_t *client_hel
  * Reads body_length(u16), message_type(u8), sequence_number(u16), random,
  * optional cipher_suite, and extensions (key_share only on wire).
  */
+ctls_status_t ctls_hsmg_client_hello_to_struct(ctls_handshake_message_t *hsmg,
+                                               uint8_t const *buffer,
+                                               ctls_size_t *offset);
 /** Emit ClientHello — compact cTLS or TLS 1.3 transcript form (see hsmg.c). */
 ctls_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
                                              ctls_size_t *offset,
                                              ctls_handshake_message_t const *hsmg,
                                              ctls_wire_format_t wire_format);
 
-ctls_status_t ctls_hsmg_server_hello_create(void);
+/** Fill a ServerHello from the template: generate server random, set pinned fields, build extensions. */
+ctls_status_t ctls_hsmg_server_hello_create(ctls_hsmg_server_hello_t *server_hello);
 /**
  * Parse a compact ServerHello: random, cipher suite and key share from the
  * wire; everything the template pins (version, legacy fields) reconstructed.
