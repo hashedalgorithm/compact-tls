@@ -1703,6 +1703,7 @@ ctls_status_t ctls_extn_encrypted_extensions_to_wire(uint8_t *buffer,
     ctls_status_t result;
 
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
+        return CTLS_STATUS_SUCCESS;
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
         if (encrypted_extensions->server_name.form != CTLS_DATA_FORM_SENTINEL) {
