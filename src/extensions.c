@@ -1028,9 +1028,9 @@ ctls_status_t ctls_extn_key_share_deserialize(uint8_t const *buffer,
 
     ctls_read_bytes(public_ephemeral_key, CTLS_SIZE_KEY_SHARE, buffer, offset);
     ctls_status_t result = ctls_ephemeral_public_key_import(public_ephemeral_key,
-                                                            CTLS_SIZE_KEY_SHARE,
-                                                            &crypto->
-                                                            peer_public_ephemeral_key);
+                                                                CTLS_SIZE_KEY_SHARE,
+                                                                &crypto->
+                                                                peer_public_ephemeral_key);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     *key_share = &crypto->peer_public_ephemeral_key;
@@ -1063,9 +1063,9 @@ ctls_status_t ctls_extn_key_share_serialize(uint8_t *buffer,
     uint8_t raw_bytes[CTLS_SIZE_KEY_SHARE];
     ctls_size_t bytes_written;
     ctls_status_t const result = ctls_ephemeral_public_key_export(key_share,
-                                                                  raw_bytes,
-                                                                  CTLS_SIZE_KEY_SHARE,
-                                                                  &bytes_written);
+        raw_bytes,
+        CTLS_SIZE_KEY_SHARE,
+        &bytes_written);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     ctls_write_bytes(buffer, offset, bytes_written, raw_bytes);
@@ -1492,7 +1492,8 @@ ctls_status_t ctls_extn_server_hello_create(
     CTLS_CHECK_NULL(crypto);
     CTLS_CHECK_NULL(template);
 
-    ctls_status_t result = ctls_ephemeral_key_pair_generate(&crypto->self_ephemeral_key_pair);
+    ctls_status_t result =
+            ctls_ephemeral_key_pair_generate(&crypto->self_ephemeral_key_pair);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     server_hello_extensions->key_share_entity = &crypto->self_ephemeral_key_pair;
@@ -1522,11 +1523,12 @@ ctls_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
          * directly via ctls_extn_key_share_deserialize. */
         uint8_t raw_bytes[CTLS_SIZE_KEY_SHARE];
         ctls_size_t bytes_written = 0;
-        ctls_status_t result = ctls_ephemeral_public_key_export(
-            server_hello_extensions->key_share_entity,
-            raw_bytes,
-            CTLS_SIZE_KEY_SHARE,
-            &bytes_written);
+        ctls_status_t result =
+                ctls_ephemeral_public_key_export(server_hello_extensions->
+                                                 key_share_entity,
+                                                 raw_bytes,
+                                                 CTLS_SIZE_KEY_SHARE,
+                                                 &bytes_written);
         if (result != CTLS_STATUS_SUCCESS) return result;
         ctls_write_bytes(buffer, offset, bytes_written, raw_bytes);
         return CTLS_STATUS_SUCCESS;
