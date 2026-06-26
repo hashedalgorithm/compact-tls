@@ -297,7 +297,7 @@ ctls_status_t ctls_finished_key_generate(ctls_entity_t entity);
 /** verify_data = HMAC(finished_key, Transcript-Hash) — RFC 8446 §4.4.4. */
 ctls_status_t ctls_verify_data_generate(ctls_entity_t entity);
 
-ctls_status_t ctls_application_key_schedule(ctls_entity_t entity);
+ctls_status_t ctls_application_key_schedule(void);
 ctls_status_t ctls_master_secret_generate(ctls_crypto_t *crypto);
 ctls_status_t ctls_application_traffic_secret_generate(
     ctls_crypto_t *crypto,

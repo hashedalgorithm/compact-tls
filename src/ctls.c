@@ -172,7 +172,7 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
         if (result != CTLS_STATUS_SUCCESS) goto onerror;
     }
 
-    result = ctls_application_key_schedule(CTLS_ENTITY_CLIENT);
+    return CTLS_STATUS_SUCCESS;
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     context->state = CTLS_HSHK_STATE_CONNECTED;

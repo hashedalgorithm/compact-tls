@@ -1436,20 +1436,29 @@ cleanup:
     return CTLS_STATUS_CRYPTO_HMAC_VERIFY_DATA_FAILED;
 }
 
-ctls_status_t ctls_application_key_schedule(ctls_entity_t const entity) {
+ctls_status_t ctls_application_key_schedule(void) {
     ctls_crypto_t *crypto = ctls_crypto_get();
     CTLS_CHECK_NULL_STRUCT(crypto);
 
     ctls_status_t result = ctls_master_secret_generate(crypto);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_application_traffic_secret_generate(crypto, entity);
+    result = ctls_application_traffic_secret_generate(crypto, CTLS_ENTITY_CLIENT);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_application_write_key_generate(crypto, entity);
+    result = ctls_application_write_key_generate(crypto, CTLS_ENTITY_CLIENT);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_application_iv_key_generate(crypto, entity);
+    result = ctls_application_iv_key_generate(crypto, CTLS_ENTITY_CLIENT);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_application_traffic_secret_generate(crypto, CTLS_ENTITY_SERVER);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_application_write_key_generate(crypto, CTLS_ENTITY_SERVER);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_application_iv_key_generate(crypto, CTLS_ENTITY_SERVER);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     /* Keys switched to handshake traffic keys — new epoch. RFC 9147 §6.1
