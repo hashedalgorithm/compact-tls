@@ -198,8 +198,12 @@ struct ctls_handshake_message {
  * bytes, pinned version/suite, legacy fields zeroed, extensions via
  * ctls_extn_client_hello_create (generates the ephemeral key share).
  */
-ctls_status_t ctls_hsmg_client_hello_create(ctls_handshake_message_t *hsmg);
-ctls_status_t ctls_hsmg_client_hello_to_struct(void);
+ctls_status_t ctls_hsmg_client_hello_create(ctls_hsmg_client_hello_t *client_hello);
+/**
+ * Parse a compact ClientHello body from buffer+*offset into hsmg.
+ * Reads body_length(u16), message_type(u8), sequence_number(u16), random,
+ * optional cipher_suite, and extensions (key_share only on wire).
+ */
 /** Emit ClientHello — compact cTLS or TLS 1.3 transcript form (see hsmg.c). */
 ctls_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
                                              ctls_size_t *offset,
@@ -225,12 +229,15 @@ ctls_status_t ctls_hsmg_encrypted_extensions_create(void);
  * Parse EncryptedExtensions: only the message type is on the wire; the
  * extension content is reconstructed from the template.
  */
-ctls_status_t ctls_hsmg_encrypted_extensions_to_struct(ctls_handshake_message_t *hsmg,
-                                                       uint8_t const *buffer);
+ctls_status_t ctls_hsmg_encrypted_extensions_to_struct(
+    ctls_hsmg_encrypted_extensions_t *encrypted_extensions,
+    uint8_t const *buffer,
+    ctls_size_t *offset);
 /** Emit EncryptedExtensions (TLS 1.3 transcript reconstruction only). */
 ctls_status_t ctls_hsmg_encrypted_extensions_to_wire(uint8_t *buffer,
                                                      ctls_size_t *offset,
-                                                     ctls_handshake_message_t const *hsmg,
+                                                     ctls_hsmg_encrypted_extensions_t
+                                                     const *encrypted_extensions,
                                                      ctls_wire_format_t wire_format);
 
 ctls_status_t ctls_hsmg_certificate_request_create(void);
@@ -239,12 +246,15 @@ ctls_status_t ctls_hsmg_certificate_request_create(void);
  * the wire (context saved to hshk_data for the client's Certificate reply,
  * RFC 8446 §4.4.2); extensions from the template.
  */
-ctls_status_t ctls_hsmg_certificate_request_to_struct(ctls_handshake_message_t *hsmg,
-                                                      uint8_t const *buffer);
+ctls_status_t ctls_hsmg_certificate_request_to_struct(
+    ctls_hsmg_certificate_request_t *certificate_request,
+    uint8_t const *buffer,
+    ctls_size_t *offset);
 /** Emit CertificateRequest (TLS 1.3 transcript reconstruction only). */
 ctls_status_t ctls_hsmg_certificate_request_to_wire(uint8_t *buffer,
                                                     ctls_size_t *offset,
-                                                    ctls_handshake_message_t const *hsmg,
+                                                    ctls_hsmg_certificate_request_t const
+                                                    *certificate_request,
                                                     ctls_wire_format_t wire_format);
 
 /**
@@ -252,15 +262,16 @@ ctls_status_t ctls_hsmg_certificate_request_to_wire(uint8_t *buffer,
  * certificate id (CTLS_ENTITY_CERTIFICATE_ID) plus per-entry extensions the
  * peer requested (OCSP status / SCT).
  */
-ctls_status_t ctls_hsmg_certificate_create(ctls_handshake_message_t *hsmg,
+ctls_status_t ctls_hsmg_certificate_create(ctls_hsmg_certificate_t *certificate,
                                            ctls_entity_t entity);
 /** Parse a Certificate message (dictionary ids, layout in hsmg.c). */
-ctls_status_t ctls_hsmg_certificate_to_struct(ctls_handshake_message_t *hsmg,
-                                              uint8_t const *buffer);
+ctls_status_t ctls_hsmg_certificate_to_struct(ctls_hsmg_certificate_t *certificate,
+                                              uint8_t const *buffer,
+                                              ctls_size_t *offset);
 /** Emit Certificate (TLS 1.3 transcript reconstruction, dictionary ids). */
 ctls_status_t ctls_hsmg_certificate_to_wire(uint8_t *buffer,
                                             ctls_size_t *offset,
-                                            ctls_handshake_message_t const *hsmg,
+                                            ctls_hsmg_certificate_t const *certificate,
                                             ctls_wire_format_t wire_format);
 
 /**
@@ -268,33 +279,37 @@ ctls_status_t ctls_hsmg_certificate_to_wire(uint8_t *buffer,
  * computed over the current transcript via ctls_signed_bytes_generate
  * (RFC 8446 §4.4.3 signed content).
  */
-ctls_status_t ctls_hsmg_certificate_verify_create(ctls_handshake_message_t *hsmg,
-                                                  ctls_entity_t entity);
+ctls_status_t ctls_hsmg_certificate_verify_create(
+    ctls_hsmg_certificate_verify_t *certificate_verify,
+    ctls_entity_t entity);
 /** Parse CertificateVerify: scheme(u16) | sig_length(u16) | signature. */
-ctls_status_t ctls_hsmg_certificate_verify_to_struct(ctls_handshake_message_t *hsmg,
-                                                     uint8_t const *buffer,
-                                                     ctls_entity_t entity);
+ctls_status_t ctls_hsmg_certificate_verify_to_struct(
+    ctls_hsmg_certificate_verify_t *certificate_verify,
+    uint8_t const *buffer,
+    ctls_size_t *offset,
+    ctls_entity_t entity);
 /** Emit CertificateVerify (TLS 1.3 transcript reconstruction only). */
 ctls_status_t ctls_hsmg_certificate_verify_to_wire(uint8_t *buffer,
                                                    ctls_size_t *offset,
-                                                   ctls_handshake_message_t const *hsmg,
-                                                   ctls_wire_format_t wire_format);
+                                                   ctls_hsmg_certificate_verify_t const *
+                                                   certificate_verify);
 
 /**
  * Fill a Finished: derive the finished key and compute verify_data =
  * HMAC(finished_key, Transcript-Hash) per RFC 8446 §4.4.4.
  */
-ctls_status_t ctls_hsmg_finished_create(ctls_handshake_message_t *hsmg,
+ctls_status_t ctls_hsmg_finished_create(ctls_hsmg_finished_t *finished,
                                         ctls_entity_t entity);
 /** Parse Finished: fixed CTLS_SIZE_HASH verify_data bytes, no length field. */
-ctls_status_t ctls_hsmg_finished_to_struct(ctls_handshake_message_t *hsmg,
+ctls_status_t ctls_hsmg_finished_to_struct(ctls_hsmg_finished_t *finished,
                                            uint8_t const *buffer,
+                                           ctls_size_t *offset,
                                            ctls_entity_t entity);
 /** Emit Finished (TLS 1.3 transcript reconstruction only). */
 ctls_status_t ctls_hsmg_finished_to_wire(uint8_t *buffer,
                                          ctls_size_t *offset,
-                                         ctls_handshake_message_t const *hsmg,
-                                         ctls_wire_format_t wire_format);
+                                         ctls_hsmg_finished_t const *finished);
+
 
 
 #endif

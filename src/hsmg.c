@@ -27,25 +27,32 @@
  * legacy_compression_methods zeroed (cTLS drops them; TLS 1.3 already calls
  * them legacy), extensions via ctls_extn_client_hello_create.
  */
-ctls_status_t ctls_hsmg_client_hello_create(ctls_handshake_message_t *hsmg) {
+ctls_status_t ctls_hsmg_client_hello_create(ctls_hsmg_client_hello_t *client_hello) {
     ctls_template_t const *template = ctls_template_get();
     ctls_crypto_t const *crypto = ctls_crypto_get();
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
 
-    CTLS_CHECK_NULL_STRUCT(hsmg);
+    CTLS_CHECK_NULL_STRUCT(client_hello);
     CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL(crypto);
     CTLS_CHECK_NULL(hshk_data);
 
     ctls_status_t const result = ctls_random_generate(hshk_data->client_random,
-                                                      &hsmg->handshake_message_body.
-                                                      client_hello.random.buffer_length,
+                                                      &client_hello->random.buffer_length,
                                                       template->random);
-    hsmg->handshake_message_body.client_hello.random.buffer = hshk_data->client_random;
+    client_hello->random.buffer = hshk_data->client_random;
 
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    hsmg->handshake_message_body.client_hello.cipher_suite = template->cipher_suite;
+    client_hello->cipher_suite = template->cipher_suite;
+    client_hello->protocol_version = template->protocol_version;
+    client_hello->legacy_session_id = 0x00;
+    client_hello->legacy_compression_methods = 0x00;
+
+    return ctls_extn_client_hello_create(&client_hello->extensions);
+}
+
+
     hsmg->handshake_message_body.client_hello.protocol_version = template->
             protocol_version;
     hsmg->handshake_message_body.client_hello.legacy_session_id = 0x00;
@@ -98,7 +105,7 @@ ctls_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
         *offset += 2; /* reserve 2 bytes for body length (u16), backfilled below */
 
-        ctls_write_u8(buffer, offset, hsmg->message_type);
+        ctls_write_u8(buffer, offset, CTLS_HSMG_TYPE_CLIENT_HELLO);
         ctls_write_u16(buffer, offset, hsmg->sequence_number);
 
         ctls_write_bytes(buffer,
@@ -117,14 +124,14 @@ ctls_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
         ctls_status_t const result = ctls_extn_client_hello_to_wire(buffer,
             offset,
             &hsmg->handshake_message_body.client_hello.extensions,
-            CTLS_WIRE_FORMAT_DEFAULT);
+            wire_format);
 
         ctls_write_u16(buffer, &body_start, *offset - body_start);
 
         return result;
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
-        ctls_write_u8(buffer, offset, hsmg->message_type);
+        ctls_write_u8(buffer, offset, CTLS_HSMG_TYPE_CLIENT_HELLO);
         ctls_size_t hsmg_body_length_offset = *offset;
         *offset += 3;
 
@@ -158,7 +165,7 @@ ctls_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
         ctls_status_t const result = ctls_extn_client_hello_to_wire(buffer,
             offset,
             &hsmg->handshake_message_body.client_hello.extensions,
-            CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
+            wire_format);
         if (result != CTLS_STATUS_SUCCESS) return result;
 
         ctls_write_u24(buffer,
@@ -199,21 +206,20 @@ ctls_status_t ctls_hsmg_server_hello_to_struct(ctls_handshake_message_t *hsmg,
     CTLS_CHECK_NULL(hshk_data);
     CTLS_CHECK_NULL_OFFSET(offset);
 
-    hsmg->message_type = ctls_read_u8(buffer, offset);
+    ctls_hsmg_type_t const type = ctls_read_u8(buffer, offset);
+    if (type != CTLS_HSMG_TYPE_SERVER_HELLO) return CTLS_STATUS_HSMG_INVALID_MSG_TYPE;
 
     ctls_read_bytes(hshk_data->server_random, template->random, buffer, offset);
     hsmg->handshake_message_body.server_hello.random.buffer = hshk_data->server_random;
     hsmg->handshake_message_body.server_hello.random.buffer_length = template->random;
 
-    hsmg->handshake_message_body.server_hello.cipher_suite =
-            ctls_read_u16(buffer, offset);
+        hsmg->handshake_message_body.server_hello.cipher_suite = template->cipher_suite;
 
     hsmg->handshake_message_body.server_hello.protocol_version = template->
             protocol_version;
     hsmg->handshake_message_body.server_hello.legacy_compression_method = 0;
     hsmg->handshake_message_body.server_hello.legacy_session_id_echo = 0;
 
-    offset += 2;
     return ctls_extn_server_hello_to_struct(&hsmg->handshake_message_body.server_hello.
                                             extensions,
                                             buffer,
@@ -244,7 +250,7 @@ ctls_status_t ctls_hsmg_server_hello_to_wire(uint8_t *buffer,
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
-        ctls_write_u8(buffer, offset, hsmg->message_type);
+        ctls_write_u8(buffer, offset, CTLS_HSMG_TYPE_SERVER_HELLO);
         ctls_size_t hsmg_body_length_offset = *offset;
         *offset += 3;
 
@@ -275,7 +281,7 @@ ctls_status_t ctls_hsmg_server_hello_to_wire(uint8_t *buffer,
         ctls_status_t const result = ctls_extn_server_hello_to_wire(buffer,
             offset,
             &hsmg->handshake_message_body.server_hello.extensions,
-            CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
+            wire_format);
         if (result != CTLS_STATUS_SUCCESS) return result;
 
         ctls_write_u24(buffer,
@@ -297,17 +303,20 @@ ctls_status_t ctls_hsmg_encrypted_extensions_create(void) {
  * message_type(u8); the whole extension set is template-predefined and
  * reconstructed locally.
  */
-ctls_status_t ctls_hsmg_encrypted_extensions_to_struct(ctls_handshake_message_t *hsmg,
-                                                       uint8_t const *buffer) {
-    CTLS_CHECK_NULL_STRUCT(hsmg);
+ctls_status_t ctls_hsmg_encrypted_extensions_to_struct(
+    ctls_hsmg_encrypted_extensions_t *encrypted_extensions,
+    uint8_t const *buffer,
+    ctls_size_t *offset) {
+    CTLS_CHECK_NULL_STRUCT(encrypted_extensions);
+    CTLS_CHECK_NULL_OFFSET(offset);
     CTLS_CHECK_NULL_BUFFER(buffer);
 
-    ctls_size_t offset = 0;
 
-    hsmg->message_type = ctls_read_u8(buffer, &offset);
+    ctls_hsmg_type_t const type = ctls_read_u8(buffer, offset);
+    if (type != CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS) return
+            CTLS_STATUS_HSMG_INVALID_MSG_TYPE;
 
-    return ctls_extn_encrypted_extensions_to_struct(&hsmg->handshake_message_body.
-                                                    encrypted_extensions.extensions);
+    return ctls_extn_encrypted_extensions_to_struct(&encrypted_extensions->extensions);
 }
 
 /*
@@ -318,12 +327,13 @@ ctls_status_t ctls_hsmg_encrypted_extensions_to_struct(ctls_handshake_message_t 
  */
 ctls_status_t ctls_hsmg_encrypted_extensions_to_wire(uint8_t *buffer,
                                                      ctls_size_t *offset,
-                                                     ctls_handshake_message_t const *hsmg,
+                                                     ctls_hsmg_encrypted_extensions_t
+                                                     const *encrypted_extensions,
                                                      ctls_wire_format_t const
                                                      wire_format) {
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
-    CTLS_CHECK_NULL_STRUCT(hsmg);
+    CTLS_CHECK_NULL_STRUCT(encrypted_extensions);
 
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
     }
@@ -332,8 +342,8 @@ ctls_status_t ctls_hsmg_encrypted_extensions_to_wire(uint8_t *buffer,
 
         ctls_status_t const result = ctls_extn_encrypted_extensions_to_wire(buffer,
             offset,
-            &hsmg->handshake_message_body.encrypted_extensions.extensions,
-            CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
+            &encrypted_extensions->extensions,
+            wire_format);
         if (result != CTLS_STATUS_SUCCESS) return result;
 
         ctls_write_u16(buffer,
@@ -358,28 +368,31 @@ ctls_status_t ctls_hsmg_certificate_request_create(void) {
  * The context is saved to hshk_data — RFC 8446 §4.4.2 requires the client's
  * Certificate to echo it. Extensions come from the template.
  */
-ctls_status_t ctls_hsmg_certificate_request_to_struct(ctls_handshake_message_t *hsmg,
-                                                      uint8_t const *buffer) {
+ctls_status_t ctls_hsmg_certificate_request_to_struct(
+    ctls_hsmg_certificate_request_t *certificate_request,
+    uint8_t const *buffer,
+    ctls_size_t *offset) {
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
 
-    CTLS_CHECK_NULL_STRUCT(hsmg);
+    CTLS_CHECK_NULL_STRUCT(certificate_request);
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL(hshk_data);
 
-    ctls_size_t offset = 0;
 
-    hsmg->message_type = ctls_read_u8(buffer, &offset);
+    ctls_hsmg_type_t const type = ctls_read_u8(buffer, offset);
+    if (type != CTLS_HSMG_TYPE_CERTIFICATE_REQUEST) return
+            CTLS_STATUS_HSMG_INVALID_MSG_TYPE;
 
-    ctls_size_t const certificate_request_context_length = ctls_read_u8(buffer, &offset);
+
+    ctls_size_t const certificate_request_context_length = ctls_read_u8(buffer, offset);
     if (certificate_request_context_length > 0) {
         ctls_read_bytes(hshk_data->certificate_request_context,
                         certificate_request_context_length,
                         buffer,
-                        &offset);
+                        offset);
     }
 
-    return ctls_extn_certificate_request_to_struct(&hsmg->handshake_message_body.
-                                                   certificate_request.extensions);
+    return ctls_extn_certificate_request_to_struct(&certificate_request->extensions);
 }
 
 /*
@@ -391,37 +404,36 @@ ctls_status_t ctls_hsmg_certificate_request_to_struct(ctls_handshake_message_t *
  */
 ctls_status_t ctls_hsmg_certificate_request_to_wire(uint8_t *buffer,
                                                     ctls_size_t *offset,
-                                                    ctls_handshake_message_t const *hsmg,
+                                                    ctls_hsmg_certificate_request_t const
+                                                    *certificate_request,
                                                     ctls_wire_format_t const
                                                     wire_format) {
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
-    CTLS_CHECK_NULL_STRUCT(hsmg);
+    CTLS_CHECK_NULL_STRUCT(certificate_request);
 
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
+        // TODO
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
-        ctls_write_u8(buffer, offset, hsmg->message_type);
+        ctls_write_u8(buffer, offset, CTLS_HSMG_TYPE_CERTIFICATE_REQUEST);
         ctls_write_u8(buffer,
                       offset,
-                      hsmg->handshake_message_body.certificate_request.
-                      certificate_request_context.buffer_length);
+                      certificate_request->certificate_request_context.buffer_length);
 
-        if (hsmg->handshake_message_body.certificate_request.certificate_request_context.
-            buffer_length > 0) {
+        if (certificate_request->certificate_request_context.buffer_length > 0) {
             ctls_write_bytes(buffer,
                              offset,
-                             hsmg->handshake_message_body.certificate_request.
-                             certificate_request_context.buffer_length,
-                             hsmg->handshake_message_body.certificate_request.
-                             certificate_request_context.buffer);
+                             certificate_request->certificate_request_context.
+                             buffer_length,
+                             certificate_request->certificate_request_context.buffer);
         }
 
         ctls_size_t extensions_length_offset = *offset;
         ctls_status_t const result = ctls_extn_certificate_request_to_wire(buffer,
             offset,
-            &hsmg->handshake_message_body.certificate_request.extensions,
-            CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
+            &certificate_request->extensions,
+            wire_format);
         if (result != CTLS_STATUS_SUCCESS) return result;
 
         ctls_write_u16(buffer,
@@ -431,7 +443,7 @@ ctls_status_t ctls_hsmg_certificate_request_to_wire(uint8_t *buffer,
         return CTLS_STATUS_SUCCESS;
     }
 
-    return CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_HSMG_CR_INVALID_WIRE_FORMAT;
 }
 
 /*
@@ -474,53 +486,52 @@ ctls_status_t ctls_hsmg_certificate_create(ctls_handshake_message_t *hsmg,
  * certificate_id replaces RFC 8446's "opaque cert_data<1..2^24-1>" —
  * the DER is looked up in the template's known_certificates.
  */
-ctls_status_t ctls_hsmg_certificate_to_struct(ctls_handshake_message_t *hsmg,
-                                              uint8_t const *buffer) {
+ctls_status_t ctls_hsmg_certificate_to_struct(ctls_hsmg_certificate_t *certificate,
+                                              uint8_t const *buffer,
+                                              ctls_size_t *offset) {
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
 
-    CTLS_CHECK_NULL_STRUCT(hsmg);
+    CTLS_CHECK_NULL_STRUCT(certificate);
     CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_OFFSET(offset);
     CTLS_CHECK_NULL(hshk_data);
 
-    ctls_size_t offset = 0;
 
-    hsmg->message_type = ctls_read_u8(buffer, &offset);
+    ctls_hsmg_type_t const type = ctls_read_u8(buffer, offset);
+    if (type != CTLS_HSMG_TYPE_CERTIFICATE) return CTLS_STATUS_HSMG_INVALID_MSG_TYPE;
 
-    ctls_size_t const certificate_request_context_length = ctls_read_u8(buffer, &offset);
+    ctls_size_t const certificate_request_context_length = ctls_read_u8(buffer, offset);
     if (certificate_request_context_length > 0) {
         ctls_read_bytes(hshk_data->certificate_request_context,
                         certificate_request_context_length,
                         buffer,
-                        &offset);
-    } else ctls_read_u8(buffer, &offset);
+                        offset);
+    } else ctls_read_u8(buffer, offset);
+    certificate->certificate_request_context.buffer = hshk_data->certificate_request_context;
+    certificate->certificate_request_context.buffer_length = certificate_request_context_length;
 
-    ctls_size_t const certificate_entries_length = ctls_read_u24(buffer, &offset);
+    ctls_size_t const certificate_entries_length = ctls_read_u24(buffer, offset);
     ctls_size_t certificate_entries_index = 0;
     ctls_size_t const certificate_entries_absolute_length =
-            offset + certificate_entries_length;
+            *offset + certificate_entries_length;
 
-    while (offset < certificate_entries_absolute_length) {
-        offset += 2; // certificate data length
-        hsmg->handshake_message_body.certificate.certificate_entries[
-            certificate_entries_index].certificate_id = ctls_read_u16(buffer, &offset);
+    while (*offset < certificate_entries_absolute_length) {
+        *offset += 2; // certificate data length
+        certificate->certificate_entries[certificate_entries_index].certificate_id =
+                ctls_read_u16(buffer, offset);
 
-        ctls_size_t const certificate_extensions_length = ctls_read_u24(buffer, &offset);
-        if (certificate_extensions_length <= 0) {
-            continue;
+        ctls_size_t const certificate_extensions_length = ctls_read_u24(buffer, offset);
+        if (certificate_extensions_length > 0) {
+            ctls_status_t const result =
+                    ctls_extn_certificate_to_struct(&certificate->certificate_entries[
+                                                        certificate_entries_index].
+                                                    extensions);
+            if (result != CTLS_STATUS_SUCCESS) return result;
         }
-
-        ctls_status_t const result =
-                ctls_extn_certificate_to_struct(&hsmg->handshake_message_body.certificate.
-                                                certificate_entries[
-                                                    certificate_entries_index].
-                                                extensions);
-        if (result != CTLS_STATUS_SUCCESS) return result;
-
         certificate_entries_index++;
     }
 
-    hsmg->handshake_message_body.certificate.certificate_count =
-            certificate_entries_index;
+    certificate->certificate_count = certificate_entries_index;
 
     return CTLS_STATUS_SUCCESS;
 }
@@ -538,51 +549,43 @@ ctls_status_t ctls_hsmg_certificate_to_struct(ctls_handshake_message_t *hsmg,
  */
 ctls_status_t ctls_hsmg_certificate_to_wire(uint8_t *buffer,
                                             ctls_size_t *offset,
-                                            ctls_handshake_message_t const *hsmg,
+                                            ctls_hsmg_certificate_t const *certificate,
                                             ctls_wire_format_t const wire_format) {
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
-    CTLS_CHECK_NULL(hsmg);
+    CTLS_CHECK_NULL(certificate);
 
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
-        ctls_write_u8(buffer, offset, hsmg->message_type);
+        ctls_write_u8(buffer, offset, CTLS_HSMG_TYPE_CERTIFICATE);
         ctls_write_u8(buffer,
                       offset,
-                      hsmg->handshake_message_body.certificate.certificate_request_context
-                      .buffer_length);
+                      certificate->certificate_request_context.buffer_length);
 
-        if (hsmg->handshake_message_body.certificate.certificate_request_context.
-            buffer_length > 0) {
+        if (certificate->certificate_request_context.buffer_length > 0) {
             ctls_write_bytes(buffer,
                              offset,
-                             hsmg->handshake_message_body.certificate.
-                             certificate_request_context.buffer_length,
-                             hsmg->handshake_message_body.certificate.
-                             certificate_request_context.buffer);
+                             certificate->certificate_request_context.buffer_length,
+                             certificate->certificate_request_context.buffer);
         }
 
         ctls_size_t certificates_length_offset = *offset;
         *offset += 2;
 
-        for (uint8_t i = 0; i < hsmg->handshake_message_body.certificate.certificate_count
-             ; i++) {
+        for (uint8_t i = 0; i < certificate->certificate_count; i++) {
             ctls_write_u16(buffer,
                            offset,
-                           sizeof(hsmg->handshake_message_body.certificate.
-                               certificate_entries[i].certificate_id));
+                           sizeof(certificate->certificate_entries[i].certificate_id));
             ctls_write_u16(buffer,
                            offset,
-                           hsmg->handshake_message_body.certificate.certificate_entries[i]
-                           .certificate_id);
+                           certificate->certificate_entries[i].certificate_id);
             ctls_size_t certificate_extensions_length_offset = *offset;
             *offset += 2;
             ctls_status_t const result = ctls_extn_certificate_to_wire(buffer,
                 offset,
-                &hsmg->handshake_message_body.certificate.certificate_entries[i].
-                extensions,
-                CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
+                &certificate->certificate_entries[i].extensions,
+                wire_format);
             if (result != CTLS_STATUS_SUCCESS) return result;
 
             ctls_write_u16(buffer,
@@ -606,28 +609,29 @@ ctls_status_t ctls_hsmg_certificate_to_wire(uint8_t *buffer,
  * content (context string + Transcript-Hash). signature aliases hshk_data's
  * signed-bytes storage for this entity.
  */
-ctls_status_t ctls_hsmg_certificate_verify_create(ctls_handshake_message_t *hsmg,
-                                                  ctls_entity_t const entity) {
+ctls_status_t ctls_hsmg_certificate_verify_create(
+    ctls_hsmg_certificate_verify_t *certificate_verify,
+    ctls_entity_t const entity) {
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
     ctls_template_t const *template = ctls_template_get();
 
-    CTLS_CHECK_NULL_STRUCT(hsmg);
+    CTLS_CHECK_NULL_STRUCT(certificate_verify);
     CTLS_CHECK_NULL_STRUCT(template);
     CTLS_CHECK_NULL(hshk_data);
 
     if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
         return CTLS_STATUS_HSMG_INVALID_ENTITY;
 
-    hsmg->handshake_message_body.certificate_verify.signature_scheme = template->
-            signature_algorithm.signature_algorithm_type;
+    certificate_verify->signature_scheme = template->signature_algorithm.
+            signature_algorithm_type;
 
     ctls_status_t const result = ctls_signed_bytes_generate(entity);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    hsmg->handshake_message_body.certificate_verify.signature =
-            entity == CTLS_ENTITY_CLIENT
-                ? hshk_data->client_signature
-                : hshk_data->server_signature;
+    certificate_verify->signature = entity == CTLS_ENTITY_CLIENT
+                                        ? hshk_data->client_signature
+                                        : hshk_data->server_signature;
+    certificate_verify->signature_length = CTLS_SIZE_SIGNED_BYTES;
 
     return CTLS_STATUS_SUCCESS;
 }
@@ -641,28 +645,31 @@ ctls_status_t ctls_hsmg_certificate_verify_create(ctls_handshake_message_t *hsmg
  * Signature bytes land in hshk_data's signed-bytes storage for this entity;
  * actual verification happens later in the core ops, not here.
  */
-ctls_status_t ctls_hsmg_certificate_verify_to_struct(ctls_handshake_message_t *hsmg,
-                                                     uint8_t const *buffer,
-                                                     ctls_entity_t const entity) {
+ctls_status_t ctls_hsmg_certificate_verify_to_struct(
+    ctls_hsmg_certificate_verify_t *certificate_verify,
+    uint8_t const *buffer,
+    ctls_size_t *offset,
+    ctls_entity_t const entity) {
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
 
-    CTLS_CHECK_NULL_STRUCT(hsmg);
+    CTLS_CHECK_NULL_STRUCT(certificate_verify);
     CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_OFFSET(offset);
     CTLS_CHECK_NULL_OFFSET(hshk_data);
 
-    ctls_size_t offset = 0;
 
-    hsmg->message_type = ctls_read_u8(buffer, &offset);
-    hsmg->handshake_message_body.certificate_verify.signature_scheme =
-            ctls_read_u16(buffer, &offset);
+    ctls_hsmg_type_t const type = ctls_read_u8(buffer, offset);
+    if (type != CTLS_HSMG_TYPE_CERTIFICATE_VERIFY)
+        return CTLS_STATUS_HSMG_INVALID_MSG_TYPE;
+    certificate_verify->signature_scheme = ctls_read_u16(buffer, offset);
 
-    ctls_size_t const signed_bytes_length = ctls_read_u16(buffer, &offset);
-    ctls_read_bytes(entity == CTLS_ENTITY_CLIENT
-                        ? hshk_data->client_signature
-                        : hshk_data->server_signature,
-                    signed_bytes_length,
-                    buffer,
-                    &offset);
+    ctls_size_t const signed_bytes_length = ctls_read_u16(buffer, offset);
+    uint8_t *sig_buf = entity == CTLS_ENTITY_CLIENT
+                           ? hshk_data->client_signature
+                           : hshk_data->server_signature;
+    ctls_read_bytes(sig_buf, signed_bytes_length, buffer, offset);
+    certificate_verify->signature_length = (uint8_t) signed_bytes_length;
+    certificate_verify->signature = sig_buf;
 
     return CTLS_STATUS_SUCCESS;
 }
@@ -675,31 +682,21 @@ ctls_status_t ctls_hsmg_certificate_verify_to_struct(ctls_handshake_message_t *h
  */
 ctls_status_t ctls_hsmg_certificate_verify_to_wire(uint8_t *buffer,
                                                    ctls_size_t *offset,
-                                                   ctls_handshake_message_t const *hsmg,
-                                                   ctls_wire_format_t const wire_format) {
+                                                   ctls_hsmg_certificate_verify_t const *
+                                                   certificate_verify) {
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
-    CTLS_CHECK_NULL_STRUCT(hsmg);
+    CTLS_CHECK_NULL_STRUCT(certificate_verify);
 
-    if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
-    }
-    if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
-        ctls_write_u8(buffer, offset, hsmg->message_type);
-        ctls_write_u16(buffer,
-                       offset,
-                       hsmg->handshake_message_body.certificate_verify.signature_scheme);
-        ctls_write_u16(buffer,
-                       offset,
-                       hsmg->handshake_message_body.certificate_verify.signature_length);
-        ctls_write_bytes(buffer,
-                         offset,
-                         hsmg->handshake_message_body.certificate_verify.signature_length,
-                         hsmg->handshake_message_body.certificate_verify.signature);
+    ctls_write_u8(buffer, offset, CTLS_HSMG_TYPE_CERTIFICATE_VERIFY);
+    ctls_write_u16(buffer, offset, certificate_verify->signature_scheme);
+    ctls_write_u16(buffer, offset, certificate_verify->signature_length);
+    ctls_write_bytes(buffer,
+                     offset,
+                     certificate_verify->signature_length,
+                     certificate_verify->signature);
 
-        return CTLS_STATUS_SUCCESS;
-    }
-
-    return CTLS_STATUS_HSMG_CV_INVALID_WIRE_FORMAT;
+    return CTLS_STATUS_SUCCESS;
 }
 
 /*
@@ -707,11 +704,11 @@ ctls_status_t ctls_hsmg_certificate_verify_to_wire(uint8_t *buffer,
  * verify_data = HMAC(finished_key, Transcript-Hash(...)). verify_data
  * aliases hshk_data storage.
  */
-ctls_status_t ctls_hsmg_finished_create(ctls_handshake_message_t *hsmg,
+ctls_status_t ctls_hsmg_finished_create(ctls_hsmg_finished_t *finished,
                                         ctls_entity_t const entity) {
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
 
-    CTLS_CHECK_NULL_STRUCT(hsmg);
+    CTLS_CHECK_NULL_STRUCT(finished);
     CTLS_CHECK_NULL(hshk_data);
 
     if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
@@ -723,11 +720,9 @@ ctls_status_t ctls_hsmg_finished_create(ctls_handshake_message_t *hsmg,
     result = ctls_verify_data_generate(entity);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    hsmg->handshake_message_body.finished.verify_data = entity == CTLS_ENTITY_CLIENT
-                                                            ? hshk_data->
-                                                            client_verify_data
-                                                            : hshk_data->
-                                                            server_verify_data;
+    finished->verify_data = entity == CTLS_ENTITY_CLIENT
+                                ? hshk_data->client_verify_data
+                                : hshk_data->server_verify_data;
 
     return CTLS_STATUS_SUCCESS;
 }
@@ -737,30 +732,29 @@ ctls_status_t ctls_hsmg_finished_create(ctls_handshake_message_t *hsmg,
  * size, no length field — RFC 8446 §4.4.4:
  * "opaque verify_data[Hash.length];"
  */
-ctls_status_t ctls_hsmg_finished_to_struct(ctls_handshake_message_t *hsmg,
+ctls_status_t ctls_hsmg_finished_to_struct(ctls_hsmg_finished_t *finished,
                                            uint8_t const *buffer,
+                                           ctls_size_t *offset,
                                            ctls_entity_t const entity) {
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
 
-    CTLS_CHECK_NULL_STRUCT(hsmg);
+    CTLS_CHECK_NULL_STRUCT(finished);
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(hshk_data);
 
-    ctls_size_t offset = 0;
 
-    hsmg->message_type = ctls_read_u8(buffer, &offset);
+    ctls_hsmg_type_t const type = ctls_read_u8(buffer, offset);
+    if (type != CTLS_HSMG_TYPE_FINISHED) return CTLS_STATUS_HSMG_INVALID_MSG_TYPE;
 
     ctls_read_bytes(entity == CTLS_ENTITY_CLIENT
                         ? hshk_data->client_verify_data
                         : hshk_data->server_verify_data,
                     CTLS_SIZE_HASH,
                     buffer,
-                    &offset);
-    hsmg->handshake_message_body.finished.verify_data = entity == CTLS_ENTITY_CLIENT
-                                                            ? hshk_data->
-                                                            client_verify_data
-                                                            : hshk_data->
-                                                            server_verify_data;
+                    offset);
+    finished->verify_data = entity == CTLS_ENTITY_CLIENT
+                                ? hshk_data->client_verify_data
+                                : hshk_data->server_verify_data;
 
     return CTLS_STATUS_SUCCESS;
 }
@@ -772,23 +766,15 @@ ctls_status_t ctls_hsmg_finished_to_struct(ctls_handshake_message_t *hsmg,
  */
 ctls_status_t ctls_hsmg_finished_to_wire(uint8_t *buffer,
                                          ctls_size_t *offset,
-                                         ctls_handshake_message_t const *hsmg,
-                                         ctls_wire_format_t wire_format) {
+                                         ctls_hsmg_finished_t const *finished) {
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
-    CTLS_CHECK_NULL_STRUCT(hsmg);
+    CTLS_CHECK_NULL_STRUCT(finished);
 
-    if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
-    }
-    if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
-        ctls_write_u8(buffer, offset, hsmg->message_type);
-        ctls_write_bytes(buffer,
-                         offset,
-                         CTLS_SIZE_HASH,
-                         hsmg->handshake_message_body.finished.verify_data);
 
-        return CTLS_STATUS_SUCCESS;
-    }
+    ctls_write_u8(buffer, offset, CTLS_HSMG_TYPE_FINISHED);
+    ctls_write_bytes(buffer, offset, CTLS_SIZE_HASH, finished->verify_data);
+    return CTLS_STATUS_SUCCESS;
+}
 
-    return CTLS_STATUS_HSMG_FIN_INVALID_WIRE_FORMAT;
 }
