@@ -223,9 +223,11 @@ ctls_status_t ctls_unified_header_length_update(ctls_unified_header_t *unified_h
  * then encrypt inside their to_wire. On success consumes one sequence
  * number (see counter block above).
  */
-ctls_status_t ctls_record_serialize(ctls_record_t const *record,
+ctls_status_t ctls_record_serialize(ctls_record_t *record,
+                                    ctls_hsmg_type_t const hsmg_type,
                                     uint8_t *buffer,
-                                    ctls_size_t *offset) {
+                                    ctls_size_t *offset,
+                                    ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(record);
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
@@ -242,7 +244,10 @@ ctls_status_t ctls_record_serialize(ctls_record_t const *record,
                                                         CTLS_WIRE_FORMAT_DEFAULT);
                 break;
             case CTLS_HSMG_TYPE_SERVER_HELLO:
-                result = CTLS_STATUS_NOT_IMPLEMENTED;
+                result = ctls_recd_server_hello_to_wire(buffer,
+                                                        offset,
+                                                        record,
+                                                        CTLS_WIRE_FORMAT_DEFAULT);
                 break;
             case CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS:
             case CTLS_HSMG_TYPE_CERTIFICATE_REQUEST:
@@ -261,17 +266,17 @@ ctls_status_t ctls_record_serialize(ctls_record_t const *record,
             case CTLS_HSMG_TYPE_CLIENT_FLIGHT: {
                 result = ctls_recd_client_flight_to_wire(buffer,
                                                          offset,
-                                                         plaintext,
-                                                         &plaintext_offset,
                                                          record,
-                                                         CTLS_WIRE_FORMAT_DEFAULT);
+                                                         CTLS_WIRE_FORMAT_DEFAULT,
+                                                         entity);
             }
             break;
             case CTLS_HSMG_TYPE_SERVER_FLIGHT: {
                 result = ctls_recd_server_flight_to_wire(buffer,
                                                          offset,
                                                          record,
-                                                         CTLS_WIRE_FORMAT_DEFAULT);
+                                                         CTLS_WIRE_FORMAT_DEFAULT,
+                                                         entity);
             }
             break;
             case CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS:
@@ -308,13 +313,16 @@ ctls_status_t ctls_record_deserialize(ctls_record_t *record,
 
     switch (hsmg_type) {
         case CTLS_HSMG_TYPE_CLIENT_HELLO:
-            result = CTLS_STATUS_NOT_IMPLEMENTED;
+            result = ctls_recd_client_hello_to_struct(record, buffer, &offset);
             break;
         case CTLS_HSMG_TYPE_SERVER_HELLO:
             result = ctls_recd_server_hello_to_struct(record, buffer, &offset);
             break;
         case CTLS_HSMG_TYPE_SERVER_FLIGHT:
             result = ctls_recd_server_flight_to_struct(record, buffer);
+            break;
+        case CTLS_HSMG_TYPE_CLIENT_FLIGHT:
+            result = ctls_recd_client_flight_to_struct(record, buffer);
             break;
         case CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS:
         case CTLS_HSMG_TYPE_CERTIFICATE_REQUEST:
@@ -636,135 +644,26 @@ ctls_status_t ctls_recd_server_hello_to_wire(uint8_t *buffer,
     return CTLS_STATUS_RECD_SH_INVALID_WIRE_FORMAT;
 }
 
-ctls_status_t ctls_recd_certificate_verify_create(ctls_record_t *record,
-                                                  ctls_entity_t const entity) {
-    CTLS_CHECK_NULL_STRUCT(record);
-
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_RECD_CV_CREATE_INVALID_ENTITY;
-
-    ctls_status_t const result = ctls_recd_buffer_clear(record);
-    if (result != CTLS_STATUS_SUCCESS) return result;
-
-    record->type = CTLS_RECORD_TYPE_ENCRYPTED;
-    record->record_body.handshake.message_type = CTLS_HSMG_TYPE_CERTIFICATE_VERIFY;
-    record->record_body.handshake.sequence_number = 0;
-
-    return ctls_hsmg_certificate_verify_create(&record->record_body.handshake, entity);
-}
-
-ctls_status_t ctls_recd_certificate_verify_to_struct(ctls_record_t *record,
-                                                     uint8_t const *buffer,
-                                                     ctls_entity_t const entity) {
-    CTLS_CHECK_NULL_STRUCT(record);
-    CTLS_CHECK_NULL_BUFFER(buffer);
-
-    uint8_t plaintext[CTLS_SIZE_WIRE_BUFFER];
-    ctls_size_t plaintext_offset = 0;
-
-    ctls_status_t const result = ctls_record_decrypt(record,
-                                                     buffer,
-                                                     plaintext,
-                                                     &plaintext_offset,
-                                                     CTLS_PHASE_HANDSHAKE);
-    if (result != CTLS_STATUS_SUCCESS) return result;
-
-    return ctls_hsmg_certificate_verify_to_struct(&record->record_body.handshake,
-                                                  plaintext,
-                                                  entity);
-}
-
-ctls_status_t ctls_recd_certificate_verify_to_wire(uint8_t *buffer,
-                                                   ctls_size_t *offset,
-                                                   ctls_record_t const *record,
-                                                   ctls_wire_format_t const wire_format) {
-    CTLS_CHECK_NULL_STRUCT(record);
-    CTLS_CHECK_NULL_BUFFER(buffer);
-    CTLS_CHECK_NULL_OFFSET(offset);
-
-    if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
-    };
-    if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
-        ctls_unified_header_serialize(&record->unified_header, buffer, offset);
-
-        ctls_status_t const result = ctls_hsmg_certificate_verify_to_wire(buffer,
-            offset,
-            &record->record_body.handshake,
-            CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
-        if (result != CTLS_STATUS_SUCCESS) return result;
-
-        return CTLS_STATUS_SUCCESS;
-    }
-
-    return CTLS_STATUS_RECD_CV_INVALID_WIRE_FORMAT;
-}
-
-ctls_status_t ctls_recd_finished_create(ctls_record_t *record,
-                                        ctls_entity_t const entity) {
-    CTLS_CHECK_NULL_STRUCT(record);
-
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_RECD_FIN_CREATE_INVALID_ENTITY;
-
-    ctls_status_t const result = ctls_recd_buffer_clear(record);
-    if (result != CTLS_STATUS_SUCCESS) return result;
-
-    record->type = CTLS_RECORD_TYPE_ENCRYPTED;
-    record->record_body.handshake.message_type = CTLS_HSMG_TYPE_FINISHED;
-    record->record_body.handshake.sequence_number = 0;
-
-    return ctls_hsmg_finished_create(&record->record_body.handshake, entity);
-}
-
-ctls_status_t ctls_recd_finished_to_struct(ctls_record_t *record,
-                                           uint8_t const *buffer,
-                                           ctls_entity_t const entity) {
-    CTLS_CHECK_NULL_STRUCT(record);
-    CTLS_CHECK_NULL_BUFFER(buffer);
-
-    uint8_t plaintext[CTLS_SIZE_WIRE_BUFFER];
-    ctls_size_t plaintext_offset = 0;
-
-    ctls_status_t const result = ctls_record_decrypt(record,
-                                                     buffer,
-                                                     plaintext,
-                                                     &plaintext_offset,
-                                                     CTLS_PHASE_HANDSHAKE);
-    if (result != CTLS_STATUS_SUCCESS) return result;
-
-    return ctls_hsmg_finished_to_struct(&record->record_body.handshake,
-                                        plaintext,
-                                        entity);
-}
-
-ctls_status_t ctls_recd_finished_to_wire(uint8_t *buffer,
-                                         ctls_size_t *offset,
-                                         ctls_record_t const *record,
-                                         ctls_wire_format_t wire_format) {
-    CTLS_CHECK_NULL_STRUCT(record);
-    CTLS_CHECK_NULL_BUFFER(buffer);
-    CTLS_CHECK_NULL_OFFSET(offset);
-
-    if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
-    };
-    if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
-        ctls_unified_header_serialize(&record->unified_header, buffer, offset);
-
-        ctls_status_t const result = ctls_hsmg_finished_to_wire(buffer,
-            offset,
-            &record->record_body.handshake,
-            CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
-        if (result != CTLS_STATUS_SUCCESS) return result;
-
-        return CTLS_STATUS_SUCCESS;
-    }
-
-    return CTLS_STATUS_RECD_FIN_INVALID_WIRE_FORMAT;
-}
-
-
+/*
+ * Build the combined server flight (EE + Certificate + CertificateVerify +
+ * Finished) as a single encrypted record, mirroring ctls_recd_client_flight_create.
+ * The unified header is stamped here; the body is serialized and encrypted by
+ * ctls_recd_server_flight_to_wire (called from ctls_record_serialize).
+ */
 ctls_status_t ctls_recd_server_flight_create(ctls_record_t *record) {
-    return CTLS_STATUS_NOT_IMPLEMENTED;
+    CTLS_CHECK_NULL_STRUCT(record);
+
+    ctls_status_t result = ctls_recd_buffer_clear(record);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    record->type = CTLS_RECORD_TYPE_ENCRYPTED;
+    record->record_body.handshake.sequence_number = 0;
+
+    result = ctls_unified_header_build(&record->unified_header, 0);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    return ctls_hsmg_server_flight_create(&record->record_body.handshake.
+                                          handshake_message_body.server_flight);
 }
 
 /*
@@ -784,24 +683,16 @@ ctls_status_t ctls_recd_server_flight_to_struct(ctls_record_t *record,
                                                buffer,
                                                plaintext,
                                                &plaintext_offset,
-                                               CTLS_PHASE_HANDSHAKE);
+                                               CTLS_PHASE_HANDSHAKE,
+                                               CTLS_ENTITY_SERVER);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_hsmg_encrypted_extensions_to_struct(&record->record_body.handshake,
-                                                      plaintext);
+    result = ctls_hsmg_server_flight_to_struct(&record->record_body.handshake.
+                                               handshake_message_body.server_flight,
+                                               plaintext);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_hsmg_certificate_to_struct(&record->record_body.handshake, plaintext);
-    if (result != CTLS_STATUS_SUCCESS) return result;
-
-    result = ctls_hsmg_certificate_verify_to_struct(&record->record_body.handshake,
-                                                    plaintext,
-                                                    CTLS_ENTITY_SERVER);
-    if (result != CTLS_STATUS_SUCCESS) return result;
-
-    return ctls_hsmg_finished_to_struct(&record->record_body.handshake,
-                                        plaintext,
-                                        CTLS_ENTITY_SERVER);
+    return CTLS_STATUS_SUCCESS;
 }
 
 /*
@@ -811,8 +702,9 @@ ctls_status_t ctls_recd_server_flight_to_struct(ctls_record_t *record,
  */
 ctls_status_t ctls_recd_server_flight_to_wire(uint8_t *buffer,
                                               ctls_size_t *offset,
-                                              ctls_record_t const *record,
-                                              ctls_wire_format_t const wire_format) {
+                                              ctls_record_t *record,
+                                              ctls_wire_format_t const wire_format,
+                                              ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(record);
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
@@ -820,36 +712,33 @@ ctls_status_t ctls_recd_server_flight_to_wire(uint8_t *buffer,
     if (wire_format != CTLS_WIRE_FORMAT_DEFAULT && wire_format !=
         CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) return CTLS_STATUS_RECD_SF_INVALID_WIRE_FORMAT;
 
-    ctls_status_t result = ctls_unified_header_serialize(&record->unified_header,
-                                                         buffer,
-                                                         offset);
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
+    uint8_t plaintext[CTLS_SIZE_WIRE_BUFFER];
+    ctls_size_t plaintext_offset = 0;
+
+    result = ctls_hsmg_server_flight_to_wire(plaintext,
+                                             &plaintext_offset,
+                                             &record->record_body.handshake.
+                                             handshake_message_body.server_flight,
+                                             wire_format);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_hsmg_encrypted_extensions_to_wire(buffer,
-                                                    offset,
-                                                    &record->record_body.handshake,
-                                                    wire_format);
+    result = ctls_unified_header_length_update(&record->unified_header,
+                                               (uint16_t) (
+                                                   plaintext_offset +
+                                                   CTLS_SIZE_AEAD_TAG));
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_hsmg_certificate_to_wire(buffer,
-                                           offset,
-                                           &record->record_body.handshake,
-                                           wire_format);
-    if (result != CTLS_STATUS_SUCCESS) return result;
-
-    result = ctls_hsmg_certificate_verify_to_wire(buffer,
-                                                  offset,
-                                                  &record->record_body.handshake,
-                                                  wire_format);
-    if (result != CTLS_STATUS_SUCCESS) return result;
-
-    result = ctls_hsmg_finished_to_wire(buffer,
-                                        offset,
-                                        &record->record_body.handshake,
-                                        wire_format);
-    if (result != CTLS_STATUS_SUCCESS) return result;
-
-    return result;
+    ctls_size_t ciphertext_length = 0;
+    return ctls_record_encrypt(buffer,
+                               offset,
+                               &record->unified_header,
+                               plaintext,
+                               plaintext_offset,
+                               &ciphertext_length,
+                               CTLS_PHASE_HANDSHAKE,
+                               entity);
 }
 
 
@@ -865,70 +754,67 @@ ctls_status_t ctls_recd_client_flight_create(ctls_record_t *record) {
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     record->type = CTLS_RECORD_TYPE_ENCRYPTED;
-    record->record_body.handshake.message_type = CTLS_HSMG_TYPE_CLIENT_FLIGHT;
     record->record_body.handshake.sequence_number = 0;
 
     result = ctls_unified_header_build(&record->unified_header, 0);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_hsmg_certificate_create(&record->record_body.handshake,
-                                          CTLS_ENTITY_CLIENT);
-    if (result != CTLS_STATUS_SUCCESS) return result;
-
-    result = ctls_hsmg_certificate_verify_create(&record->record_body.handshake,
-                                                 CTLS_ENTITY_CLIENT);
-    if (result != CTLS_STATUS_SUCCESS) return result;
-
-    return ctls_hsmg_finished_create(&record->record_body.handshake, CTLS_ENTITY_CLIENT);
+    return ctls_hsmg_client_flight_create(&record->record_body.handshake.
+                                          handshake_message_body.client_flight);
 }
 
 ctls_status_t ctls_recd_client_flight_to_struct(ctls_record_t *record,
                                                 uint8_t const *buffer) {
-    return CTLS_STATUS_NOT_IMPLEMENTED;
+    CTLS_CHECK_NULL_STRUCT(record);
+    CTLS_CHECK_NULL_BUFFER(buffer);
+
+    uint8_t plaintext[CTLS_SIZE_WIRE_BUFFER];
+    ctls_size_t plaintext_offset = 0;
+
+    ctls_status_t result = ctls_record_decrypt(record,
+                                               buffer,
+                                               plaintext,
+                                               &plaintext_offset,
+                                               CTLS_PHASE_HANDSHAKE,
+                                               CTLS_ENTITY_CLIENT);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_hsmg_client_flight_to_struct(&record->record_body.handshake.
+                                               handshake_message_body.client_flight,
+                                               plaintext);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    return CTLS_STATUS_SUCCESS;
 }
 
-/*
- * Client flight emit. Two buffers: the unified header goes straight into
- * buffer (clear — it is the AAD), the three message bodies
- * (Certificate | CertificateVerify | Finished) accumulate in the plaintext
- * scratch, and ctls_record_encrypt appends AES-GCM(plaintext) | tag after
- * the header in buffer.
- */
 ctls_status_t ctls_recd_client_flight_to_wire(uint8_t *buffer,
                                               ctls_size_t *offset,
-                                              uint8_t *plaintext,
-                                              ctls_size_t *plaintext_bytes_written,
-                                              ctls_record_t const *record,
-                                              ctls_wire_format_t const wire_format) {
+                                              ctls_record_t *record,
+                                              ctls_wire_format_t const wire_format,
+                                              ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(record);
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
 
     if (wire_format != CTLS_WIRE_FORMAT_DEFAULT && wire_format !=
-        CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) return CTLS_STATUS_RECD_CF_INVALID_WIRE_FORMAT;
+        CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) return CTLS_STATUS_RECD_SF_INVALID_WIRE_FORMAT;
 
-    ctls_status_t result = ctls_unified_header_serialize(&record->unified_header,
-                                                         buffer,
-                                                         offset);
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
+    uint8_t plaintext[CTLS_SIZE_WIRE_BUFFER];
+    ctls_size_t plaintext_offset = 0;
+
+    result = ctls_hsmg_client_flight_to_wire(plaintext,
+                                             &plaintext_offset,
+                                             &record->record_body.handshake.
+                                             handshake_message_body.client_flight,
+                                             wire_format);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-
-    result = ctls_hsmg_certificate_to_wire(plaintext,
-                                           plaintext_bytes_written,
-                                           &record->record_body.handshake,
-                                           wire_format);
-    if (result != CTLS_STATUS_SUCCESS) return result;
-
-    result = ctls_hsmg_certificate_verify_to_wire(plaintext,
-                                                  plaintext_bytes_written,
-                                                  &record->record_body.handshake,
-                                                  wire_format);
-    if (result != CTLS_STATUS_SUCCESS) return result;
-
-    result = ctls_hsmg_finished_to_wire(plaintext,
-                                        plaintext_bytes_written,
-                                        &record->record_body.handshake,
-                                        wire_format);
+    result = ctls_unified_header_length_update(&record->unified_header,
+                                               (uint16_t) (
+                                                   plaintext_offset +
+                                                   CTLS_SIZE_AEAD_TAG));
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     ctls_size_t ciphertext_length = 0;
@@ -936,9 +822,10 @@ ctls_status_t ctls_recd_client_flight_to_wire(uint8_t *buffer,
                                offset,
                                &record->unified_header,
                                plaintext,
-                               *plaintext_bytes_written,
+                               plaintext_offset,
                                &ciphertext_length,
-                               CTLS_PHASE_HANDSHAKE);
+                               CTLS_PHASE_HANDSHAKE,
+                               entity);
 }
 
 ctls_status_t ctls_recd_application_data_deserialize(uint8_t const *buffer,

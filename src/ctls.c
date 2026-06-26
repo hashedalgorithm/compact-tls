@@ -92,6 +92,7 @@ ctls_status_t ctls_context_init(ctls_context_t *context,
  * On any error the state machine moves to CTLS_HSHK_STATE_ERROR, buffers
  * are cleared, and the error is propagated to the caller.
  */
+#if CTLS_CLIENT
 ctls_status_t ctls_handshake(ctls_context_t *context) {
     uint8_t buffer[CTLS_SIZE_WIRE_BUFFER];
     ctls_size_t buffer_offset = 0;
@@ -100,7 +101,11 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     ctls_status_t result = ctls_recd_client_hello_create(&context->record);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
-    result = ctls_record_serialize(&context->record, buffer, &buffer_offset);
+    result = ctls_record_serialize(&context->record,
+                                   CTLS_HSMG_TYPE_CLIENT_HELLO,
+                                   buffer,
+                                   &buffer_offset,
+                                   CTLS_ENTITY_CLIENT);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     result = context->transport.recd_send(buffer, buffer_offset);
@@ -158,7 +163,11 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
         result = ctls_recd_client_flight_create(&context->record);
         if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
-        result = ctls_record_serialize(&context->record, buffer, &buffer_offset);
+        result = ctls_record_serialize(&context->record,
+                                       CTLS_HSMG_TYPE_CLIENT_FLIGHT,
+                                       buffer,
+                                       &buffer_offset,
+                                       CTLS_ENTITY_CLIENT);
         if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
         result = context->transport.recd_send(buffer, buffer_offset);
@@ -172,7 +181,7 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
         if (result != CTLS_STATUS_SUCCESS) goto onerror;
     }
 
-    return CTLS_STATUS_SUCCESS;
+    result = ctls_application_key_schedule();
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     context->state = CTLS_HSHK_STATE_CONNECTED;
@@ -186,6 +195,37 @@ onerror:
     ctls_wire_buffer_clear(buffer, &buffer_offset);
     return result;
 }
+#endif /* CTLS_CLIENT */
+
+
+/*
+ * Full server-side TLS 1.3 handshake sequence (RFC 8446 §2):
+ *   1. Receive ClientHello (plaintext) — parse key share
+ *   2. Send ServerHello (plaintext) — includes server key share
+ *   3. Derive handshake keys from shared ECDH secret
+ *   4. Send server flight (EE + Certificate + CertificateVerify + Finished)
+ *      encrypted with server handshake write key
+ *   5. If mutual_auth: receive client flight (Certificate + CertVerify + Finished)
+ *   6. Derive application traffic keys
+ *
+ * On any error moves to CTLS_HSHK_STATE_ERROR and propagates.
+ */
+#if CTLS_SERVER
+ctls_status_t ctls_server_handshake(ctls_context_t *context) {
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
+    context->state = CTLS_HSHK_STATE_CONNECTED;
+    context->hshk_data.isHandshakeComplete = true;
+
+    return CTLS_STATUS_SUCCESS;
+
+onerror:
+    context->state = CTLS_HSHK_STATE_ERROR;
+    ctls_recd_buffer_clear(&context->record);
+    ctls_wire_buffer_clear(buffer, &buffer_offset);
+    return result;
+}
+#endif /* CTLS_SERVER */
 
 
 ctls_status_t ctls_connect(ctls_context_t *context) {

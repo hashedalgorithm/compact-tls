@@ -1859,6 +1859,7 @@ ctls_status_t ctls_extn_certificate_request_to_wire(uint8_t *buffer,
     CTLS_CHECK_NULL_STRUCT(certificate_request);
 
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
+        return CTLS_STATUS_SUCCESS;
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
         ctls_status_t result;
@@ -1992,6 +1993,7 @@ ctls_status_t ctls_extn_certificate_to_wire(uint8_t *buffer,
     CTLS_CHECK_NULL_STRUCT(certificate_extensions);
 
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
+        return CTLS_STATUS_SUCCESS;
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
         ctls_status_t result;

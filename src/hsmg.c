@@ -294,8 +294,16 @@ ctls_status_t ctls_hsmg_server_hello_to_wire(uint8_t *buffer,
     return CTLS_STATUS_HSMG_SH_INVALID_WIRE_FORMAT;
 }
 
-ctls_status_t ctls_hsmg_encrypted_extensions_create(void) {
-    return CTLS_STATUS_NOT_IMPLEMENTED;
+/*
+ * Build EncryptedExtensions (server-side create). All content is
+ * template-predefined; reconstruct via ctls_extn_encrypted_extensions_to_struct
+ * which pulls values from the template.
+ */
+ctls_status_t ctls_hsmg_encrypted_extensions_create(
+    ctls_hsmg_encrypted_extensions_t *encrypted_extensions) {
+    CTLS_CHECK_NULL_STRUCT(encrypted_extensions);
+
+    return ctls_extn_encrypted_extensions_to_struct(&encrypted_extensions->extensions);
 }
 
 /*
@@ -336,6 +344,14 @@ ctls_status_t ctls_hsmg_encrypted_extensions_to_wire(uint8_t *buffer,
     CTLS_CHECK_NULL_STRUCT(encrypted_extensions);
 
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
+        /* Compact EE: only the message type byte; all extensions are
+         * template-pinned and reconstructed by the peer from its template. */
+        ctls_write_u8(buffer, offset, CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS);
+
+        return ctls_extn_encrypted_extensions_to_wire(buffer,
+                                                      offset,
+                                                      &encrypted_extensions->extensions,
+                                                      wire_format);
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
         ctls_size_t extensions_length_offset = *offset;
@@ -355,7 +371,8 @@ ctls_status_t ctls_hsmg_encrypted_extensions_to_wire(uint8_t *buffer,
     return CTLS_STATUS_HSMG_EE_INVALID_WIRE_FORMAT;
 }
 
-ctls_status_t ctls_hsmg_certificate_request_create(void) {
+ctls_status_t ctls_hsmg_certificate_request_create(
+    ctls_hsmg_certificate_request_t *certificate_request) {
     return CTLS_STATUS_NOT_IMPLEMENTED;
 }
 
@@ -453,23 +470,23 @@ ctls_status_t ctls_hsmg_certificate_request_to_wire(uint8_t *buffer,
  * certificate_request_context, plus per-entry extensions (OCSP/SCT) the
  * peer requested.
  */
-ctls_status_t ctls_hsmg_certificate_create(ctls_handshake_message_t *hsmg,
+ctls_status_t ctls_hsmg_certificate_create(ctls_hsmg_certificate_t *certificate,
                                            ctls_entity_t const entity) {
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
 
-    CTLS_CHECK_NULL_STRUCT(hsmg);
+    CTLS_CHECK_NULL_STRUCT(certificate);
     CTLS_CHECK_NULL(hshk_data);
 
-    hsmg->handshake_message_body.certificate.certificate_request_context.buffer =
-            hshk_data->certificate_request_context;
-    hsmg->handshake_message_body.certificate.certificate_request_context.buffer_length =
+    certificate->certificate_request_context.buffer = hshk_data->
+            certificate_request_context;
+    certificate->certificate_request_context.buffer_length =
             CTLS_SIZE_CERTIFICATE_REQUEST_CONTEXT;
 
-    hsmg->handshake_message_body.certificate.certificate_entries[0].certificate_id =
-            CTLS_ENTITY_CERTIFICATE_ID;
+    certificate->certificate_entries[0].certificate_id = CTLS_ENTITY_CERTIFICATE_ID;
 
-    return ctls_extn_certificate_create(&hsmg->handshake_message_body.certificate.
-                                        certificate_entries[0].extensions,
+    certificate->certificate_count = 1;
+
+    return ctls_extn_certificate_create(&certificate->certificate_entries[0].extensions,
                                         entity);
 }
 
@@ -777,4 +794,138 @@ ctls_status_t ctls_hsmg_finished_to_wire(uint8_t *buffer,
     return CTLS_STATUS_SUCCESS;
 }
 
+ctls_status_t ctls_hsmg_server_flight_create(ctls_hsmg_server_flight_t *server_flight) {
+    CTLS_CHECK_NULL_STRUCT(server_flight);
+
+    ctls_status_t result =
+            ctls_hsmg_encrypted_extensions_create(&server_flight->encrypted_extensions);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_hsmg_certificate_create(&server_flight->certificate,
+                                          CTLS_ENTITY_SERVER);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_hsmg_certificate_verify_create(&server_flight->certificate_verify,
+                                                 CTLS_ENTITY_SERVER);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    return ctls_hsmg_finished_create(&server_flight->finished, CTLS_ENTITY_SERVER);
+}
+
+ctls_status_t ctls_hsmg_server_flight_to_struct(ctls_hsmg_server_flight_t *server_flight,
+                                                uint8_t const *buffer) {
+    CTLS_CHECK_NULL_STRUCT(server_flight);
+    CTLS_CHECK_NULL_BUFFER(buffer);
+
+    ctls_size_t offset = 0;
+
+    ctls_status_t result =
+            ctls_hsmg_encrypted_extensions_to_struct(&server_flight->encrypted_extensions,
+                                                     buffer,
+                                                     &offset);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_hsmg_certificate_to_struct(&server_flight->certificate,
+                                             buffer,
+                                             &offset);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_hsmg_certificate_verify_to_struct(&server_flight->certificate_verify,
+                                                    buffer,
+                                                    &offset,
+                                                    CTLS_ENTITY_SERVER);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    return ctls_hsmg_finished_to_struct(&server_flight->finished,
+                                        buffer,
+                                        &offset,
+                                        CTLS_ENTITY_SERVER);
+}
+
+ctls_status_t ctls_hsmg_server_flight_to_wire(uint8_t *buffer,
+                                              ctls_size_t *offset,
+                                              ctls_hsmg_server_flight_t const *
+                                              server_flight,
+                                              ctls_wire_format_t const wire_format) {
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
+
+    result = ctls_hsmg_encrypted_extensions_to_wire(buffer,
+                                                    offset,
+                                                    &server_flight->encrypted_extensions,
+                                                    wire_format);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_hsmg_certificate_to_wire(buffer,
+                                           offset,
+                                           &server_flight->certificate,
+                                           wire_format);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_hsmg_certificate_verify_to_wire(buffer,
+                                                  offset,
+                                                  &server_flight->certificate_verify);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    return ctls_hsmg_finished_to_wire(buffer, offset, &server_flight->finished);
+}
+
+ctls_status_t ctls_hsmg_client_flight_create(ctls_hsmg_client_flight_t *client_flight) {
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
+    result = ctls_hsmg_certificate_create(&client_flight->certificate,
+                                          CTLS_ENTITY_CLIENT);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_hsmg_certificate_verify_create(&client_flight->certificate_verify,
+                                                 CTLS_ENTITY_CLIENT);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    return ctls_hsmg_finished_create(&client_flight->finished, CTLS_ENTITY_CLIENT);
+}
+
+ctls_status_t ctls_hsmg_client_flight_to_struct(ctls_hsmg_client_flight_t *client_flight,
+                                                uint8_t const *buffer) {
+    CTLS_CHECK_NULL_STRUCT(client_flight);
+    CTLS_CHECK_NULL_BUFFER(buffer);
+
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+    ctls_size_t offset = 0;
+
+    result = ctls_hsmg_certificate_to_struct(&client_flight->certificate,
+                                             buffer,
+                                             &offset);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_hsmg_certificate_verify_to_struct(&client_flight->certificate_verify,
+                                                    buffer,
+                                                    &offset,
+                                                    CTLS_ENTITY_CLIENT);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    return ctls_hsmg_finished_to_struct(&client_flight->finished,
+                                        buffer,
+                                        &offset,
+                                        CTLS_ENTITY_CLIENT);
+}
+
+ctls_status_t ctls_hsmg_client_flight_to_wire(uint8_t *buffer,
+                                              ctls_size_t *offset,
+                                              ctls_hsmg_client_flight_t const *
+                                              client_flight,
+                                              ctls_wire_format_t const wire_format) {
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
+    result = ctls_hsmg_certificate_to_wire(buffer,
+                                           offset,
+                                           &client_flight->certificate,
+                                           wire_format);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_hsmg_certificate_verify_to_wire(buffer,
+                                                  offset,
+                                                  &client_flight->certificate_verify);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    return ctls_hsmg_finished_to_wire(buffer, offset, &client_flight->finished);
 }

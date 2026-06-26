@@ -185,55 +185,38 @@ ctls_status_t ctls_transcript_hash_update(ctls_record_t const *record,
 
     switch (type) {
         case CTLS_HSMG_TYPE_CLIENT_HELLO:
-            result = ctls_recd_client_hello_to_wire(buffer,
-                                                 &offset,
-                                                 record,
-                                                 CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
+            result = ctls_hsmg_client_hello_to_wire(buffer,
+                                                    &offset,
+                                                    &record->record_body.handshake,
+                                                    CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
             break;
         case CTLS_HSMG_TYPE_SERVER_HELLO:
-            result = ctls_recd_server_hello_to_wire(buffer,
-                                                 &offset,
-                                                 record,
-                                                 CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
+            result = ctls_hsmg_server_hello_to_wire(buffer,
+                                                    &offset,
+                                                    &record->record_body.handshake,
+                                                    CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
             break;
         case CTLS_HSMG_TYPE_SERVER_FLIGHT:
             /* Hash each sub-message in the flight individually (concatenated). */
-            result = ctls_recd_server_flight_to_wire(buffer,
-                                                  &offset,
-                                                  record,
-                                                  CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
-            break;
-        case CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS:
-            result = ctls_recd_encrypted_extensions_to_wire(buffer,
-                                                         &offset,
-                                                         record,
-                                                         CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
-            break;
-        case CTLS_HSMG_TYPE_CERTIFICATE_REQUEST:
-            result = ctls_recd_certificate_request_to_wire(buffer,
-                                                        &offset,
-                                                        record,
-                                                        CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
-            break;
-        case CTLS_HSMG_TYPE_CERTIFICATE:
-            result = ctls_recd_certificate_to_wire(buffer,
-                                                &offset,
-                                                record,
-                                                CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
-            break;
-        case CTLS_HSMG_TYPE_CERTIFICATE_VERIFY:
-            result = ctls_recd_certificate_verify_to_wire(buffer,
-                                                       &offset,
-                                                       record,
-                                                       CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
-            break;
-        case CTLS_HSMG_TYPE_FINISHED:
-            result = ctls_recd_finished_to_wire(buffer,
-                                             &offset,
-                                             record,
-                                             CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
+            result = ctls_hsmg_server_flight_to_wire(buffer,
+                                                     &offset,
+                                                     &record->record_body.handshake.
+                                                     handshake_message_body.server_flight,
+                                                     CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
             break;
         case CTLS_HSMG_TYPE_CLIENT_FLIGHT:
+            /* Hash each sub-message in the flight individually (concatenated). */
+            result = ctls_hsmg_client_flight_to_wire(buffer,
+                                                     &offset,
+                                                     &record->record_body.handshake.
+                                                     handshake_message_body.client_flight,
+                                                     CTLS_WIRE_FORMAT_TRANSCRIPT_HASH);
+            break;
+        case CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS:
+        case CTLS_HSMG_TYPE_CERTIFICATE_REQUEST:
+        case CTLS_HSMG_TYPE_CERTIFICATE:
+        case CTLS_HSMG_TYPE_CERTIFICATE_VERIFY:
+        case CTLS_HSMG_TYPE_FINISHED:
         case CTLS_HSMG_TYPE_NEW_SESSION_TICKET:
         case CTLS_HSMG_TYPE_END_OF_EARLY_DATA:
         case CTLS_HSMG_TYPE_HELLO_RETRY_REQUEST:

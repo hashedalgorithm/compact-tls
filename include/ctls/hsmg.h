@@ -172,15 +172,10 @@ struct ctls_new_session_ticket {
 typedef union {
     ctls_hsmg_client_hello_t client_hello;
     ctls_hsmg_server_hello_t server_hello;
-    ctls_hsmg_encrypted_extensions_t encrypted_extensions;
-    ctls_hsmg_certificate_request_t certificate_request;
-    ctls_hsmg_certificate_t certificate;
-    ctls_hsmg_certificate_verify_t certificate_verify;
-    ctls_hsmg_finished_t finished;
+    ctls_hsmg_server_flight_t server_flight;
+    ctls_hsmg_client_flight_t client_flight;
     ctls_hsmg_application_data_t application_data;
     ctls_hsmg_alert_t alert;
-    ctls_hsmg_client_flight_t client_flight;
-    ctls_hsmg_server_flight_t server_flight;
 } ctls_hsmg_body_t;
 
 /**
@@ -224,7 +219,9 @@ ctls_status_t ctls_hsmg_server_hello_to_wire(uint8_t *buffer,
                                              ctls_handshake_message_t const *hsmg,
                                              ctls_wire_format_t wire_format);
 
-ctls_status_t ctls_hsmg_encrypted_extensions_create(void);
+/** Fill EncryptedExtensions from the template (all fields predefined, nothing dynamic). */
+ctls_status_t ctls_hsmg_encrypted_extensions_create(
+    ctls_hsmg_encrypted_extensions_t *encrypted_extensions);
 /**
  * Parse EncryptedExtensions: only the message type is on the wire; the
  * extension content is reconstructed from the template.
@@ -240,7 +237,8 @@ ctls_status_t ctls_hsmg_encrypted_extensions_to_wire(uint8_t *buffer,
                                                      const *encrypted_extensions,
                                                      ctls_wire_format_t wire_format);
 
-ctls_status_t ctls_hsmg_certificate_request_create(void);
+ctls_status_t ctls_hsmg_certificate_request_create(
+    ctls_hsmg_certificate_request_t *certificate_request);
 /**
  * Parse CertificateRequest: message type + certificate_request_context from
  * the wire (context saved to hshk_data for the client's Certificate reply,
@@ -310,6 +308,23 @@ ctls_status_t ctls_hsmg_finished_to_wire(uint8_t *buffer,
                                          ctls_size_t *offset,
                                          ctls_hsmg_finished_t const *finished);
 
+ctls_status_t ctls_hsmg_server_flight_create(ctls_hsmg_server_flight_t *server_flight);
+ctls_status_t ctls_hsmg_server_flight_to_struct(ctls_hsmg_server_flight_t *server_flight,
+                                                uint8_t const *buffer);
+ctls_status_t ctls_hsmg_server_flight_to_wire(uint8_t *buffer,
+                                              ctls_size_t *offset,
+                                              ctls_hsmg_server_flight_t const *
+                                              server_flight,
+                                              ctls_wire_format_t wire_format);
+
+ctls_status_t ctls_hsmg_client_flight_create(ctls_hsmg_client_flight_t *client_flight);
+ctls_status_t ctls_hsmg_client_flight_to_struct(ctls_hsmg_client_flight_t *client_flight,
+                                                uint8_t const *buffer);
+ctls_status_t ctls_hsmg_client_flight_to_wire(uint8_t *buffer,
+                                              ctls_size_t *offset,
+                                              ctls_hsmg_client_flight_t const *
+                                              client_flight,
+                                              ctls_wire_format_t wire_format);
 
 
 #endif
