@@ -29,7 +29,7 @@ ctls_status_t ctls_aad_length_calculate(ctls_unified_header_t *unified_header) {
     if (unified_header->config_octet.c_bit != 0) return CTLS_STATUS_RECD_AAD_LEN_CID;
 
     unified_header->aad_length = 1U + (unified_header->config_octet.s_bit ? 2U : 1U) + (
-                                     unified_header->config_octet.l_bit ? 2U : 1U);
+                                     unified_header->config_octet.l_bit ? 1U : 0U);
 
     return CTLS_STATUS_SUCCESS;
 }
@@ -179,16 +179,17 @@ ctls_status_t ctls_unified_header_deserialize(ctls_unified_header_t *unified_hea
     CTLS_CHECK_BOUNDS(*offset, 2, CTLS_SIZE_WIRE_BUFFER);
 
     uint8_t const first_part = buffer[(*offset)++];
-    uint8_t const second_part = buffer[(*offset)++];
 
     unified_header->config_octet.c_bit =
             (first_part & CTLS_RECD_CONFIG_OCTET_C_MASK) != 0;
-    unified_header->config_octet.s_bit = second_part;
+    unified_header->config_octet.s_bit =
+            (first_part & CTLS_RECD_CONFIG_OCTET_S_MASK) != 0;
     unified_header->config_octet.l_bit =
             (first_part & CTLS_RECD_CONFIG_OCTET_L_MASK) != 0;
     unified_header->config_octet.epoch = first_part & CTLS_RECD_CONFIG_OCTET_EPOCH_MASK;
 
-    if (unified_header->config_octet.c_bit == 1) return CTLS_STATUS_RECD_HDR_DESERIALIZE_CID;
+    if (unified_header->config_octet.c_bit == 1) return
+            CTLS_STATUS_RECD_HDR_DESERIALIZE_CID;
 
     if (unified_header->config_octet.s_bit > 1 || unified_header->config_octet.s_bit < 0)
         return CTLS_STATUS_RECD_HDR_DESERIALIZE_SEQ;
