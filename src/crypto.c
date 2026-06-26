@@ -606,7 +606,7 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
             }
 
             memset(buffer, 0x20, 64U);
-            offset += 64U;
+            *offset += 64U;
             ctls_write_bytes(buffer,
                              offset,
                              context_string_length,
