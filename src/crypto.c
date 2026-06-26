@@ -12,6 +12,7 @@
 #include "ctls/ctls.h"
 #include "ctls/bytes.h"
 #include "ctls/templates.h"
+#include "certs/ctls_certs.h"
 
 psa_algorithm_t const CTLS_ECDHE_ALGORITHM = PSA_ALG_ECDH;
 psa_algorithm_t const CTLS_GCM_ALGORITHM = PSA_ALG_GCM;
@@ -872,8 +873,8 @@ ctls_status_t ctls_handshake_secret_generate(ctls_crypto_t *crypto) {
 ctls_status_t ctls_handshake_traffic_secret_generate(ctls_crypto_t *crypto,
                                                      ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_EXTN_HS_TRAFFIC_SECRET_INVALID_ENTITY;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
+            CTLS_STATUS_EXTN_HS_TRAFFIC_SECRET_INVALID_ENTITY;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
@@ -906,8 +907,8 @@ cleanup:
 ctls_status_t ctls_handshake_write_key_generate(ctls_crypto_t *crypto,
                                                 ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_EXTN_HS_WRITE_KEY_INVALID_ENTITY;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
+            CTLS_STATUS_EXTN_HS_WRITE_KEY_INVALID_ENTITY;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
@@ -941,8 +942,8 @@ cleanup:
 ctls_status_t ctls_handshake_iv_key_generate(ctls_crypto_t *crypto,
                                              ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_EXTN_HS_IV_KEY_INVALID_ENTITY;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
+            CTLS_STATUS_EXTN_HS_IV_KEY_INVALID_ENTITY;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
