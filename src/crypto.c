@@ -722,34 +722,45 @@ ctls_status_t ctls_early_secret_generate(ctls_crypto_t *crypto) {
     psa_key_id_t salt = PSA_KEY_ID_NULL;
     psa_key_attributes_t ikm_attributes = PSA_KEY_ATTRIBUTES_INIT;
     psa_key_id_t ikm = PSA_KEY_ID_NULL;
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
 
-    ctls_status_t result = ctls_key_schedule_operator_reset(crypto);
-    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+    result = ctls_key_schedule_operator_reset(crypto);
+    if (result != CTLS_STATUS_SUCCESS)
+        result = CTLS_STATUS_CRYPTO_EARLY_SECRET_RESET_FAILED;
 
     result = ctls_key_attributes_set(CTLS_KEY_USAGE_HKDF_EXTRACT, &salt_attributes);
-    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+    if (result != CTLS_STATUS_SUCCESS) {
+        result = CTLS_STATUS_CRYPTO_EARLY_SECRET_SALT_ATTR_FAILED;
+        goto cleanup;
+    }
 
     result = ctls_key_attributes_set(CTLS_KEY_USAGE_HKDF_EXTRACT, &ikm_attributes);
-    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+    if (result != CTLS_STATUS_SUCCESS) {
+        result = CTLS_STATUS_CRYPTO_EARLY_SECRET_IKM_ATTR_FAILED;
+        goto cleanup;
+    }
 
     psa_st = psa_import_key(&salt_attributes, ZEROS, CTLS_SIZE_HASH, &salt);
-    if (psa_st != PSA_SUCCESS) goto cleanup;
+    if (psa_st != PSA_SUCCESS) {
+        result = CTLS_STATUS_CRYPTO_EARLY_SECRET_SALT_IMPORT_FAILED;
+        goto cleanup;
+    }
 
     psa_st = psa_import_key(&ikm_attributes, ZEROS, CTLS_SIZE_HASH, &ikm);
-    if (psa_st != PSA_SUCCESS) goto cleanup;
+    if (psa_st != PSA_SUCCESS) {
+        result = CTLS_STATUS_CRYPTO_EARLY_SECRET_IKM_IMPORT_FAILED;
+        goto cleanup;
+    }
 
     result = ctls_hkdf_extract(&crypto->early_secret, &salt, &ikm);
-    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+    psa_destroy_key(salt);
+    psa_destroy_key(ikm);
+    return result;
 
-    return CTLS_STATUS_SUCCESS;
 cleanup:
-    psa_key_derivation_abort(&crypto->key_schedule_operator);
-    if (ikm != PSA_KEY_ID_NULL) { psa_destroy_key(ikm); }
-    if (salt != PSA_KEY_ID_NULL) { psa_destroy_key(salt); }
     psa_reset_key_attributes(&salt_attributes);
     psa_reset_key_attributes(&ikm_attributes);
-
-    return CTLS_STATUS_CRYPTO_EARLY_SECRET_EXTRACT_FAILED;
+    return result;
 }
 
 
