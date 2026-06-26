@@ -432,7 +432,8 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
             psa_set_key_algorithm(key_attribute, CTLS_ECDHE_ALGORITHM);
 
             result = ctls_key_bits_get(&CTLS_ECDHE_ALGORITHM, &key_bits);
-            if (result != CTLS_STATUS_SUCCESS) return CTLS_STATUS_CRYPTO_KEY_ATTR_ECDH_BITS_FAILED;
+            if (result != CTLS_STATUS_SUCCESS) return
+                    CTLS_STATUS_CRYPTO_KEY_ATTR_ECDH_BITS_FAILED;
             psa_set_key_bits(key_attribute, key_bits);
         }
         break;
@@ -446,8 +447,8 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
                                       ? PSA_ALG_HKDF_EXTRACT(crypto->hash_algorithm)
                                       : PSA_ALG_HKDF_EXPAND(crypto->hash_algorithm));
             result = ctls_key_bits_get(&crypto->hash_algorithm, &key_bits);
-            if (result != CTLS_STATUS_SUCCESS)
-                return CTLS_STATUS_CRYPTO_KEY_ATTR_HKDF_BITS_FAILED;
+            if (result != CTLS_STATUS_SUCCESS) return
+                    CTLS_STATUS_CRYPTO_KEY_ATTR_HKDF_BITS_FAILED;
             psa_set_key_bits(key_attribute, key_bits);
         }
         break;
@@ -458,8 +459,8 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
                                     PSA_KEY_USAGE_EXPORT);
             psa_set_key_algorithm(key_attribute, CTLS_GCM_ALGORITHM);
             result = ctls_key_bits_get(&CTLS_GCM_ALGORITHM, &key_bits);
-            if (result != CTLS_STATUS_SUCCESS)
-                return CTLS_STATUS_CRYPTO_KEY_ATTR_AEAD_BITS_FAILED;
+            if (result != CTLS_STATUS_SUCCESS) return
+                    CTLS_STATUS_CRYPTO_KEY_ATTR_AEAD_BITS_FAILED;
             psa_set_key_bits(key_attribute, key_bits);
         }
         break;
@@ -470,8 +471,8 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
                                     PSA_KEY_USAGE_VERIFY_MESSAGE | PSA_KEY_USAGE_EXPORT);
             psa_set_key_algorithm(key_attribute, PSA_ALG_HMAC(crypto->hash_algorithm));
             result = ctls_key_bits_get(&crypto->hash_algorithm, &key_bits);
-            if (result != CTLS_STATUS_SUCCESS)
-                return CTLS_STATUS_CRYPTO_KEY_ATTR_HMAC_BITS_FAILED;
+            if (result != CTLS_STATUS_SUCCESS) return
+                    CTLS_STATUS_CRYPTO_KEY_ATTR_HMAC_BITS_FAILED;
             psa_set_key_bits(key_attribute, key_bits);
         }
         break;
@@ -483,8 +484,8 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
             psa_set_key_algorithm(key_attribute, CTLS_CERTIFICATE_SIGNATURE_ALGORITHM);
 
             result = ctls_key_bits_get(&CTLS_CERTIFICATE_SIGNATURE_ALGORITHM, &key_bits);
-            if (result != CTLS_STATUS_SUCCESS)
-                return CTLS_STATUS_CRYPTO_KEY_ATTR_SIGN_BITS_FAILED;
+            if (result != CTLS_STATUS_SUCCESS) return
+                    CTLS_STATUS_CRYPTO_KEY_ATTR_SIGN_BITS_FAILED;
             psa_set_key_bits(key_attribute, key_bits);
         }
         break;
@@ -496,8 +497,8 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
             psa_set_key_algorithm(key_attribute, CTLS_CERTIFICATE_SIGNATURE_ALGORITHM);
 
             result = ctls_key_bits_get(&CTLS_CERTIFICATE_SIGNATURE_ALGORITHM, &key_bits);
-            if (result != CTLS_STATUS_SUCCESS)
-                return CTLS_STATUS_CRYPTO_KEY_ATTR_VERIFY_BITS_FAILED;
+            if (result != CTLS_STATUS_SUCCESS) return
+                    CTLS_STATUS_CRYPTO_KEY_ATTR_VERIFY_BITS_FAILED;
             psa_set_key_bits(key_attribute, key_bits);
         }
         break;
@@ -531,8 +532,8 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
     char const *context_string = NULL;
     uint8_t context_string_length = 0;
 
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
-            CTLS_STATUS_CRYPTO_INVALID_ARG;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_CRYPTO_INVALID_ARG;
 
     switch (key_type) {
         case CTLS_KEY_TYPE_DERIVED_SECRET: {
@@ -841,8 +842,8 @@ ctls_status_t ctls_handshake_secret_generate(ctls_crypto_t *crypto) {
 ctls_status_t ctls_handshake_traffic_secret_generate(ctls_crypto_t *crypto,
                                                      ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_EXTN_HS_TRAFFIC_SECRET_INVALID_ENTITY;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
+            CTLS_STATUS_EXTN_HS_TRAFFIC_SECRET_INVALID_ENTITY;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
@@ -875,8 +876,8 @@ cleanup:
 ctls_status_t ctls_handshake_write_key_generate(ctls_crypto_t *crypto,
                                                 ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_EXTN_HS_WRITE_KEY_INVALID_ENTITY;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
+            CTLS_STATUS_EXTN_HS_WRITE_KEY_INVALID_ENTITY;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
@@ -910,8 +911,8 @@ cleanup:
 ctls_status_t ctls_handshake_iv_key_generate(ctls_crypto_t *crypto,
                                              ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_EXTN_HS_IV_KEY_INVALID_ENTITY;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
+            CTLS_STATUS_EXTN_HS_IV_KEY_INVALID_ENTITY;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
@@ -1002,17 +1003,21 @@ ctls_status_t ctls_hkdf_expand(psa_key_id_t *output_key_id,
     ctls_status_t result = ctls_key_attributes_set(key_usage, &output_key_attributes);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
+
     result = ctls_key_schedule_operator_reset(crypto);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+
 
     status = psa_key_derivation_setup(&crypto->key_schedule_operator,
                                       PSA_ALG_HKDF_EXPAND(crypto->hash_algorithm));
     if (status != PSA_SUCCESS) goto cleanup;
 
+
     status = psa_key_derivation_input_key(&crypto->key_schedule_operator,
                                           PSA_KEY_DERIVATION_INPUT_SECRET,
                                           *prk_key_id);
     if (status != PSA_SUCCESS) goto cleanup;
+
 
     status = psa_key_derivation_input_bytes(&crypto->key_schedule_operator,
                                             PSA_KEY_DERIVATION_INPUT_INFO,
@@ -1020,10 +1025,12 @@ ctls_status_t ctls_hkdf_expand(psa_key_id_t *output_key_id,
                                             info_length);
     if (status != PSA_SUCCESS) goto cleanup;
 
+
     status = psa_key_derivation_output_key(&output_key_attributes,
                                            &crypto->key_schedule_operator,
                                            output_key_id);
     if (status != PSA_SUCCESS) goto cleanup;
+
 
     return CTLS_STATUS_SUCCESS;
 cleanup:
@@ -1267,8 +1274,9 @@ ctls_status_t ctls_signed_bytes_generate(ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
     CTLS_CHECK_NULL_STRUCT(hshk_data);
 
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
-            CTLS_STATUS_CRYPTO_INVALID_ARG;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_CRYPTO_INVALID_ARG;
+
 
     psa_status_t psa_st = PSA_SUCCESS;
 
@@ -1285,6 +1293,7 @@ ctls_status_t ctls_signed_bytes_generate(ctls_entity_t const entity) {
                                                            CTLS_KEY_TYPE_SIGNED_BYTES);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
+
     size_t signed_bytes_written = 0U;
     psa_st = psa_sign_message(crypto->self_certificate_key_pair,
                               CTLS_CERTIFICATE_SIGNATURE_ALGORITHM,
@@ -1294,6 +1303,7 @@ ctls_status_t ctls_signed_bytes_generate(ctls_entity_t const entity) {
                               CTLS_SIZE_SIGNED_BYTES,
                               &signed_bytes_written);
     if (psa_st != PSA_SUCCESS) goto cleanup;
+
 
     return CTLS_STATUS_SUCCESS;
 
@@ -1317,8 +1327,8 @@ ctls_status_t ctls_signed_bytes_verify(psa_key_id_t const *public_key_id,
     CTLS_CHECK_NULL_STRUCT(crypto);
     CTLS_CHECK_NULL_KEY_ID(public_key_id);
 
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
-            CTLS_STATUS_CRYPTO_INVALID_ARG;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_CRYPTO_INVALID_ARG;
 
     psa_status_t psa_st = PSA_SUCCESS;
 
@@ -1352,8 +1362,8 @@ cleanup:
 ctls_status_t ctls_finished_key_generate(ctls_entity_t const entity) {
     ctls_crypto_t *crypto = ctls_crypto_get();
 
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
-            CTLS_STATUS_CRYPTO_INVALID_ARG;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_CRYPTO_INVALID_ARG;
     CTLS_CHECK_NULL_STRUCT(crypto);
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
@@ -1391,8 +1401,8 @@ ctls_status_t ctls_verify_data_generate(ctls_entity_t const entity) {
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
     ctls_crypto_t const *crypto = ctls_crypto_get();
 
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
-            CTLS_STATUS_CRYPTO_INVALID_ARG;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_CRYPTO_INVALID_ARG;
 
     psa_status_t psa_st = PSA_SUCCESS;
 
@@ -1492,8 +1502,8 @@ ctls_status_t ctls_application_traffic_secret_generate(
     ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
 
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_EXTN_APP_TRAFFIC_SECRET_INVALID_ENTITY;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
+            CTLS_STATUS_EXTN_APP_TRAFFIC_SECRET_INVALID_ENTITY;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
@@ -1545,8 +1555,8 @@ cleanup:
 ctls_status_t ctls_application_write_key_generate(ctls_crypto_t *crypto,
                                                   ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_EXTN_APP_WRITE_KEY_INVALID_ENTITY;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
+            CTLS_STATUS_EXTN_APP_WRITE_KEY_INVALID_ENTITY;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
@@ -1580,8 +1590,8 @@ cleanup:
 ctls_status_t ctls_application_iv_key_generate(ctls_crypto_t *crypto,
                                                ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_EXTN_APP_IV_KEY_INVALID_ENTITY;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
+            CTLS_STATUS_EXTN_APP_IV_KEY_INVALID_ENTITY;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
