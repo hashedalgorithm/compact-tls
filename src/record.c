@@ -349,24 +349,41 @@ ctls_status_t ctls_record_encrypt(uint8_t *buffer,
                                   uint8_t const *plaintext,
                                   ctls_size_t const plaintext_length,
                                   ctls_size_t *ciphertext_length,
-                                  ctls_phase_t const phase) {
-    ctls_crypto_t *crypto = ctls_crypto_get();
+                                  ctls_phase_t const phase,
+                                  ctls_entity_t const entity) {
+    ctls_crypto_t const *crypto = ctls_crypto_get();
 
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_STRUCT(crypto);
     CTLS_CHECK_NULL_STRUCT(unified_header);
 
     size_t ciphertext_length_s = 0;
-    ctls_status_t result = ctls_unified_header_serialize(unified_header, buffer, offset);
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
+    result = ctls_unified_header_serialize(unified_header, buffer, offset);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-#if CTLS_CLIENT
-    result = ctls_encrypt(phase == CTLS_PHASE_HANDSHAKE
-                              ? &crypto->client_handshake_write_key
-                              : &crypto->client_application_write_key,
-                          phase == CTLS_PHASE_HANDSHAKE
-                              ? &crypto->client_handshake_iv_key
-                              : &crypto->client_application_iv_key,
+    psa_key_id_t const *write_key;
+    psa_key_id_t const *iv_key;
+
+    if (entity == CTLS_ENTITY_CLIENT) {
+        write_key = phase == CTLS_PHASE_HANDSHAKE
+                        ? &crypto->client_handshake_write_key
+                        : &crypto->client_application_write_key;
+        iv_key = phase == CTLS_PHASE_HANDSHAKE
+                     ? &crypto->client_handshake_iv_key
+                     : &crypto->client_application_iv_key;
+    } else {
+        write_key = phase == CTLS_PHASE_HANDSHAKE
+                        ? &crypto->server_handshake_write_key
+                        : &crypto->server_application_write_key;
+        iv_key = phase == CTLS_PHASE_HANDSHAKE
+                     ? &crypto->server_handshake_iv_key
+                     : &crypto->server_application_iv_key;
+    }
+
+    result = ctls_encrypt(write_key,
+                          iv_key,
                           &unified_header->sequence_number,
                           buffer,
                           unified_header->aad_length,
@@ -374,25 +391,9 @@ ctls_status_t ctls_record_encrypt(uint8_t *buffer,
                           plaintext_length,
                           &buffer[unified_header->aad_length],
                           &ciphertext_length_s);
-
-#endif
-#if CTLS_SERVER
-    result = ctls_encrypt(phase == CTLS_PHASE_HANDSHAKE
-                              ? &crypto->server_handshake_write_key
-                              : &crypto->server_application_write_key,
-                          phase == CTLS_PHASE_HANDSHAKE
-                              ? &crypto->server_handshake_iv_key
-                              : &crypto->server_application_iv_key,
-                          &unified_header->sequence_number,
-                          buffer,
-                          unified_header->aad_length,
-                          plaintext,
-                          plaintext_length,
-                          &buffer[unified_header->aad_length],
-                          &ciphertext_length_s);
-#endif
-
     if (result != CTLS_STATUS_SUCCESS) return result;
+
+    *offset += (ctls_size_t) ciphertext_length_s;
     *ciphertext_length = ciphertext_length_s;
 
     return result;
@@ -402,7 +403,8 @@ ctls_status_t ctls_record_decrypt(ctls_record_t *record,
                                   uint8_t const *buffer,
                                   uint8_t *plaintext,
                                   ctls_size_t *plaintext_bytes_written,
-                                  ctls_phase_t const phase) {
+                                  ctls_phase_t const phase,
+                                  ctls_entity_t const entity) {
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
     ctls_crypto_t *crypto = ctls_crypto_get();
 
@@ -424,13 +426,27 @@ ctls_status_t ctls_record_decrypt(ctls_record_t *record,
                                                            &offset);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-#if CTLS_CLIENT
-    result = ctls_decrypt(phase == CTLS_PHASE_HANDSHAKE
-                              ? &crypto->client_handshake_write_key
-                              : &crypto->client_application_write_key,
-                          phase == CTLS_PHASE_HANDSHAKE
-                              ? &crypto->client_handshake_iv_key
-                              : &crypto->client_application_iv_key,
+    /* Decrypt using the sender's write key — decryptor uses peer's keys */
+    psa_key_id_t const *write_key;
+    psa_key_id_t const *iv_key;
+    if (entity == CTLS_ENTITY_CLIENT) {
+        write_key = phase == CTLS_PHASE_HANDSHAKE
+                        ? &crypto->client_handshake_write_key
+                        : &crypto->client_application_write_key;
+        iv_key = phase == CTLS_PHASE_HANDSHAKE
+                     ? &crypto->client_handshake_iv_key
+                     : &crypto->client_application_iv_key;
+    } else {
+        write_key = phase == CTLS_PHASE_HANDSHAKE
+                        ? &crypto->server_handshake_write_key
+                        : &crypto->server_application_write_key;
+        iv_key = phase == CTLS_PHASE_HANDSHAKE
+                     ? &crypto->server_handshake_iv_key
+                     : &crypto->server_application_iv_key;
+    }
+
+    result = ctls_decrypt(write_key,
+                          iv_key,
                           &record->unified_header.sequence_number,
                           buffer,
                           record->unified_header.aad_length,
@@ -438,24 +454,6 @@ ctls_status_t ctls_record_decrypt(ctls_record_t *record,
                           record->unified_header.length,
                           plaintext,
                           &plaintext_bytes_written_s);
-
-#endif
-#if CTLS_SERVER
-    result = ctls_decrypt(phase == CTLS_PHASE_HANDSHAKE
-                              ? &crypto->server_handshake_write_key
-                              : &crypto->server_application_write_key,
-                          phase == CTLS_PHASE_HANDSHAKE
-                              ? &crypto->server_handshake_iv_key
-                              : &crypto->server_application_iv_key,
-                          &record->unified_header.sequence_number,
-                          buffer,
-                          record->unified_header.aad_length,
-                          &buffer[offset],
-                          record->unified_header.length,
-                          plaintext,
-                          &plaintext_bytes_written_s);
-
-#endif
 
     if (result != CTLS_STATUS_SUCCESS) return result;
 

@@ -162,7 +162,8 @@ ctls_status_t ctls_record_decrypt(ctls_record_t *record,
                                   uint8_t const *buffer,
                                   uint8_t *plaintext,
                                   ctls_size_t *plaintext_bytes_written,
-                                  ctls_phase_t phase);
+                                  ctls_phase_t phase,
+                                  ctls_entity_t entity);
 /**
  * Body plaintext -> encrypted record. Serializes the header into buffer
  * (clear, as AAD) and AEAD-encrypts plaintext right after it:
@@ -175,7 +176,8 @@ ctls_status_t ctls_record_encrypt(uint8_t *buffer,
                                   uint8_t const *plaintext,
                                   ctls_size_t plaintext_length,
                                   ctls_size_t *ciphertext_length,
-                                  ctls_phase_t phase);
+                                  ctls_phase_t phase,
+                                  ctls_entity_t entity);
 
 /** Zero the whole record struct (also used between handshake steps). */
 ctls_status_t ctls_recd_buffer_clear(ctls_record_t *record_buffer);
