@@ -210,11 +210,6 @@ ctls_status_t ctls_read(uint8_t *buffer,
                                                    CTLS_SIZE_WIRE_BUFFER);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_unified_header_deserialize(&record->unified_header,
-                                             buffer,
-                                             &buffer_offset);
-    if (result != CTLS_STATUS_SUCCESS) return result;
-
     return ctls_recd_application_data_deserialize(buffer,
                                                   application_data,
                                                   application_data_length);
