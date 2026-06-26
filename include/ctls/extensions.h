@@ -615,7 +615,14 @@ ctls_status_t ctls_extn_key_share_serialize(uint8_t *buffer,
  */
 ctls_status_t ctls_extn_client_hello_create(
     ctls_extn_client_hello_t *client_hello_extensions);
-ctls_status_t ctls_extn_client_hello_to_struct();
+/**
+ * Parse ClientHello extensions from compact cTLS wire bytes: only the
+ * key_share public key arrives; all other extensions are template-pinned.
+ * Advances *offset past the key_share_length prefix and raw key bytes.
+ */
+ctls_status_t ctls_extn_client_hello_to_struct(ctls_extn_client_hello_t *extensions,
+                                               uint8_t const *buffer,
+                                               ctls_size_t *offset);
 /**
  * Emit ClientHello extensions.
  * DEFAULT (cTLS wire): only dynamic data — the key_share bytes; everything

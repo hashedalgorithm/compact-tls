@@ -1313,8 +1313,33 @@ ctls_status_t ctls_extn_client_hello_create(
 }
 
 
-ctls_status_t ctls_extn_client_hello_to_struct() {
-    return CTLS_STATUS_NOT_IMPLEMENTED;
+/*
+ * Parse ClientHello extensions from compact cTLS wire bytes.
+ *
+ * DEFAULT wire carries only the key_share:
+ *     key_exchange_length(u16, skip — fixed CTLS_SIZE_KEY_SHARE)
+ *     | raw key bytes (CTLS_SIZE_KEY_SHARE bytes)
+ *
+ * All other extensions are template-pinned and never transmitted.
+ */
+ctls_status_t ctls_extn_client_hello_to_struct(ctls_extn_client_hello_t *extensions,
+                                               uint8_t const *buffer,
+                                               ctls_size_t *offset) {
+    CTLS_CHECK_NULL_STRUCT(extensions);
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_OFFSET(offset);
+
+    /* Load template-pinned extension fields so TRANSCRIPT_HASH reconstruction
+     * matches what the client serialized. The generated ephemeral key pair is
+     * overwritten by ctls_recd_server_hello_create later. */
+    ctls_status_t result = ctls_extn_client_hello_create(extensions);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    *offset += 2; /* skip key_exchange_length u16 — always CTLS_SIZE_KEY_SHARE */
+    return ctls_extn_key_share_deserialize(buffer,
+                                           offset,
+                                           CTLS_ENTITY_CLIENT,
+                                           &extensions->key_share_entity);
 }
 
 /*
