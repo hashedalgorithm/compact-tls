@@ -894,7 +894,7 @@ ctls_status_t ctls_handshake_write_key_generate(ctls_crypto_t *crypto,
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
-    uint8_t info[32U];
+    uint8_t info[13U];
     ctls_size_t info_offset = 0U;
 
     result = ctls_context_string_build(info,
