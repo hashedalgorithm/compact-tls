@@ -813,16 +813,18 @@ ctls_status_t ctls_shared_ephemeral_secret_generate(ctls_crypto_t *crypto) {
                                    &shared_ephemeral_secret_length);
     if (psa_st != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_RAW_KEY_AGREEMENT_FAILED;
 
+    /* Import the raw DH output as a DERIVE key (IKM for HKDF-Extract) */
     crypto->shared_ephemeral_secret = PSA_KEY_ID_NULL;
     psa_key_attributes_t shared_ephemeral_secret_attribute = PSA_KEY_ATTRIBUTES_INIT;
-    result = ctls_key_attributes_set(CTLS_KEY_USAGE_EPHEMERAL_KEY_PAIR_GENERATE,
+    result = ctls_key_attributes_set(CTLS_KEY_USAGE_HKDF_EXTRACT,
                                      &shared_ephemeral_secret_attribute);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
     psa_st = psa_import_key(&shared_ephemeral_secret_attribute,
                             shared_ephemeral_secret,
-                            CTLS_SIZE_KEY_SHARE,
+                            shared_ephemeral_secret_length,
                             &crypto->shared_ephemeral_secret);
+    psa_reset_key_attributes(&shared_ephemeral_secret_attribute);
     if (psa_st != PSA_SUCCESS) goto cleanup;
 
     memset(shared_ephemeral_secret, 0, CTLS_SIZE_KEY_SHARE);
