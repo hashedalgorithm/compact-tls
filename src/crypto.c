@@ -93,10 +93,12 @@ ctls_status_t ctls_key_bits_get(psa_algorithm_t const *algorithm, ctls_size_t *k
             break;
         case PSA_ALG_SHA_384: *key_bits = 384U;
             break;
-        case PSA_ALG_PURE_EDDSA:
         case PSA_ALG_ECDH: *key_bits = 255U;
             break;
+        case PSA_ALG_ECDSA(PSA_ALG_SHA_256): *key_bits = 256U;
+            break;
         case PSA_ALG_GCM: *key_bits = 128U;
+            break;
         default: return CTLS_STATUS_CRYPTO_KEY_BITS_UNKNOWN_ALG;
     }
 
