@@ -474,6 +474,7 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT        ((ctls_status_t)0x015Eu)
 #define CTLS_STATUS_HSMG_UNKNOWN_MSG_TYPE           ((ctls_status_t)0x015Fu)
 #define CTLS_STATUS_HSMG_INVALID_ENTITY             ((ctls_status_t)0x0160u)
+#define CTLS_STATUS_HSMG_INVALID_MSG_TYPE           ((ctls_status_t)0x0161u)
 
 /* --- 0x0161-0x0167: INVALID_WIRE_FORMAT per _to_wire function --- */
 #define CTLS_STATUS_HSMG_CH_INVALID_WIRE_FORMAT              ((ctls_status_t)0x0161u)

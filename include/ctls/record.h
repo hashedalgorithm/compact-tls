@@ -127,6 +127,7 @@ ctls_status_t ctls_unified_header_build(ctls_unified_header_t *unified_header,
 ctls_status_t ctls_unified_header_serialize(ctls_unified_header_t const *unified_header,
                                             uint8_t *buffer,
                                             ctls_size_t *offset);
+
 /**
  * Wire bytes -> header struct. Expands the 2 epoch bits against the value
  * already in unified_header->epoch (caller seeds it with the current
@@ -143,9 +144,11 @@ ctls_status_t ctls_unified_header_length_update(ctls_unified_header_t *unified_h
  * ENCRYPTED records serialize body into a scratch buffer and go through
  * ctls_record_encrypt. On success consumes one sequence number.
  */
-ctls_status_t ctls_record_serialize(ctls_record_t const *record,
+ctls_status_t ctls_record_serialize(ctls_record_t *record,
+                                    ctls_hsmg_type_t hsmg_type,
                                     uint8_t *buffer,
-                                    ctls_size_t *offset);
+                                    ctls_size_t *offset,
+                                    ctls_entity_t entity);
 /**
  * Received wire bytes -> record struct, dispatched by expected message
  * type (decryption happens inside the per-message to_struct). On success

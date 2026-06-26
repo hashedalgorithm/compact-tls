@@ -148,7 +148,8 @@ ctls_status_t ctls_transcript_hash_calculate(psa_hash_operation_t *hash_operator
  * TLS 1.3 bytes) and absorb it into the running transcript. Called once
  * per handshake message from the handshake driver.
  */
-ctls_status_t ctls_transcript_hash_update(ctls_record_t const *record);
+ctls_status_t ctls_transcript_hash_update(ctls_record_t const *record,
+                                          ctls_hsmg_type_t type);
 /**
  * Read the current transcript hash without finishing the running operator
  * (psa_hash_clone + finish on the clone).

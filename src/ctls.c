@@ -106,7 +106,7 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     result = context->transport.recd_send(buffer, buffer_offset);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
-    result = ctls_transcript_hash_update(&context->record);
+    result = ctls_transcript_hash_update(&context->record, CTLS_HSMG_TYPE_CLIENT_HELLO);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
     context->state = CTLS_HSHK_STATE_WAIT_SERVER_HELLO;
     // Server Hello
@@ -124,7 +124,7 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     result = ctls_core_server_hello_internal_op(&context->record);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
-    result = ctls_transcript_hash_update(&context->record);
+    result = ctls_transcript_hash_update(&context->record, CTLS_HSMG_TYPE_SERVER_HELLO);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     context->state = CTLS_HSHK_STATE_KEY_SCHEDULED;
@@ -150,7 +150,7 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     result = ctls_core_server_flight_op(&context->record);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
-    result = ctls_transcript_hash_update(&context->record);
+    result = ctls_transcript_hash_update(&context->record, CTLS_HSMG_TYPE_SERVER_FLIGHT);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     // Client Flight
@@ -167,7 +167,8 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
         result = ctls_core_client_flight_op(&context->record);
         if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
-        result = ctls_transcript_hash_update(&context->record);
+        result = ctls_transcript_hash_update(&context->record,
+                                             CTLS_HSMG_TYPE_CLIENT_FLIGHT);
         if (result != CTLS_STATUS_SUCCESS) goto onerror;
     }
 

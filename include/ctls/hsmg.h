@@ -188,7 +188,6 @@ typedef union {
  * handshake-level sequence carried in the compact ClientHello.
  */
 struct ctls_handshake_message {
-    ctls_hsmg_type_t message_type;
     uint16_t sequence_number;
     ctls_hsmg_body_t handshake_message_body;
 };
