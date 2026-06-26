@@ -1075,9 +1075,8 @@ ctls_status_t ctls_extn_key_share_serialize(uint8_t *buffer,
 
 
 /* Element count of a template expected_extensions array. */
-uint8_t ctls_expected_extensions_size_get(
-    ctls_tmpl_expected_extensions_t const *expected_extensions) {
-    return sizeof(*expected_extensions) / sizeof((*expected_extensions)[0]);
+uint8_t ctls_expected_extensions_size_get(void) {
+    return sizeof(ctls_tmpl_expected_extensions_t) / sizeof(ctls_extn_type_t);
 }
 
 /*
@@ -1097,9 +1096,7 @@ ctls_status_t ctls_extn_client_hello_create(
     CTLS_CHECK_NULL_STRUCT(template);
     CTLS_CHECK_NULL_STRUCT(crypto);
 
-    uint8_t const size_of_expected_extensions =
-            ctls_expected_extensions_size_get(&template->client_hello_extension.
-                                              expected_extensions);
+    uint8_t const size_of_expected_extensions = ctls_expected_extensions_size_get();
     uint8_t is_initialized = 0;
 
     ctls_status_t result = ctls_extn_is_initialized(CTLS_EXTN_TYPE_SERVER_NAME,
@@ -1366,9 +1363,7 @@ ctls_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
     CTLS_CHECK_NULL(template);
 
 
-    uint8_t const size_of_expected_extensions =
-            ctls_expected_extensions_size_get(&template->client_hello_extension.
-                                              expected_extensions);
+    uint8_t const size_of_expected_extensions = ctls_expected_extensions_size_get();
 
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
         for (uint8_t i = 0; i < size_of_expected_extensions; i++) {
@@ -1677,12 +1672,11 @@ ctls_status_t ctls_extn_encrypted_extensions_to_struct(
         if (result != CTLS_STATUS_SUCCESS) return result;
     }
 
-    uint16_t size_of_expected_extensions =
-            ctls_expected_extensions_size_get(&template->encrypted_extension.
-                                              expected_extensions);
-
-    if (size_of_expected_extensions != 0) return
-            CTLS_STATUS_EXTN_UNEXPECTED_EXPECTED_EXTNS;
+    uint8_t const n = ctls_expected_extensions_size_get();
+    for (uint8_t i = 0; i < n; i++) {
+        if (template->encrypted_extension.expected_extensions[i] != 0)
+            return CTLS_STATUS_EXTN_UNEXPECTED_EXPECTED_EXTNS;
+    }
 
     return CTLS_STATUS_SUCCESS;
 }
