@@ -105,7 +105,7 @@ int main(int argc, char *argv[]) {
         printf("handshake complete\n");
 
         static const uint8_t msg[] = "Hello world!!";
-        result = ctls_write(msg, sizeof(msg) - 1);
+        result = ctls_write(msg, sizeof(msg) - 1, CTLS_ENTITY_CLIENT);
         if (result != CTLS_STATUS_SUCCESS) {
             fprintf(stderr, "ctls_write: 0x%04X\n", result);
         } else {

@@ -120,7 +120,7 @@ int main(int argc, char *argv[]) {
         uint8_t wire_buf[CTLS_SIZE_WIRE_BUFFER];
         uint8_t plaintext[CTLS_SIZE_WIRE_BUFFER];
         memset(plaintext, 0, sizeof(plaintext));
-        result = ctls_read(wire_buf, plaintext, sizeof(plaintext) - 1);
+        result = ctls_read(wire_buf, plaintext, sizeof(plaintext) - 1, CTLS_ENTITY_CLIENT);
         if (result != CTLS_STATUS_SUCCESS) {
             fprintf(stderr, "ctls_read: 0x%04X\n", result);
         } else {
