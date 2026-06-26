@@ -909,7 +909,9 @@ ctls_status_t ctls_recd_application_data_serialize(uint8_t *buffer,
     ctls_status_t result = ctls_recd_buffer_clear(record);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_unified_header_build(&record->unified_header, 0);
+    result = ctls_unified_header_build(&record->unified_header,
+                                       (uint16_t) (
+                                           application_data_length + CTLS_SIZE_AEAD_TAG));
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     ctls_size_t ciphertext_length = 0;
