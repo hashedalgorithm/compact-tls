@@ -637,7 +637,11 @@ ctls_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
                                              ctls_wire_format_t wire_format);
 
 
-ctls_status_t ctls_extn_server_hello_create(void);
+/**
+ * Build ServerHello extensions: generate the server's ephemeral key pair,
+ * load supported_versions from the template.
+ */
+ctls_status_t ctls_extn_server_hello_create(ctls_extn_server_hello_t *server_hello_extensions);
 /**
  * Rebuild ServerHello extensions on receive: supported_versions from the
  * template (never on wire), key_share from the wire bytes at *offset.

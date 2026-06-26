@@ -1477,8 +1477,30 @@ ctls_status_t ctls_extn_client_hello_to_wire(uint8_t *buffer,
     return CTLS_STATUS_EXTN_CH_INVALID_WIRE_FORMAT;
 }
 
-ctls_status_t ctls_extn_server_hello_create(void) {
-    return CTLS_STATUS_NOT_IMPLEMENTED;
+/*
+ * Build ServerHello extensions (server-side create):
+ *   - Generate the server's own ephemeral key pair (X25519).
+ *   - Set key_share_entity to point at the newly generated key handle.
+ *   - Load supported_versions from the template (never sent on wire;
+ *     reconstructed by the client from its own template copy).
+ */
+ctls_status_t ctls_extn_server_hello_create(
+    ctls_extn_server_hello_t *server_hello_extensions) {
+    ctls_crypto_t *crypto = ctls_crypto_get();
+    ctls_template_t const *template = ctls_template_get();
+
+    CTLS_CHECK_NULL_STRUCT(server_hello_extensions);
+    CTLS_CHECK_NULL(crypto);
+    CTLS_CHECK_NULL(template);
+
+    ctls_status_t result = ctls_ephemeral_key_pair_generate(&crypto->self_ephemeral_key_pair);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    server_hello_extensions->key_share_entity = &crypto->self_ephemeral_key_pair;
+
+    return ctls_extn_supported_versions_deserialize(&template->protocol_version,
+                                                    &server_hello_extensions->
+                                                    supported_versions);
 }
 
 /*
@@ -1496,6 +1518,19 @@ ctls_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
     CTLS_CHECK_NULL_STRUCT(server_hello_extensions);
 
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
+        /* Only the raw key bytes cross the wire; no length prefix, matching
+         * ctls_extn_server_hello_to_struct which reads CTLS_SIZE_KEY_SHARE bytes
+         * directly via ctls_extn_key_share_deserialize. */
+        uint8_t raw_bytes[CTLS_SIZE_KEY_SHARE];
+        ctls_size_t bytes_written = 0;
+        ctls_status_t result = ctls_ephemeral_public_key_export(
+            server_hello_extensions->key_share_entity,
+            raw_bytes,
+            CTLS_SIZE_KEY_SHARE,
+            &bytes_written);
+        if (result != CTLS_STATUS_SUCCESS) return result;
+        ctls_write_bytes(buffer, offset, bytes_written, raw_bytes);
+        return CTLS_STATUS_SUCCESS;
     }
     if (wire_format == CTLS_WIRE_FORMAT_TRANSCRIPT_HASH) {
         ctls_status_t result = ctls_extn_supported_versions_serialize(buffer,
