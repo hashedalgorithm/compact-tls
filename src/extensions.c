@@ -1062,11 +1062,10 @@ ctls_status_t ctls_extn_key_share_serialize(uint8_t *buffer,
 
     uint8_t raw_bytes[CTLS_SIZE_KEY_SHARE];
     ctls_size_t bytes_written;
-    ctls_status_t const result = ctls_ephemeral_public_key_export(&crypto->
-        self_ephemeral_key_pair,
-        raw_bytes,
-        CTLS_SIZE_KEY_SHARE,
-        &bytes_written);
+    ctls_status_t const result = ctls_ephemeral_public_key_export(key_share,
+                                                                  raw_bytes,
+                                                                  CTLS_SIZE_KEY_SHARE,
+                                                                  &bytes_written);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     ctls_write_bytes(buffer, offset, bytes_written, raw_bytes);
@@ -1306,7 +1305,7 @@ ctls_status_t ctls_extn_client_hello_create(
         result = ctls_ephemeral_key_pair_generate(&crypto->self_ephemeral_key_pair);
         if (result != CTLS_STATUS_SUCCESS) return result;
 
-        client_hello_extensions->key_share_entity = &crypto->shared_ephemeral_secret;
+        client_hello_extensions->key_share_entity = &crypto->self_ephemeral_key_pair;
     }
 
     return CTLS_STATUS_SUCCESS;
