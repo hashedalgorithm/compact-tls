@@ -454,7 +454,8 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
         case CTLS_KEY_USAGE_AEAD_ENCRYPT_OR_DECRYPT: {
             psa_set_key_type(key_attribute, PSA_KEY_TYPE_AES);
             psa_set_key_usage_flags(key_attribute,
-                                    PSA_KEY_USAGE_ENCRYPT | PSA_KEY_USAGE_DECRYPT);
+                                    PSA_KEY_USAGE_ENCRYPT | PSA_KEY_USAGE_DECRYPT |
+                                    PSA_KEY_USAGE_EXPORT);
             psa_set_key_algorithm(key_attribute, CTLS_GCM_ALGORITHM);
             result = ctls_key_bits_get(&CTLS_GCM_ALGORITHM, &key_bits);
             if (result != CTLS_STATUS_SUCCESS)
@@ -482,7 +483,8 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
             psa_set_key_algorithm(key_attribute, CTLS_CERTIFICATE_SIGNATURE_ALGORITHM);
 
             result = ctls_key_bits_get(&CTLS_CERTIFICATE_SIGNATURE_ALGORITHM, &key_bits);
-            if (result != CTLS_STATUS_SUCCESS) return CTLS_STATUS_CRYPTO_KEY_ATTR_SIGN_BITS_FAILED;
+            if (result != CTLS_STATUS_SUCCESS)
+                return CTLS_STATUS_CRYPTO_KEY_ATTR_SIGN_BITS_FAILED;
             psa_set_key_bits(key_attribute, key_bits);
         }
         break;
@@ -494,7 +496,8 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
             psa_set_key_algorithm(key_attribute, CTLS_CERTIFICATE_SIGNATURE_ALGORITHM);
 
             result = ctls_key_bits_get(&CTLS_CERTIFICATE_SIGNATURE_ALGORITHM, &key_bits);
-            if (result != CTLS_STATUS_SUCCESS) return CTLS_STATUS_CRYPTO_KEY_ATTR_VERIFY_BITS_FAILED;
+            if (result != CTLS_STATUS_SUCCESS)
+                return CTLS_STATUS_CRYPTO_KEY_ATTR_VERIFY_BITS_FAILED;
             psa_set_key_bits(key_attribute, key_bits);
         }
         break;
@@ -752,7 +755,7 @@ cleanup:
 ctls_status_t ctls_derived_secret_generate(ctls_crypto_t *crypto) {
     CTLS_CHECK_NULL_STRUCT(crypto);
 
-    uint8_t info[80U];
+    uint8_t info[49U];
     ctls_size_t offset = 0U;
 
     ctls_status_t result = ctls_context_string_build(info,
@@ -843,7 +846,7 @@ ctls_status_t ctls_handshake_traffic_secret_generate(ctls_crypto_t *crypto,
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
-    uint8_t info[80U];
+    uint8_t info[54U];
     ctls_size_t info_offset = 0U;
 
     result = ctls_context_string_build(info,
@@ -912,7 +915,7 @@ ctls_status_t ctls_handshake_iv_key_generate(ctls_crypto_t *crypto,
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
-    uint8_t info[32U];
+    uint8_t info[12U];
     ctls_size_t info_offset = 0U;
 
     result = ctls_context_string_build(info,
@@ -1274,7 +1277,7 @@ ctls_status_t ctls_signed_bytes_generate(ctls_entity_t const entity) {
                              : hshk_data->server_signature;
 
     /* context strings [RFC 8446 §4.4.3] */
-    uint8_t info[64U + 34U + 1U + 32U]; /* max context string is 34 bytes */
+    uint8_t info[129U]; /* 64 fill + 32 label + 1 separator + 32 transcript hash */
     ctls_size_t info_offset = 0U;
     ctls_status_t const result = ctls_context_string_build(info,
                                                            &info_offset,
@@ -1319,7 +1322,7 @@ ctls_status_t ctls_signed_bytes_verify(psa_key_id_t const *public_key_id,
 
     psa_status_t psa_st = PSA_SUCCESS;
 
-    uint8_t info[64U + 34U + 1U + 32U]; /* max context string is 34 bytes */
+    uint8_t info[129U]; /* 64 fill + 32 label + 1 separator + 32 transcript hash */
     ctls_size_t info_offset = 0U;
     ctls_status_t const result = ctls_context_string_build(info,
                                                            &info_offset,
@@ -1355,7 +1358,7 @@ ctls_status_t ctls_finished_key_generate(ctls_entity_t const entity) {
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
-    uint8_t info[32U];
+    uint8_t info[19U];
     ctls_size_t info_offset = 0U;
 
     result = ctls_context_string_build(info,
@@ -1494,7 +1497,7 @@ ctls_status_t ctls_application_traffic_secret_generate(
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
-    uint8_t info[80U];
+    uint8_t info[54U];
     ctls_size_t info_offset = 0U;
 
     result = ctls_context_string_build(info,
@@ -1520,7 +1523,7 @@ ctls_status_t ctls_exporter_master_secret_generate(ctls_crypto_t *crypto) {
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
-    uint8_t info[80U];
+    uint8_t info[52U];
     ctls_size_t info_offset = 0U;
 
     result = ctls_context_string_build(info,
@@ -1547,7 +1550,7 @@ ctls_status_t ctls_application_write_key_generate(ctls_crypto_t *crypto,
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
-    uint8_t info[32U];
+    uint8_t info[13U];
     ctls_size_t info_offset = 0U;
 
     result = ctls_context_string_build(info,
@@ -1582,7 +1585,7 @@ ctls_status_t ctls_application_iv_key_generate(ctls_crypto_t *crypto,
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
-    uint8_t info[32U];
+    uint8_t info[12U];
     ctls_size_t info_offset = 0U;
 
     result = ctls_context_string_build(info,
