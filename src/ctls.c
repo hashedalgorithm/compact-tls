@@ -195,8 +195,9 @@ ctls_status_t ctls_connect(ctls_context_t *context) {
 }
 
 ctls_status_t ctls_read(uint8_t *buffer,
-                        uint8_t const *application_data,
-                        ctls_size_t const application_data_length) {
+                        uint8_t *application_data,
+                        ctls_size_t const application_data_length,
+                        ctls_entity_t const entity) {
     ctls_transport_t const *transport = ctls_transport_get();
     ctls_record_t *record = ctls_record_get();
 
@@ -212,11 +213,13 @@ ctls_status_t ctls_read(uint8_t *buffer,
 
     return ctls_recd_application_data_deserialize(buffer,
                                                   application_data,
-                                                  application_data_length);
+                                                  application_data_length,
+                                                  entity);
 }
 
 ctls_status_t ctls_write(uint8_t const *application_data,
-                         ctls_size_t const application_data_length) {
+                         ctls_size_t const application_data_length,
+                         ctls_entity_t const entity) {
     ctls_transport_t const *transport = ctls_transport_get();
     ctls_record_t const *record = ctls_record_get();
 
@@ -227,10 +230,11 @@ ctls_status_t ctls_write(uint8_t const *application_data,
     uint8_t buffer[CTLS_SIZE_WIRE_BUFFER];
     ctls_size_t buffer_offset = 0;
 
-    ctls_status_t result = ctls_recd_application_data_serialize(buffer,
+    ctls_status_t const result = ctls_recd_application_data_serialize(buffer,
         &buffer_offset,
         application_data,
-        application_data_length);
+        application_data_length,
+        entity);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     return transport->recd_send(buffer, buffer_offset);

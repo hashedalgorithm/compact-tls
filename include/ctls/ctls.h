@@ -112,9 +112,11 @@ ctls_status_t ctls_validate_template();
 ctls_status_t ctls_connect(ctls_context_t *context);
 /** Read decrypted application data into buffer. */
 ctls_status_t ctls_read(uint8_t *buffer,
-                        uint8_t const *application_data,
-                        ctls_size_t application_data_length);
+                        uint8_t *application_data,
+                        ctls_size_t application_data_length,
+                        ctls_entity_t entity);
 /** Encrypt and send application data from buffer. */
 ctls_status_t ctls_write(uint8_t const *application_data,
-                         ctls_size_t application_data_length);
+                         ctls_size_t application_data_length,
+                         ctls_entity_t entity);
 #endif

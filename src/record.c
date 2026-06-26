@@ -1099,8 +1099,8 @@ ctls_status_t ctls_recd_client_flight_to_wire(uint8_t *buffer,
 
 ctls_status_t ctls_recd_application_data_deserialize(uint8_t const *buffer,
                                                      uint8_t *application_data,
-                                                     ctls_size_t
-                                                     application_data_length) {
+                                                     ctls_size_t application_data_length,
+                                                     ctls_entity_t const entity) {
     ctls_record_t *record = ctls_record_get();
 
     CTLS_CHECK_NULL_BUFFER(buffer);
@@ -1114,7 +1114,8 @@ ctls_status_t ctls_recd_application_data_deserialize(uint8_t const *buffer,
                                buffer,
                                application_data,
                                &application_data_length,
-                               CTLS_PHASE_APPLICATION_DATA);
+                               CTLS_PHASE_APPLICATION_DATA,
+                               entity);
 }
 
 
@@ -1122,7 +1123,8 @@ ctls_status_t ctls_recd_application_data_serialize(uint8_t *buffer,
                                                    ctls_size_t *offset,
                                                    uint8_t const *application_data,
                                                    ctls_size_t const
-                                                   application_data_length) {
+                                                   application_data_length,
+                                                   ctls_entity_t const entity) {
     ctls_record_t *record = ctls_record_get();
 
     CTLS_CHECK_NULL_BUFFER(application_data);
@@ -1141,5 +1143,6 @@ ctls_status_t ctls_recd_application_data_serialize(uint8_t *buffer,
                                application_data,
                                application_data_length,
                                &ciphertext_length,
-                               CTLS_PHASE_APPLICATION_DATA);
+                               CTLS_PHASE_APPLICATION_DATA,
+                               entity);
 }
