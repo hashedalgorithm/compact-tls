@@ -16,22 +16,39 @@
 psa_algorithm_t const CTLS_ECDHE_ALGORITHM = PSA_ALG_ECDH;
 psa_algorithm_t const CTLS_GCM_ALGORITHM = PSA_ALG_GCM;
 
-psa_algorithm_t const CTLS_CERTIFICATE_SIGNATURE_ALGORITHM = PSA_ALG_PURE_EDDSA;
-psa_key_type_t const CTLS_CERTIFICATE_KEY_TYPE = PSA_ECC_FAMILY_TWISTED_EDWARDS;
+psa_algorithm_t const CTLS_CERTIFICATE_SIGNATURE_ALGORITHM =
+        PSA_ALG_ECDSA(PSA_ALG_SHA_256);
+psa_key_type_t const CTLS_CERTIFICATE_KEY_TYPE = PSA_ECC_FAMILY_SECP_R1;
 
-uint8_t const SPKI_PATTERN[20] = {
-    0x30,
-    0x05,
+/* P-256 SubjectPublicKeyInfo: OID prime256v1 + BIT STRING header */
+uint8_t const SPKI_PATTERN[] = {
     0x06,
+    0x08,
+    0x2a,
+    0x86,
+    0x48,
+    0xce,
+    0x3d,
     0x03,
-    0x2b,
-    0x65,
-    0x70,
+    0x01,
+    0x07,
+    /* OID prime256v1 */
     0x03,
-    0x21,
-    0x00
+    0x42,
+    0x00 /* BIT STRING 66 bytes, 0 unused bits */
 };
 size_t const SPKI_PATTERN_LENGTH = sizeof(SPKI_PATTERN);
+
+/* PKCS#8 P-256: ECPrivateKey version=1 + OCTET STRING(32) for raw private key */
+static uint8_t const PKCS8_PRIV_PATTERN[] = {
+    0x02,
+    0x01,
+    0x01,
+    /* ECPrivateKey version INTEGER = 1 */
+    0x04,
+    0x20 /* OCTET STRING 32 bytes — raw private key follows */
+};
+static size_t const PKCS8_PRIV_PATTERN_LENGTH = sizeof(PKCS8_PRIV_PATTERN);
 
 ctls_status_t ctls_psa_error_map(psa_status_t const status) {
     switch (status) {
@@ -1224,30 +1241,35 @@ ctls_status_t ctls_certificate_key_pair_import(uint8_t const *private_certificat
     CTLS_CHECK_NULL_BUFFER(private_certificate_der);
     CTLS_CHECK_NULL_KEY_ID(key_pair_id);
 
-    /* Ed25519 SubjectPublicKeyInfo in DER:
-     * 30 05 06 03 2b 65 70  -- AlgorithmIdentifier (OID 1.3.101.112)
-     * 03 21 00              -- BIT STRING, 33 bytes, 0 unused bits
-     * <32 bytes>            -- raw Ed25519 public key */
+    /* PKCS#8 Ed25519 private key: scan for OID + OCTET STRING wrappers,
+     * raw 32-byte key follows immediately after. */
+    ctls_size_t key_offset = private_certificate_der_length;
+    for (size_t i = 0; i + PKCS8_PRIV_PATTERN_LENGTH + 32U <=
+                       private_certificate_der_length; i++) {
+        if (memcmp(&private_certificate_der[i],
+                   PKCS8_PRIV_PATTERN,
+                   PKCS8_PRIV_PATTERN_LENGTH) == 0) {
+            key_offset = (ctls_size_t) (i + PKCS8_PRIV_PATTERN_LENGTH);
+            break;
+        }
+    }
+    if (key_offset == private_certificate_der_length) goto cleanup;
 
-
-    ctls_size_t key_offset = 0;
-    ctls_status_t result = ctls_certificate_bytes_offset_find(private_certificate_der,
-        private_certificate_der_length,
-        &key_offset);
-    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
     *key_pair_id = PSA_KEY_ID_NULL;
     psa_key_attributes_t certificate_private_key_attributes = PSA_KEY_ATTRIBUTES_INIT;
 
-    result = ctls_key_attributes_set(CTLS_KEY_USAGE_SIGN_MESSAGE,
-                                     &certificate_private_key_attributes);
+    ctls_status_t result = ctls_key_attributes_set(CTLS_KEY_USAGE_SIGN_MESSAGE,
+                                                   &certificate_private_key_attributes);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+
 
     psa_status_t const psa_st = psa_import_key(&certificate_private_key_attributes,
                                                &private_certificate_der[key_offset],
-                                               CTLS_SIZE_ED25519_KEY_LENGTH,
+                                               32U,
                                                key_pair_id);
     if (psa_st != PSA_SUCCESS) goto cleanup;
+
 
     return CTLS_STATUS_SUCCESS;
 cleanup:
@@ -1265,10 +1287,8 @@ ctls_status_t ctls_certificate_public_key_import(uint8_t const *public_certifica
     CTLS_CHECK_NULL_BUFFER(public_certificate_der);
     CTLS_CHECK_NULL(key_id);
 
-    /* Ed25519 SubjectPublicKeyInfo in DER:
-     * 30 05 06 03 2b 65 70  -- AlgorithmIdentifier (OID 1.3.101.112)
-     * 03 21 00              -- BIT STRING, 33 bytes, 0 unused bits
-     * <32 bytes>            -- raw Ed25519 public key */
+    /* P-256 SubjectPublicKeyInfo: SPKI_PATTERN locates the 65-byte
+     * uncompressed point (04 || x32 || y32) immediately after the pattern. */
 
     ctls_size_t key_offset = public_certificate_der_length;
     ctls_status_t result = ctls_certificate_bytes_offset_find(public_certificate_der,
@@ -1285,7 +1305,7 @@ ctls_status_t ctls_certificate_public_key_import(uint8_t const *public_certifica
 
     psa_status_t const psa_st = psa_import_key(&certificate_public_key_attributes,
                                                &public_certificate_der[key_offset],
-                                               CTLS_SIZE_ED25519_KEY_LENGTH,
+                                               CTLS_SIZE_CERTIFICATE_KEY_LENGTH,
                                                key_id);
     if (psa_st != PSA_SUCCESS) goto cleanup;
 
@@ -1309,8 +1329,8 @@ ctls_status_t ctls_signed_bytes_generate(ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
     CTLS_CHECK_NULL_STRUCT(hshk_data);
 
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
-            CTLS_STATUS_CRYPTO_INVALID_ARG;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_CRYPTO_INVALID_ARG;
 
     if (crypto->self_certificate_key_pair == PSA_KEY_ID_NULL) {
         uint8_t const *key_der = (entity == CTLS_ENTITY_SERVER)

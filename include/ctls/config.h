@@ -55,6 +55,7 @@
 #define CTLS_SIZE_PSK_IDENTITY 64U
 #define CTLS_SIZE_PSK_BINDER CTLS_SIZE_HASH
 #define CTLS_ENTITY_CERTIFICATE_ID 0x01    /* this build's own cert in the dictionary */
+#define CTLS_SIZE_CERTIFICATE_KEY_LENGTH 65U
 
 
 /* Using a wrong profile with wrong parameters results in connection
@@ -88,7 +89,7 @@
     .cipher_suite         = CTLS_DEFAULT_CIPHER_SUITE,                                  \
     .dhe_group            = { .key_share_length = CTLS_SIZE_KEY_SHARE,                  \
                               .dhe_group = 0x001D },                                    \
-    .signature_algorithm  = { .signature_algorithm_type = 0x0807,                       \
+    .signature_algorithm  = { .signature_algorithm_type = 0x0403,                       \
                               .signature_length = CTLS_DEFAULT_SIGNATURE_LENGTH },      \
     .random               = CTLS_SIZE_RANDOM,                                           \
     .mutual_auth          = CTLS_DEFAULT_SENTINEL,                                      \
