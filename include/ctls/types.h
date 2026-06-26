@@ -331,7 +331,12 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_CRYPTO_EARLY_SECRET_EXTRACT_FAILED       ((ctls_status_t)0x0084u)
 #define CTLS_STATUS_CRYPTO_HKDF_EXTRACT_OP_FAILED           ((ctls_status_t)0x0085u)
 #define CTLS_STATUS_CRYPTO_MASTER_SECRET_EXTRACT_FAILED      ((ctls_status_t)0x0086u)
-/* 0x0087-0x008B reserved */
+/* 0x0087-0x008B: early_secret_generate per-step breakdown */
+#define CTLS_STATUS_CRYPTO_EARLY_SECRET_RESET_FAILED         ((ctls_status_t)0x0087u)
+#define CTLS_STATUS_CRYPTO_EARLY_SECRET_SALT_ATTR_FAILED     ((ctls_status_t)0x0088u)
+#define CTLS_STATUS_CRYPTO_EARLY_SECRET_IKM_ATTR_FAILED      ((ctls_status_t)0x0089u)
+#define CTLS_STATUS_CRYPTO_EARLY_SECRET_SALT_IMPORT_FAILED   ((ctls_status_t)0x008Au)
+#define CTLS_STATUS_CRYPTO_EARLY_SECRET_IKM_IMPORT_FAILED    ((ctls_status_t)0x008Bu)
 
 /* --- 0x008C-0x009C: HKDF-Expand per function --- */
 #define CTLS_STATUS_CRYPTO_KEY_ATTR_HKDF_BITS_FAILED         ((ctls_status_t)0x008Cu)
@@ -345,7 +350,13 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_CRYPTO_EXPORTER_SECRET_EXPAND_FAILED     ((ctls_status_t)0x0094u)
 #define CTLS_STATUS_CRYPTO_APP_WRITE_KEY_EXPAND_FAILED       ((ctls_status_t)0x0095u)
 #define CTLS_STATUS_CRYPTO_APP_IV_KEY_EXPAND_FAILED          ((ctls_status_t)0x0096u)
-/* 0x0097-0x009C reserved */
+/* 0x0097-0x009C: ctls_hkdf_extract per-step breakdown */
+#define CTLS_STATUS_CRYPTO_HKDF_EXTRACT_OUT_ATTR_FAILED      ((ctls_status_t)0x0097u)
+#define CTLS_STATUS_CRYPTO_HKDF_EXTRACT_SETUP_FAILED         ((ctls_status_t)0x0098u)
+#define CTLS_STATUS_CRYPTO_HKDF_EXTRACT_SALT_EXPORT_FAILED   ((ctls_status_t)0x0099u)
+#define CTLS_STATUS_CRYPTO_HKDF_EXTRACT_SALT_INPUT_FAILED    ((ctls_status_t)0x009Au)
+#define CTLS_STATUS_CRYPTO_HKDF_EXTRACT_SECRET_INPUT_FAILED  ((ctls_status_t)0x009Bu)
+#define CTLS_STATUS_CRYPTO_HKDF_EXTRACT_OUTPUT_FAILED        ((ctls_status_t)0x009Cu)
 
 /* --- 0x009D-0x00A9: ECDH / key-attribute failures --- */
 #define CTLS_STATUS_CRYPTO_KEY_ATTR_ECDH_BITS_FAILED         ((ctls_status_t)0x009Du)

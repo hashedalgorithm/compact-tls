@@ -97,6 +97,92 @@ All errors in this band originate inside crypto operations backed by Mbed TLS PS
 | 0x0078 | `CTLS_STATUS_CRYPTO_HMAC_VERIFY_DATA_FAILED`  | `psa_mac_compute()` or comparison of `verify_data` failed; received Finished message did not match the expected HMAC over the transcript hash.     |
 | 0x0079 | `CTLS_STATUS_CRYPTO_UNKNOWN`                  | PSA returned an error code not explicitly mapped in `ctls_psa_error_map`. Raw PSA status must be logged separately.                                |
 
+### 0x007A–0x007E: Transcript hash sub-operations
+
+| Code   | Name                                          | Reason / Trigger                                                                                                   |
+|--------|-----------------------------------------------|--------------------------------------------------------------------------------------------------------------------|
+| 0x007A | `CTLS_STATUS_CRYPTO_HASH_INIT_FAILED`         | `psa_hash_setup()` failed in `ctls_transcript_hash_init`. Hash operator could not be initialized.                  |
+| 0x007B | `CTLS_STATUS_CRYPTO_HASH_CALC_FAILED`         | `psa_hash_update()` failed in `ctls_transcript_hash_calculate`. Running transcript update rejected input bytes.    |
+| 0x007C | `CTLS_STATUS_CRYPTO_HASH_UPD_FAILED`          | `psa_hash_update()` failed in `ctls_transcript_hash_update`. Individual message bytes could not be absorbed.       |
+| 0x007D | `CTLS_STATUS_CRYPTO_HASH_SNAP_CLONE_FAILED`   | `psa_hash_clone()` failed when snapshotting the running hash to produce an intermediate transcript digest.         |
+| 0x007E | `CTLS_STATUS_CRYPTO_HASH_SNAP_FINISH_FAILED`  | `psa_hash_finish()` failed on the cloned operator when finalizing the snapshot digest.                             |
+
+### 0x0084–0x008B: Early secret derivation
+
+| Code   | Name                                              | Reason / Trigger                                                                                                                   |
+|--------|---------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------|
+| 0x0084 | `CTLS_STATUS_CRYPTO_EARLY_SECRET_EXTRACT_FAILED`  | `psa_key_derivation_output_key()` failed in `ctls_early_secret_generate`. Early secret PSA key could not be produced.             |
+| 0x0085 | `CTLS_STATUS_CRYPTO_HKDF_EXTRACT_OP_FAILED`      | PSA HKDF-Extract operation (setup/input/output sequence) failed in the generic extract helper.                                     |
+| 0x0086 | `CTLS_STATUS_CRYPTO_MASTER_SECRET_EXTRACT_FAILED` | HKDF-Extract failed in `ctls_master_secret_generate`. Master secret could not be derived from handshake secret.                   |
+| 0x0087 | `CTLS_STATUS_CRYPTO_EARLY_SECRET_RESET_FAILED`    | `ctls_key_schedule_operator_reset` failed before early secret extraction. Stale derivation operator could not be cleared.          |
+| 0x0088 | `CTLS_STATUS_CRYPTO_EARLY_SECRET_SALT_ATTR_FAILED`  | `ctls_key_attributes_set(HKDF_EXTRACT)` failed when building salt key attributes for early secret.                               |
+| 0x0089 | `CTLS_STATUS_CRYPTO_EARLY_SECRET_IKM_ATTR_FAILED`   | `ctls_key_attributes_set(HKDF_EXTRACT)` failed when building IKM key attributes for early secret.                               |
+| 0x008A | `CTLS_STATUS_CRYPTO_EARLY_SECRET_SALT_IMPORT_FAILED` | `psa_import_key()` failed for the zero-salt key in `ctls_early_secret_generate`.                                                |
+| 0x008B | `CTLS_STATUS_CRYPTO_EARLY_SECRET_IKM_IMPORT_FAILED`  | `psa_import_key()` failed for the zero-IKM key in `ctls_early_secret_generate`.                                                 |
+
+### 0x008C–0x0096: Key schedule expand operations
+
+| Code   | Name                                                  | Reason / Trigger                                                                                                                         |
+|--------|-------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
+| 0x008C | `CTLS_STATUS_CRYPTO_KEY_ATTR_HKDF_BITS_FAILED`        | `ctls_key_bits_get` failed for HKDF key usage when setting attributes in `ctls_key_attributes_set`. Unknown hash algorithm.              |
+| 0x008D | `CTLS_STATUS_CRYPTO_DERIVED_SECRET_EXPAND_FAILED`     | HKDF-Expand failed in `ctls_derived_secret_generate`. Derived secret (input to handshake secret extract) could not be produced.          |
+| 0x008E | `CTLS_STATUS_CRYPTO_HS_TRAFFIC_SECRET_EXPAND_FAILED`  | HKDF-Expand failed in `ctls_handshake_traffic_secret_generate`. Client or server handshake traffic secret could not be derived.          |
+| 0x008F | `CTLS_STATUS_CRYPTO_HS_WRITE_KEY_EXPAND_FAILED`       | HKDF-Expand failed in `ctls_handshake_write_key_generate`. Handshake write key could not be derived.                                     |
+| 0x0090 | `CTLS_STATUS_CRYPTO_HS_IV_KEY_EXPAND_FAILED`          | HKDF-Expand failed in `ctls_handshake_iv_key_generate`. Handshake IV could not be derived.                                               |
+| 0x0091 | `CTLS_STATUS_CRYPTO_HKDF_EXPAND_OP_FAILED`            | Low-level HKDF-Expand PSA operation failed inside `ctls_hkdf_expand`. One of setup/input_key/input_bytes/output_key returned non-success.|
+| 0x0092 | `CTLS_STATUS_CRYPTO_FINISHED_KEY_EXPAND_FAILED`       | HKDF-Expand failed in `ctls_finished_key_generate`. Finished MAC key could not be derived from the handshake traffic secret.             |
+| 0x0093 | `CTLS_STATUS_CRYPTO_APP_TRAFFIC_SECRET_EXPAND_FAILED` | HKDF-Expand failed in `ctls_application_traffic_secret_generate`. Application traffic secret could not be derived.                       |
+| 0x0094 | `CTLS_STATUS_CRYPTO_EXPORTER_SECRET_EXPAND_FAILED`    | HKDF-Expand failed in `ctls_exporter_master_secret_generate`. Exporter master secret could not be derived.                               |
+| 0x0095 | `CTLS_STATUS_CRYPTO_APP_WRITE_KEY_EXPAND_FAILED`      | HKDF-Expand failed in `ctls_application_write_key_generate`. Application write key could not be derived.                                 |
+| 0x0096 | `CTLS_STATUS_CRYPTO_APP_IV_KEY_EXPAND_FAILED`         | HKDF-Expand failed in `ctls_application_iv_key_generate`. Application IV could not be derived.                                           |
+
+### 0x0097–0x009C: HKDF-Extract internal sub-steps
+
+| Code   | Name                                                   | Reason / Trigger                                                                                                                      |
+|--------|--------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
+| 0x0097 | `CTLS_STATUS_CRYPTO_HKDF_EXTRACT_OUT_ATTR_FAILED`      | `ctls_key_attributes_set()` failed when building output key attributes for the extract PRK.                                           |
+| 0x0098 | `CTLS_STATUS_CRYPTO_HKDF_EXTRACT_SETUP_FAILED`         | `psa_key_derivation_setup(PSA_ALG_HKDF)` failed inside `ctls_hkdf_extract`.                                                          |
+| 0x0099 | `CTLS_STATUS_CRYPTO_HKDF_EXTRACT_SALT_EXPORT_FAILED`   | `psa_export_key()` of the salt PSA key failed in `ctls_hkdf_extract`.                                                                |
+| 0x009A | `CTLS_STATUS_CRYPTO_HKDF_EXTRACT_SALT_INPUT_FAILED`    | `psa_key_derivation_input_bytes(SALT)` failed in `ctls_hkdf_extract`.                                                                |
+| 0x009B | `CTLS_STATUS_CRYPTO_HKDF_EXTRACT_SECRET_INPUT_FAILED`  | `psa_key_derivation_input_key(SECRET)` failed in `ctls_hkdf_extract`.                                                                |
+| 0x009C | `CTLS_STATUS_CRYPTO_HKDF_EXTRACT_OUTPUT_FAILED`        | `psa_key_derivation_output_key()` failed in `ctls_hkdf_extract`. PRK key handle could not be produced.                               |
+
+### 0x009D–0x00A1: ECDHE key agreement
+
+| Code   | Name                                              | Reason / Trigger                                                                                                                   |
+|--------|---------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------|
+| 0x009D | `CTLS_STATUS_CRYPTO_KEY_ATTR_ECDH_BITS_FAILED`    | `ctls_key_bits_get` failed for ECDH key usage in `ctls_key_attributes_set`. Unknown ECC algorithm.                                |
+| 0x009E | `CTLS_STATUS_CRYPTO_KEY_ATTR_SIGN_BITS_FAILED`    | `ctls_key_bits_get` failed for SIGN_MESSAGE key usage in `ctls_key_attributes_set`. Unknown signature algorithm.                  |
+| 0x009F | `CTLS_STATUS_CRYPTO_KEY_ATTR_VERIFY_BITS_FAILED`  | `ctls_key_bits_get` failed for VERIFY_MESSAGE key usage in `ctls_key_attributes_set`. Unknown signature algorithm.                |
+| 0x00A0 | `CTLS_STATUS_CRYPTO_RAW_KEY_AGREEMENT_FAILED`     | `psa_raw_key_agreement(PSA_ALG_ECDH)` failed in `ctls_ecdhe_shared_secret_generate`. Peer public key rejected or internal fault.  |
+| 0x00A1 | `CTLS_STATUS_CRYPTO_SHARED_SECRET_IMPORT_FAILED`  | `psa_import_key()` failed when importing the raw ECDH shared secret bytes as a PSA key for HKDF input.                            |
+
+### 0x00AA–0x00AD: Ephemeral and certificate key import/export
+
+| Code   | Name                                              | Reason / Trigger                                                                                                                   |
+|--------|---------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------|
+| 0x00AA | `CTLS_STATUS_CRYPTO_EPHEM_PUB_KEY_IMPORT_FAILED`  | `psa_import_key()` failed when importing the peer's ephemeral public key bytes for ECDH.                                          |
+| 0x00AB | `CTLS_STATUS_CRYPTO_CERT_SPKI_NOT_FOUND`          | SPKI OID pattern not found in the DER certificate bytes during `ctls_certificate_private_key_import`. Malformed or wrong cert.    |
+| 0x00AC | `CTLS_STATUS_CRYPTO_CERT_KEY_PAIR_IMPORT_FAILED`  | `psa_import_key()` failed when importing the private key from the PKCS#8 DER blob.                                                |
+| 0x00AD | `CTLS_STATUS_CRYPTO_CERT_PUB_KEY_IMPORT_FAILED`   | `psa_import_key()` failed when importing the peer certificate's public key for signature verification.                             |
+
+### 0x00B4–0x00B7: AEAD / nonce operations
+
+| Code   | Name                                          | Reason / Trigger                                                                                                                   |
+|--------|-----------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------|
+| 0x00B4 | `CTLS_STATUS_CRYPTO_EPHEM_KEY_EXPORT_FAILED`  | `psa_export_public_key()` failed when exporting the local ephemeral public key to include in ClientHello/ServerHello key share.   |
+| 0x00B5 | `CTLS_STATUS_CRYPTO_KEY_ATTR_AEAD_BITS_FAILED`| `ctls_key_bits_get` failed for AEAD key usage. Unknown cipher algorithm when building AEAD key attributes.                        |
+| 0x00B6 | `CTLS_STATUS_CRYPTO_KEY_ATTR_HMAC_BITS_FAILED`| `ctls_key_bits_get` failed for HMAC key usage. Unknown hash algorithm when building HMAC key attributes.                          |
+| 0x00B7 | `CTLS_STATUS_CRYPTO_NONCE_IV_EXPORT_FAILED`   | `psa_export_key()` failed when exporting the IV key bytes to XOR with the sequence number for a nonce. Key not yet derived.       |
+
+### 0x00BC–0x00BE: Attribute and context-string guards
+
+| Code   | Name                                                  | Reason / Trigger                                                                                                                         |
+|--------|-------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
+| 0x00BC | `CTLS_STATUS_CRYPTO_KEY_BITS_UNKNOWN_ALG`             | `ctls_key_bits_get` switch hit the `default` case. A PSA algorithm ID has no registered bit-width mapping.                               |
+| 0x00BD | `CTLS_STATUS_CRYPTO_KEY_ATTR_UNKNOWN_USAGE`           | `ctls_key_attributes_set` switch hit the `default` case. `CTLS_KEY_USAGE_*` value has no PSA attribute configuration.                   |
+| 0x00BE | `CTLS_STATUS_CRYPTO_CONTEXT_STR_UNKNOWN_KEY_TYPE`     | `ctls_context_string_build` switch hit the `default` case. A `ctls_key_type_t` value has no HkdfLabel encoder.                           |
+
 ---
 
 ## 0x00C8–0x012B — Extension Serialization / Deserialization Errors
@@ -111,6 +197,44 @@ All errors in this band originate inside crypto operations backed by Mbed TLS PS
 | 0x00CD | `CTLS_STATUS_EXTN_INVALID_ENTITY_OWNERSHIP`  | `entity_ownership` in `ctls_extn_key_share_deserialize` is neither `CLIENT` nor `SERVER`. Caller passed uninitialized or wrong ownership flag.                                                                                                |
 | 0x00CE | `CTLS_STATUS_EXTN_INVALID_WIRE_FORMAT`       | `wire_format` in any `_to_wire` extension function is not `DEFAULT` or `TRANSCRIPT_HASH`. Caller passed an unsupported format.                                                                                                                |
 | 0x00CF | `CTLS_STATUS_EXTN_UNEXPECTED_EXPECTED_EXTNS` | `ctls_extn_encrypted_extensions_to_struct`: template's `encrypted_extension.expected_extensions` has non-zero count. No valid cTLS extensions for `EncryptedExtensions` exist in the expected-extensions list; this indicates a bad template. |
+| 0x00D0 | `CTLS_STATUS_EXTN_INVALID_ENTITY`            | `entity` passed to an extension function is neither `CTLS_ENTITY_CLIENT` nor `CTLS_ENTITY_SERVER`. Caller used an uninitialized or wrong entity value. |
+
+### 0x00D1–0x00D2: Enum size flags
+
+| Code   | Name                                    | Reason / Trigger                                                                                                                               |
+|--------|-----------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| 0x00D1 | `CTLS_STATUS_EXTN_DESER_ENUM_SIZE_FLAG` | `ctls_extn_enum_deserialize`: `isOneByte` flag is not `CTLS_HELPER_IS_ONE_BYTE` or `CTLS_HELPER_IS_TWO_BYTE`. Caller passed invalid flag.      |
+| 0x00D2 | `CTLS_STATUS_EXTN_SER_ENUM_SIZE_FLAG`   | `ctls_extn_enum_serialize`: `isOneByte` flag is not `CTLS_HELPER_IS_ONE_BYTE` or `CTLS_HELPER_IS_TWO_BYTE`. Caller passed invalid flag.        |
+
+### 0x00D9–0x00DA: Extension form guards
+
+| Code   | Name                                    | Reason / Trigger                                                                                                                         |
+|--------|-----------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
+| 0x00D9 | `CTLS_STATUS_EXTN_ALPN_INVALID_FORM`    | `ctls_extn_alpn_serialize`: extension `form` is neither `CTLS_DATA_FORM_OPAQUE` nor `CTLS_DATA_FORM_PARSED`. Struct not initialized.    |
+| 0x00DA | `CTLS_STATUS_EXTN_CERT_AUTH_INVALID_FORM` | `ctls_extn_certificate_authorities_serialize`: extension `form` is neither opaque nor parsed. Struct not initialized.                  |
+
+### 0x00E1–0x00E8: Entity guards for crypto key schedule functions
+
+| Code   | Name                                                   | Reason / Trigger                                                                                                                         |
+|--------|--------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
+| 0x00E1 | `CTLS_STATUS_EXTN_CERT_STATUS_INVALID_ENTITY`          | `ctls_extn_certificate_status_to_struct`: `entity` not CLIENT/SERVER.                                                                    |
+| 0x00E2 | `CTLS_STATUS_EXTN_CERT_CREATE_INVALID_ENTITY`          | `ctls_extn_certificate_to_struct` (create path): `entity` not CLIENT/SERVER.                                                             |
+| 0x00E3 | `CTLS_STATUS_EXTN_HS_TRAFFIC_SECRET_INVALID_ENTITY`    | `ctls_handshake_traffic_secret_generate`: `entity` not CLIENT/SERVER.                                                                    |
+| 0x00E4 | `CTLS_STATUS_EXTN_HS_WRITE_KEY_INVALID_ENTITY`         | `ctls_handshake_write_key_generate`: `entity` not CLIENT/SERVER.                                                                         |
+| 0x00E5 | `CTLS_STATUS_EXTN_HS_IV_KEY_INVALID_ENTITY`            | `ctls_handshake_iv_key_generate`: `entity` not CLIENT/SERVER.                                                                            |
+| 0x00E6 | `CTLS_STATUS_EXTN_APP_TRAFFIC_SECRET_INVALID_ENTITY`   | `ctls_application_traffic_secret_generate`: `entity` not CLIENT/SERVER.                                                                  |
+| 0x00E7 | `CTLS_STATUS_EXTN_APP_WRITE_KEY_INVALID_ENTITY`        | `ctls_application_write_key_generate`: `entity` not CLIENT/SERVER.                                                                       |
+| 0x00E8 | `CTLS_STATUS_EXTN_APP_IV_KEY_INVALID_ENTITY`           | `ctls_application_iv_key_generate`: `entity` not CLIENT/SERVER.                                                                          |
+
+### 0x00F1–0x00F5: Wire-format guards per extension `_to_wire` function
+
+| Code   | Name                                        | Reason / Trigger                                                                                       |
+|--------|---------------------------------------------|--------------------------------------------------------------------------------------------------------|
+| 0x00F1 | `CTLS_STATUS_EXTN_CH_INVALID_WIRE_FORMAT`   | `ctls_extn_client_hello_to_wire`: `wire_format` is not DEFAULT or TRANSCRIPT_HASH.                    |
+| 0x00F2 | `CTLS_STATUS_EXTN_SH_INVALID_WIRE_FORMAT`   | `ctls_extn_server_hello_to_wire`: `wire_format` is not DEFAULT or TRANSCRIPT_HASH.                    |
+| 0x00F3 | `CTLS_STATUS_EXTN_EE_INVALID_WIRE_FORMAT`   | `ctls_extn_encrypted_extensions_to_wire`: `wire_format` is not DEFAULT or TRANSCRIPT_HASH.            |
+| 0x00F4 | `CTLS_STATUS_EXTN_CR_INVALID_WIRE_FORMAT`   | `ctls_extn_certificate_request_to_wire`: `wire_format` is not DEFAULT or TRANSCRIPT_HASH.             |
+| 0x00F5 | `CTLS_STATUS_EXTN_CERT_INVALID_WIRE_FORMAT` | `ctls_extn_certificate_to_wire`: `wire_format` is not DEFAULT or TRANSCRIPT_HASH.                     |
 
 ---
 
@@ -190,6 +314,19 @@ Sub-band layout:
 |--------|-------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | 0x015E | `CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT` | Wire format passed to any `ctls_hsmg_*_to_wire` function is not `DEFAULT` or `TRANSCRIPT_HASH`.                                                                                                                                                          |
 | 0x015F | `CTLS_STATUS_HSMG_UNKNOWN_MSG_TYPE`    | `ctls_transcript_hash_update`'s switch hit the default case; the record's `message_type` has no transcript-hash serializer. Fired for `NEW_SESSION_TICKET`, `KEY_UPDATE`, `SENTINEL`, etc. that should never appear during normal client-side handshake. |
+| 0x0160 | `CTLS_STATUS_HSMG_INVALID_ENTITY`      | `entity` passed to a handshake-message function is neither `CTLS_ENTITY_CLIENT` nor `CTLS_ENTITY_SERVER`.                                                                                                                                                |
+| 0x0161 | `CTLS_STATUS_HSMG_INVALID_MSG_TYPE` / `CTLS_STATUS_HSMG_CH_INVALID_WIRE_FORMAT` | **Duplicate value.** Both constants are assigned `0x0161` in `types.h`. `HSMG_INVALID_MSG_TYPE`: message type unrecognised in `hsmg` dispatch. `HSMG_CH_INVALID_WIRE_FORMAT`: `ctls_hsmg_client_hello_to_wire` wire_format guard. |
+
+### 0x0162–0x0167: Wire-format guards per `ctls_hsmg_*_to_wire`
+
+| Code   | Name                                        | Reason / Trigger                                                                                   |
+|--------|---------------------------------------------|----------------------------------------------------------------------------------------------------|
+| 0x0162 | `CTLS_STATUS_HSMG_SH_INVALID_WIRE_FORMAT`   | `ctls_hsmg_server_hello_to_wire`: `wire_format` is not DEFAULT or TRANSCRIPT_HASH.                |
+| 0x0163 | `CTLS_STATUS_HSMG_EE_INVALID_WIRE_FORMAT`   | `ctls_hsmg_encrypted_extensions_to_wire`: `wire_format` is not DEFAULT or TRANSCRIPT_HASH.        |
+| 0x0164 | `CTLS_STATUS_HSMG_CR_INVALID_WIRE_FORMAT`   | `ctls_hsmg_certificate_request_to_wire`: `wire_format` is not DEFAULT or TRANSCRIPT_HASH.         |
+| 0x0165 | `CTLS_STATUS_HSMG_CERT_INVALID_WIRE_FORMAT` | `ctls_hsmg_certificate_to_wire`: `wire_format` is not DEFAULT or TRANSCRIPT_HASH.                 |
+| 0x0166 | `CTLS_STATUS_HSMG_CV_INVALID_WIRE_FORMAT`   | `ctls_hsmg_certificate_verify_to_wire`: `wire_format` is not DEFAULT or TRANSCRIPT_HASH.          |
+| 0x0167 | `CTLS_STATUS_HSMG_FIN_INVALID_WIRE_FORMAT`  | `ctls_hsmg_finished_to_wire`: `wire_format` is not DEFAULT or TRANSCRIPT_HASH.                    |
 
 ---
 
@@ -204,6 +341,9 @@ Sub-band layout:
 | 0x0194 | `CTLS_STATUS_TMPL_UNKNOWN_PROFILE`       | `ctls_template_set` received a profile ID with no registered template. The `CTLS_PROFILE_ID` compile-time constant does not match any known profile. |
 | 0x0195 | `CTLS_STATUS_TMPL_INVALID_EXTENSION`     | `ctls_tmpl_extension_to_wire`: `CTLS_EXTN_TYPE_KEY_SHARE` found in `expected_extensions` or `self_delimiting_extensions`. Key share is a runtime extension — must not appear in the template definition. |
 | 0x0196 | `CTLS_STATUS_TMPL_UNKNOWN_ELEMENT`       | `ctls_template_element_to_wire` hit the `default` case — unrecognised `ctls_tmpl_type_t` value passed. New template element added to the enum without a serialization case. |
+| 0x0197 | `CTLS_STATUS_TMPL_TO_WIRE_NULL`          | `ctls_template_to_wire` received a NULL output buffer. Called before the wire buffer was allocated.                                                                          |
+| 0x0198 | `CTLS_STATUS_TMPL_EXTN_KEY_SHARE_IN_EXPECTED`     | `ctls_tmpl_extension_to_wire`: `CTLS_EXTN_TYPE_KEY_SHARE` found in `expected_extensions`. Key share is a runtime extension — must not appear in the template definition.  |
+| 0x0199 | `CTLS_STATUS_TMPL_EXTN_KEY_SHARE_IN_SELF_DELIM`   | `ctls_tmpl_extension_to_wire`: `CTLS_EXTN_TYPE_KEY_SHARE` found in `self_delimiting_extensions`. Same constraint as above for the self-delimiting list.                   |
 
 ---
 
