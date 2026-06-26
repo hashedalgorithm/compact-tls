@@ -1309,9 +1309,21 @@ ctls_status_t ctls_signed_bytes_generate(ctls_entity_t const entity) {
     CTLS_CHECK_NULL_STRUCT(crypto);
     CTLS_CHECK_NULL_STRUCT(hshk_data);
 
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
-        return CTLS_STATUS_CRYPTO_INVALID_ARG;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
+            CTLS_STATUS_CRYPTO_INVALID_ARG;
 
+    if (crypto->self_certificate_key_pair == PSA_KEY_ID_NULL) {
+        uint8_t const *key_der = (entity == CTLS_ENTITY_SERVER)
+                                     ? server_key_der
+                                     : client_key_der;
+        size_t const key_der_len = (entity == CTLS_ENTITY_SERVER)
+                                       ? server_key_der_length
+                                       : client_key_der_length;
+        ctls_status_t const import_result = ctls_certificate_key_pair_import(key_der,
+            key_der_len,
+            &crypto->self_certificate_key_pair);
+        if (import_result != CTLS_STATUS_SUCCESS) return import_result;
+    }
 
     psa_status_t psa_st = PSA_SUCCESS;
 
