@@ -136,7 +136,8 @@ ctls_status_t ctls_unified_header_serialize(ctls_unified_header_t const *unified
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
 
-    if (unified_header->config_octet.c_bit != 0) return CTLS_STATUS_RECD_HDR_SERIALIZE_CID;
+    if (unified_header->config_octet.c_bit != 0) return
+            CTLS_STATUS_RECD_HDR_SERIALIZE_CID;
 
     if (unified_header->config_octet.s_bit != 0 && unified_header->config_octet.s_bit !=
         1) return CTLS_STATUS_RECD_HDR_SERIALIZE_SEQ;
@@ -555,8 +556,8 @@ ctls_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
     CTLS_CHECK_NULL_STRUCT(record);
 
     if (wire_format == CTLS_WIRE_FORMAT_DEFAULT) {
-        if (sizeof(record->content_type) + *offset > CTLS_SIZE_WIRE_BUFFER) return
-                CTLS_STATUS_BUFFER_OVERFLOW;
+        if (sizeof(record->content_type) + *offset > CTLS_SIZE_WIRE_BUFFER)
+            return CTLS_STATUS_BUFFER_OVERFLOW;
 
         ctls_write_u8(buffer, offset, record->content_type);
 
