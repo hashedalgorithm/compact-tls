@@ -1169,8 +1169,7 @@ cleanup:
 ctls_status_t ctls_certificate_bytes_offset_find(uint8_t const *certificate_der,
                                                  size_t const certificate_der_length,
                                                  ctls_size_t *offset) {
-    for (size_t i = 0; i + SPKI_PATTERN_LENGTH + CTLS_SIZE_ED25519_KEY_LENGTH <=
-                       certificate_der_length; i++) {
+    for (size_t i = 0; i + SPKI_PATTERN_LENGTH + 65U <= certificate_der_length; i++) {
         if (memcmp(&certificate_der[i], SPKI_PATTERN, SPKI_PATTERN_LENGTH) == 0) {
             *offset = i + SPKI_PATTERN_LENGTH;
             break;
