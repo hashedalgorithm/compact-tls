@@ -279,7 +279,12 @@ ctls_status_t ctls_hsmg_server_hello_to_struct(ctls_handshake_message_t *hsmg,
     hsmg->handshake_message_body.server_hello.random.buffer = hshk_data->server_random;
     hsmg->handshake_message_body.server_hello.random.buffer_length = template->random;
 
+    if (template->cipher_suite == 0) {
+        hsmg->handshake_message_body.server_hello.cipher_suite =
+                ctls_read_u16(buffer, offset);
+    } else {
         hsmg->handshake_message_body.server_hello.cipher_suite = template->cipher_suite;
+    }
 
     hsmg->handshake_message_body.server_hello.protocol_version = template->
             protocol_version;
