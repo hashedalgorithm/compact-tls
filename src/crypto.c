@@ -991,9 +991,9 @@ ctls_status_t ctls_hkdf_extract(psa_key_id_t *output_key_id,
     psa_status_t psa_st = PSA_SUCCESS;
     psa_key_attributes_t output_key_attributes = PSA_KEY_ATTRIBUTES_INIT;
     uint8_t salt_bytes[CTLS_SIZE_HASH];
-    size_t salt_len = 0;
+    size_t salt_length = 0;
 
-    psa_st = psa_export_key(*salt, salt_bytes, sizeof(salt_bytes), &salt_len);
+    psa_st = psa_export_key(*salt, salt_bytes, sizeof(salt_bytes), &salt_length);
     if (psa_st != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_HKDF_EXTRACT_SALT_EXPORT_FAILED;
 
     ctls_status_t result = ctls_key_attributes_set(CTLS_KEY_USAGE_HKDF_EXPAND,
@@ -1013,7 +1013,7 @@ ctls_status_t ctls_hkdf_extract(psa_key_id_t *output_key_id,
     psa_st = psa_key_derivation_input_bytes(&crypto->key_schedule_operator,
                                             PSA_KEY_DERIVATION_INPUT_SALT,
                                             salt_bytes,
-                                            salt_len);
+                                            salt_length);
     memset(salt_bytes, 0, sizeof(salt_bytes));
     if (psa_st != PSA_SUCCESS) goto cleanup;
 
