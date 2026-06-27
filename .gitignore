@@ -3,3 +3,4 @@ cmake-build-debug
 graphify-out
 logs
 build
+build_server
