@@ -662,6 +662,11 @@ ctls_status_t ctls_extn_server_hello_to_wire(uint8_t *buffer,
                                              ctls_wire_format_t wire_format);
 
 
+/**
+ * Build EncryptedExtensions content from the template. Currently a stub —
+ * returns CTLS_STATUS_NOT_IMPLEMENTED; EE extensions are reconstructed
+ * from the template via ctls_extn_encrypted_extensions_to_struct instead.
+ */
 ctls_status_t ctls_extn_encrypted_extensions_create(
     ctls_hsmg_encrypted_extensions_t *encrypted_extensions);
 /**
@@ -678,6 +683,11 @@ ctls_status_t ctls_extn_encrypted_extensions_to_wire(uint8_t *buffer,
                                                      const *encrypted_extensions,
                                                      ctls_wire_format_t wire_format);
 
+/**
+ * Build CertificateRequest extension set from handshake state. Currently
+ * a stub — returns CTLS_STATUS_NOT_IMPLEMENTED (mutual auth not yet
+ * implemented).
+ */
 ctls_status_t ctls_extn_certificate_request_create(void);
 /** Rebuild CertificateRequest extensions from the template. */
 ctls_status_t ctls_extn_certificate_request_to_struct(

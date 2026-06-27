@@ -104,12 +104,18 @@ struct ctls_record {
  * changes). Increment hooks live in ctls_record_serialize /
  * ctls_record_deserialize; the epoch is bumped by the key schedule.
  */
+/** Increment hshk_data->sequence_number; called once per record sent or received. */
 ctls_status_t ctls_sequence_number_counter_increment(void);
+/** Copy current hshk_data->sequence_number into *sequence_number. */
 ctls_status_t ctls_sequence_number_counter_get(uint16_t *sequence_number);
+/** Reset hshk_data->sequence_number to 0. */
 ctls_status_t ctls_sequence_number_counter_reset(void);
 
+/** Increment hshk_data->epoch; called by the key schedule on each key change. */
 ctls_status_t ctls_epoch_counter_increment(void);
+/** Copy current hshk_data->epoch into *epoch. */
 ctls_status_t ctls_epoch_counter_get(uint64_t *epoch);
+/** Reset hshk_data->epoch to 0. */
 ctls_status_t ctls_epoch_counter_reset(void);
 
 /** Computes serialized header (= AAD) size into unified_header->aad_length. */
@@ -137,6 +143,11 @@ ctls_status_t ctls_unified_header_deserialize(ctls_unified_header_t *unified_hea
                                               uint8_t const *buffer,
                                               ctls_size_t *offset);
 
+/**
+ * Back-fill the length field in unified_header after body serialization;
+ * recomputes l_bit (set when length >= 1) and aad_length accordingly.
+ * Call before ctls_record_encrypt so the header bytes used as AAD are final.
+ */
 ctls_status_t ctls_unified_header_length_update(ctls_unified_header_t *unified_header,
                                                 uint16_t length);
 /**
@@ -192,6 +203,11 @@ ctls_status_t ctls_recd_buffer_clear(ctls_record_t *record_buffer);
 /* create/to_struct/to_wire convention is described in the file header.*/
 /* ------------------------------------------------------------------ */
 
+/**
+ * Build a ClientHello record struct: content_type = 0x16, profile_id from
+ * the active template, record type PLAINTEXT, body via
+ * ctls_hsmg_client_hello_create.
+ */
 ctls_status_t ctls_recd_client_hello_create(ctls_record_t *record);
 /**
  * Parse a compact ClientHello record from buffer+*offset: reads content_type,
@@ -215,28 +231,71 @@ ctls_status_t ctls_recd_server_hello_to_wire(uint8_t *buffer,
                                              ctls_record_t const *record,
                                              ctls_wire_format_t wire_format);
 
+/**
+ * Build the server's combined flight record: ENCRYPTED record carrying
+ * EncryptedExtensions + Certificate + CertificateVerify + Finished.
+ * Unified header filled with ctls_unified_header_build; body via
+ * ctls_hsmg_server_flight_create.
+ */
 ctls_status_t ctls_recd_server_flight_create(ctls_record_t *record);
+/**
+ * Parse the server flight from raw wire bytes: deserialize unified header,
+ * decrypt AEAD body, then ctls_hsmg_server_flight_to_struct on plaintext.
+ * buffer must point at the first byte of the unified header.
+ */
 ctls_status_t ctls_recd_server_flight_to_struct(ctls_record_t *record,
                                                 uint8_t const *buffer);
+/**
+ * Emit the server flight. TRANSCRIPT_HASH: each sub-message (EE, Cert,
+ * CertVerify, Finished) written in TLS 1.3 form and fed to the transcript
+ * hash. DEFAULT: ctls_record_serialize encrypts the whole flight body as
+ * one AEAD record. entity selects write key / IV.
+ */
 ctls_status_t ctls_recd_server_flight_to_wire(uint8_t *buffer,
                                               ctls_size_t *offset,
                                               ctls_record_t *record,
                                               ctls_wire_format_t wire_format,
                                               ctls_entity_t entity);
 
+/**
+ * Build the client's combined flight record: ENCRYPTED record carrying
+ * Certificate + CertificateVerify + Finished.
+ * Unified header filled with ctls_unified_header_build; body via
+ * ctls_hsmg_client_flight_create.
+ */
 ctls_status_t ctls_recd_client_flight_create(ctls_record_t *record);
+/**
+ * Parse the client flight: decrypt AEAD body then
+ * ctls_hsmg_client_flight_to_struct on plaintext.
+ * buffer must point at the first byte of the unified header.
+ */
 ctls_status_t ctls_recd_client_flight_to_struct(ctls_record_t *record,
                                                 uint8_t const *buffer);
+/**
+ * Emit the client flight. Mirror of ctls_recd_server_flight_to_wire for
+ * Certificate/CertificateVerify/Finished. entity selects write key / IV.
+ */
 ctls_status_t ctls_recd_client_flight_to_wire(uint8_t *buffer,
                                               ctls_size_t *offset,
                                               ctls_record_t *record,
                                               ctls_wire_format_t wire_format,
                                               ctls_entity_t entity);
 
+/**
+ * Receive an encrypted application data record: AEAD-decrypt from buffer
+ * into application_data (caller-allocated, application_data_length bytes).
+ * entity selects the read key / IV. On success consumes one sequence number.
+ */
 ctls_status_t ctls_recd_application_data_deserialize(uint8_t const *buffer,
                                                      uint8_t *application_data,
                                                      ctls_size_t application_data_length,
                                                      ctls_entity_t entity);
+/**
+ * Send an application data record: AEAD-encrypt application_data into
+ * buffer with unified header prepended. *offset advances past the whole
+ * record. entity selects the write key / IV. On success consumes one
+ * sequence number.
+ */
 ctls_status_t ctls_recd_application_data_serialize(uint8_t *buffer,
                                                    ctls_size_t *offset,
                                                    uint8_t const *application_data,

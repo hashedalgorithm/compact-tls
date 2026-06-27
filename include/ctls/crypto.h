@@ -113,134 +113,405 @@ struct ctls_crypto {
     psa_key_id_t server_application_iv_key;
 };
 
-/** Map a psa_status_t onto the closest ctls_status_t. */
+/**
+ * @brief Map a psa_status_t onto the closest ctls_status_t.
+ * @param status  PSA error code to translate.
+ * @return The matching CTLS_STATUS_CRYPTO_* code, or CTLS_STATUS_CRYPTO_UNKNOWN.
+ */
 ctls_status_t ctls_psa_error_map(psa_status_t status);
 
 /**
- * One-time setup: psa_crypto_init, hash algorithm from the template's
- * cipher suite, transcript hash start (template bytes hashed first),
- * HKDF/ECC family selection.
+ * @brief One-time PSA crypto setup: init, algorithm selection, transcript hash start.
+ *
+ * Calls psa_crypto_init, derives hash algorithm and ECC family from the
+ * template's cipher suite, starts the running transcript hash and feeds
+ * the canonical template bytes as its first input.
+ *
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_INIT_FAILED on failure.
  */
 ctls_status_t ctls_crypto_init();
-/** Cipher suite -> PSA hash algorithm (suite's HKDF hash, RFC 8446 §B.4). */
+
+/**
+ * @brief Select the PSA hash algorithm for the given cipher suite.
+ *
+ * Sets crypto->hash_algorithm to the HKDF hash implied by the suite
+ * (e.g. TLS_AES_128_GCM_SHA256 → PSA_ALG_SHA_256, RFC 8446 §B.4).
+ *
+ * @param crypto        Crypto state to update.
+ * @param cipher_suite  Cipher suite from the active template.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_UNSUPPORTED_CIPHER_SUITE.
+ */
 ctls_status_t ctls_psa_hash_algorithm_set(ctls_crypto_t *crypto,
                                           ctls_cipher_suite_t cipher_suite);
-/** Map a PSA algorithm to its key size in bits (e.g. AES-128-GCM -> 128, HMAC-SHA256 -> 256). */
+
+/**
+ * @brief Return the key size in bits for a PSA algorithm.
+ *
+ * Maps AES-128-GCM → 128, HMAC-SHA-256 → 256, etc. Used by
+ * ctls_key_attributes_set to configure key sizes for derived keys.
+ *
+ * @param algorithm  PSA algorithm to query.
+ * @param key_bits   Output: key size in bits.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_KEY_BITS_UNKNOWN_ALG.
+ */
 ctls_status_t ctls_key_bits_get(psa_algorithm_t const *algorithm, ctls_size_t *key_bits);
 
-/** NamedGroup -> PSA ECC/DH family for ephemeral key generation. */
+/**
+ * @brief Select the PSA ECC/DH family for the given NamedGroup.
+ *
+ * Sets crypto->ecdhe_key_pair_type (e.g. x25519 → PSA_ECC_FAMILY_MONTGOMERY).
+ * Used during key-pair generation for the ephemeral ECDHE key share.
+ *
+ * @param crypto          Crypto state to update.
+ * @param dhe_group_type  NamedGroup from the active template.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_UNSUPPORTED_DHE_GROUP.
+ */
 ctls_status_t ctls_psa_ecc_family_set(ctls_crypto_t *crypto,
                                       ctls_dhe_group_t dhe_group_type);
 
 /**
- * Start the running transcript hash and feed the canonical template bytes
- * (ctls_template_to_wire) as its first input — both peers must bind the
- * same template into the transcript.
+ * @brief Start the running transcript hash and feed canonical template bytes.
+ *
+ * Initializes the PSA hash operator on crypto->transcript_hash_operator,
+ * calls ctls_template_to_wire to serialize the template, and absorbs
+ * those bytes as the first hash input. Both peers must share the same
+ * template for the transcript to agree.
+ *
+ * @param crypto          Crypto state whose transcript_hash_operator to initialize.
+ * @param transcript_hash Output buffer (CTLS_SIZE_TRANSCRIPT_HASH bytes) for the
+ *                        initial snapshot (may be NULL if not needed immediately).
+ * @param template        Active cTLS template to serialize and hash.
+ * @return CTLS_STATUS_SUCCESS, or a CTLS_STATUS_CRYPTO_HASH_* code on failure.
  */
 ctls_status_t ctls_transcript_hash_init(ctls_crypto_t *crypto,
                                         uint8_t *transcript_hash,
                                         ctls_template_t const *template);
-/** Feed CTLS_SIZE_TRANSCRIPT_HASH bytes into the running hash operator. */
+
+/**
+ * @brief Finish the current transcript hash into a buffer without aborting the operator.
+ *
+ * Clones hash_operator, finishes the clone, and writes CTLS_SIZE_TRANSCRIPT_HASH
+ * bytes to transcript_hash. The running operator is unaffected.
+ *
+ * @param hash_operator   Running PSA hash operation to snapshot.
+ * @param transcript_hash Output: CTLS_SIZE_TRANSCRIPT_HASH-byte hash digest.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_HASH_SNAP_* on clone/finish failure.
+ */
 ctls_status_t ctls_transcript_hash_calculate(psa_hash_operation_t *hash_operator,
                                              uint8_t *transcript_hash);
+
 /**
- * Serialize the record in TRANSCRIPT_HASH wire format (reconstructed
- * TLS 1.3 bytes) and absorb it into the running transcript. Called once
- * per handshake message from the handshake driver.
+ * @brief Serialize a record in TRANSCRIPT_HASH wire format and absorb it.
+ *
+ * Calls the record's *_to_wire function with CTLS_WIRE_FORMAT_TRANSCRIPT_HASH
+ * (reconstructed TLS 1.3 bytes), then feeds the output into the running
+ * transcript hash operator. Called once per handshake message from the driver.
+ *
+ * @param record  Deserialized or freshly built record to hash.
+ * @param type    Handshake message type (selects the *_to_wire dispatch).
+ * @return CTLS_STATUS_SUCCESS, or a CTLS_STATUS_CRYPTO_HASH_* / record layer error.
  */
 ctls_status_t ctls_transcript_hash_update(ctls_record_t const *record,
                                           ctls_hsmg_type_t type);
+
 /**
- * Read the current transcript hash without finishing the running operator
- * (psa_hash_clone + finish on the clone).
+ * @brief Read the current transcript hash without consuming the running operator.
+ *
+ * Clones hash_operator (PSA clone), finishes the clone into buffer, and
+ * destroys the clone — the original operator continues accumulating input.
+ *
+ * @param hash_operator  Running PSA hash operator to snapshot (read-only).
+ * @param buffer         Output: CTLS_SIZE_TRANSCRIPT_HASH bytes of digest.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_HASH_SNAP_* on failure.
  */
 ctls_status_t transcript_snapshot(psa_hash_operation_t const *hash_operator,
                                   uint8_t *buffer);
 
-/** Reset the derivation operator + select ECC family for the profile. */
+/**
+ * @brief Initialize the HKDF derivation operator and select ECC family.
+ *
+ * Calls ctls_key_schedule_operator_reset (aborts any in-progress derivation)
+ * and ctls_psa_ecc_family_set for the given NamedGroup.
+ *
+ * @param crypto           Crypto state to initialize.
+ * @param ecdhe_group_type NamedGroup from the active template.
+ * @return CTLS_STATUS_SUCCESS, or a CTLS_STATUS_CRYPTO_* error.
+ */
 ctls_status_t ctls_hkdf_init(ctls_crypto_t *crypto, ctls_dhe_group_t ecdhe_group_type);
-/** Abort and reinitialize the PSA key derivation operator; required between consecutive Extract/Expand steps. */
+
+/**
+ * @brief Abort and reinitialize the PSA key derivation operator.
+ *
+ * Required between consecutive HKDF Extract/Expand steps because PSA
+ * derivation operations are single-use. Calls psa_key_derivation_abort
+ * and re-initializes to PSA_KEY_DERIVATION_OPERATION_INIT.
+ *
+ * @param crypto  Crypto state whose key_schedule_operator to reset.
+ * @return CTLS_STATUS_SUCCESS always (abort never fails by PSA spec).
+ */
 ctls_status_t ctls_key_schedule_operator_reset(ctls_crypto_t *crypto);
 
-/** Import raw peer public key bytes (X25519 32-byte point) into PSA as a key-agreement key. */
+/**
+ * @brief Import raw peer public key bytes as a PSA key-agreement key.
+ *
+ * Imports the X25519 (or other NamedGroup) public point received in the
+ * peer's KeyShare extension into a transient PSA key handle for use in
+ * psa_raw_key_agreement.
+ *
+ * @param buffer                Peer's raw public key bytes.
+ * @param buffer_length         Length of buffer in bytes (e.g. 32 for x25519).
+ * @param ephemeral_public_key  Output: PSA key handle for the imported public key.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_EPHEM_PUB_KEY_IMPORT_FAILED.
+ */
 ctls_status_t ctls_ephemeral_public_key_import(uint8_t const *buffer,
                                                ctls_size_t buffer_length,
                                                psa_key_id_t *ephemeral_public_key);
-/** Export the public half of an ephemeral key pair to raw bytes for inclusion in a KeyShare entry. */
+
+/**
+ * @brief Export the public half of an ephemeral key pair to raw bytes.
+ *
+ * Extracts the public point from ephemeral_key_pair_id (the locally generated
+ * ECDHE key pair) and writes it to buffer for inclusion in a KeyShare entry.
+ *
+ * @param ephemeral_key_pair_id  PSA key handle of the local ECDHE key pair.
+ * @param buffer                 Output buffer for the raw public key bytes.
+ * @param buffer_length          Size of buffer in bytes.
+ * @param buffer_bytes_written   Output: number of bytes written.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_EPHEM_KEY_EXPORT_FAILED.
+ */
 ctls_status_t ctls_ephemeral_public_key_export(psa_key_id_t const *ephemeral_key_pair_id,
                                                uint8_t *buffer,
                                                ctls_size_t buffer_length,
                                                ctls_size_t *buffer_bytes_written);
 
-/** Generate an ECDHE key pair into a transient PSA key handle. Public half exported separately via ctls_ephemeral_public_key_export. */
+/**
+ * @brief Generate an ECDHE key pair into a transient PSA key handle.
+ *
+ * Uses the ECC family already set in crypto->ecdhe_key_pair_type. The public
+ * half is exported separately via ctls_ephemeral_public_key_export for the
+ * KeyShare extension.
+ *
+ * @param ephemeral_key_pair_id  Output: PSA key handle for the generated key pair.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_KEY_GEN_FAILED.
+ */
 ctls_status_t ctls_ephemeral_key_pair_generate(psa_key_id_t *ephemeral_key_pair_id);
-/** random_size bytes from the PSA DRBG (Hello random, RFC 8446 §4.1.2). */
+
+/**
+ * @brief Generate random bytes from the PSA DRBG.
+ *
+ * Used for Hello random fields (RFC 8446 §4.1.2). Calls psa_generate_random.
+ *
+ * @param buffer        Output buffer; must be at least random_size bytes.
+ * @param bytes_written Output: number of random bytes written (equals random_size).
+ * @param random_size   Number of random bytes to generate.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_RANDOM_FAILED.
+ */
 ctls_status_t ctls_random_generate(uint8_t *buffer,
                                    ctls_size_t *bytes_written,
                                    uint8_t random_size);
+
 /**
- * Run the full key schedule (file header diagram): early secret through
- * both handshake traffic keys + IVs, then epoch -> 2 (handshake keys).
- * Call after ServerHello (needs the server key share + transcript).
+ * @brief Run the full handshake key schedule (early_secret → handshake keys + IVs).
+ *
+ * Drives the sequence shown in the file-header diagram: early_secret,
+ * derived_secret, shared_ephemeral_secret, handshake_secret, handshake
+ * traffic secrets, write keys and IVs for both entities, then bumps the
+ * epoch to 2. Call after ServerHello (needs the server key share + transcript).
+ *
+ * @return CTLS_STATUS_SUCCESS, or the first CTLS_STATUS_CRYPTO_* error.
  */
 ctls_status_t ctls_key_schedule();
 
-/** Set PSA key attributes (type, usage, algorithm, bits) appropriate for the given derivation operation. */
+/**
+ * @brief Set PSA key attributes for the given derivation or usage context.
+ *
+ * Configures type, usage flags, algorithm, and key bits on key_attribute
+ * based on key_usage. Called internally before importing or deriving each key.
+ *
+ * @param key_usage      Which operation these attributes are for (one of CTLS_KEY_USAGE_*).
+ * @param key_attribute  PSA key attributes struct to populate.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_KEY_ATTR_* on unsupported usage.
+ */
 ctls_status_t ctls_key_attributes_set(ctls_key_usage_t key_usage,
                                       psa_key_attributes_t *key_attribute);
 
 /**
- * Build the info/content bytes for one derivation or signature: HkdfLabel
- * (RFC 8446 §7.1: length(u16) | label_len(u8) | "Sctls <label>" |
- * context_len(u8) | context) for key types, or the §4.4.3 signing content
- * (64 x 0x20 | context string | 0x00 | transcript hash) for SIGNED_BYTES.
+ * @brief Build HkdfLabel or CertificateVerify signing content bytes.
+ *
+ * For key derivation types: writes an HkdfLabel per RFC 8446 §7.1:
+ *   length(u16) | label_len(u8) | "Sctls <label>" | context_len(u8) | context.
+ * For CTLS_KEY_TYPE_SIGNED_BYTES: writes §4.4.3 content:
+ *   64 × 0x20 | context string | 0x00 | Transcript-Hash.
+ * The "Sctls " prefix replaces TLS 1.3's "tls13 " per the cTLS draft.
+ *
+ * @param buffer    Output buffer; must be large enough for the label (caller ensures).
+ * @param offset    Current write position in buffer; advanced past written bytes.
+ * @param entity    CTLS_ENTITY_CLIENT or CTLS_ENTITY_SERVER (selects c/s label variant).
+ * @param key_type  Which label or signing context to build (one of CTLS_KEY_TYPE_*).
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_CONTEXT_STR_UNKNOWN_KEY_TYPE.
  */
 ctls_status_t ctls_context_string_build(uint8_t *buffer,
                                         ctls_size_t *offset,
                                         ctls_entity_t entity,
                                         ctls_key_type_t key_type);
 
-/** Key schedule steps — see the file-header diagram for what each derives. */
+/* ------------------------------------------------------------------ */
+/* Key schedule step functions (file-header diagram order)            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * @brief HKDF-Extract(salt=0, ikm=0) → early_secret.
+ *
+ * Baseline no-PSK early secret (RFC 8446 §7.1). Result stored in
+ * crypto->early_secret.
+ *
+ * @param crypto  Crypto state; early_secret field is set on success.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_EARLY_SECRET_EXTRACT_FAILED.
+ */
 ctls_status_t ctls_early_secret_generate(ctls_crypto_t *crypto);
-/** Expand-Label(early_secret, "derived", H(""), 32); output used as salt in next Extract. */
+
+/**
+ * @brief Expand-Label(early_secret, "derived", H(""), 32) → derived_secret.
+ *
+ * Output used as salt in the next HKDF-Extract (handshake_secret).
+ * Result stored in crypto->derived_secret.
+ *
+ * @param crypto  Crypto state; derived_secret field is set on success.
+ * @return CTLS_STATUS_SUCCESS, or a CTLS_STATUS_CRYPTO_HKDF_EXPAND_* error.
+ */
 ctls_status_t ctls_derived_secret_generate(ctls_crypto_t *crypto);
-/** psa_raw_key_agreement(ECDH, self_ephemeral_key_pair, peer_public_ephemeral_key) -> shared_ephemeral_secret. */
+
+/**
+ * @brief psa_raw_key_agreement(ECDH, self_key_pair, peer_public_key) → shared_ephemeral_secret.
+ *
+ * Performs the ECDH operation using the locally generated key pair and the
+ * peer's imported public key. Result stored in crypto->shared_ephemeral_secret
+ * and used as IKM in ctls_handshake_secret_generate.
+ *
+ * @param crypto  Crypto state; shared_ephemeral_secret is set on success.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_ECDH_FAILED.
+ */
 ctls_status_t ctls_shared_ephemeral_secret_generate(ctls_crypto_t *crypto);
-/** HKDF-Extract(derived_secret, shared_ephemeral_secret) -> handshake_secret. */
+
+/**
+ * @brief HKDF-Extract(derived_secret, shared_ephemeral_secret) → handshake_secret.
+ *
+ * Result stored in crypto->handshake_secret.
+ *
+ * @param crypto  Crypto state; handshake_secret is set on success.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_HKDF_EXTRACT_FAILED.
+ */
 ctls_status_t ctls_handshake_secret_generate(ctls_crypto_t *crypto);
-/** Expand-Label(handshake_secret, "c|s hs traffic", Transcript-Hash, 32) per entity. */
+
+/**
+ * @brief Expand-Label(handshake_secret, "c|s hs traffic", Transcript-Hash, 32).
+ *
+ * Derives the client or server handshake traffic secret and stores it in
+ * crypto->client_handshake_traffic_secret or server_handshake_traffic_secret.
+ *
+ * @param crypto  Crypto state; c/s_handshake_traffic_secret is set on success.
+ * @param entity  CTLS_ENTITY_CLIENT or CTLS_ENTITY_SERVER.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_HS_TRAFFIC_SECRET_EXPAND_FAILED.
+ */
 ctls_status_t ctls_handshake_traffic_secret_generate(ctls_crypto_t *crypto,
                                                      ctls_entity_t entity);
-/** Expand-Label(hs_traffic_secret, "key", "", 16) -> AES-128-GCM write key per entity. */
+
+/**
+ * @brief Expand-Label(hs_traffic_secret, "key", "", 16) → AES-128-GCM write key.
+ *
+ * Derives the handshake write key for the given entity and stores it in
+ * crypto->client_handshake_write_key or server_handshake_write_key.
+ *
+ * @param crypto  Crypto state; c/s_handshake_write_key is set on success.
+ * @param entity  CTLS_ENTITY_CLIENT or CTLS_ENTITY_SERVER.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_HS_WRITE_KEY_EXPAND_FAILED.
+ */
 ctls_status_t ctls_handshake_write_key_generate(ctls_crypto_t *crypto,
                                                 ctls_entity_t entity);
-/** Expand-Label(hs_traffic_secret, "iv", "", 12) -> static IV per entity (XORed with seq num at record time). */
+
+/**
+ * @brief Expand-Label(hs_traffic_secret, "iv", "", 12) → static IV.
+ *
+ * Derives the handshake IV for the given entity and stores it in
+ * crypto->client_handshake_iv_key or server_handshake_iv_key. The IV is
+ * XORed with the sequence number at record time (RFC 8446 §5.3).
+ *
+ * @param crypto  Crypto state; c/s_handshake_iv_key is set on success.
+ * @param entity  CTLS_ENTITY_CLIENT or CTLS_ENTITY_SERVER.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_HS_IV_KEY_EXPAND_FAILED.
+ */
 ctls_status_t ctls_handshake_iv_key_generate(ctls_crypto_t *crypto, ctls_entity_t entity);
 
-/** RFC 5869 HKDF-Extract: PRK = HMAC-Hash(salt, IKM); both inputs are PSA key handles. */
+/**
+ * @brief RFC 5869 HKDF-Extract: PRK = HMAC-Hash(salt, IKM).
+ *
+ * Both salt and IKM are PSA key handles. The output PRK is stored as a new
+ * transient PSA key at *output_key_id. The caller is responsible for
+ * destroying the output key when done.
+ *
+ * @param output_key_id  Output: PSA key handle for the derived PRK.
+ * @param salt           PSA key handle of the HKDF salt.
+ * @param ikm_key_id     PSA key handle of the input key material.
+ * @return CTLS_STATUS_SUCCESS, or a CTLS_STATUS_CRYPTO_HKDF_EXTRACT_* error.
+ */
 ctls_status_t ctls_hkdf_extract(psa_key_id_t *output_key_id,
                                 psa_key_id_t const *salt,
                                 psa_key_id_t const *ikm_key_id);
+
 /**
- * RFC 5869 HKDF-Expand: OKM = T(1)|T(2)|... from PRK and HkdfLabel info bytes.
- * key_usage selects output key attributes (type, algorithm, bits) via ctls_key_attributes_set.
+ * @brief RFC 5869 HKDF-Expand: OKM = T(1)|T(2)|... from PRK and HkdfLabel.
+ *
+ * Uses psa_key_derivation_setup with the PRK and the HkdfLabel bytes (built
+ * by ctls_context_string_build). key_usage selects output key attributes
+ * (type, algorithm, bits) via ctls_key_attributes_set.
+ *
+ * @param output_key_id  Output: PSA key handle for the derived OKM.
+ * @param prk_key_id     PSA key handle of the PRK (from ctls_hkdf_extract).
+ * @param key_usage      Attribute profile for the output key (one of CTLS_KEY_USAGE_*).
+ * @param info           HkdfLabel bytes (from ctls_context_string_build).
+ * @param info_length    Length of info in bytes.
+ * @return CTLS_STATUS_SUCCESS, or a CTLS_STATUS_CRYPTO_HKDF_EXPAND_* error.
  */
 ctls_status_t ctls_hkdf_expand(psa_key_id_t *output_key_id,
                                psa_key_id_t const *prk_key_id,
                                ctls_key_usage_t key_usage,
                                uint8_t const *info,
                                ctls_size_t info_length);
+
 /**
- * Per-record nonce (RFC 8446 §5.3): sequence number left-padded to IV size,
- * XORed into the static IV.
+ * @brief Compute the per-record AEAD nonce (RFC 8446 §5.3).
+ *
+ * Left-pads the sequence number to CTLS_SIZE_NONCE bytes and XORs the result
+ * into the static IV exported from iv_key_id. Output is the 12-byte nonce
+ * passed to psa_aead_encrypt / psa_aead_decrypt.
+ *
+ * @param buffer          Output: 12-byte nonce (CTLS_SIZE_NONCE bytes).
+ * @param sequence_number Current record sequence number.
+ * @param iv_key_id       PSA key handle of the static IV (handshake or application).
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_NONCE_IV_EXPORT_FAILED.
  */
 ctls_status_t ctls_nonce_generate(uint8_t *buffer,
                                   uint16_t const *sequence_number,
                                   psa_key_id_t const *iv_key_id);
+
 /**
- * AEAD open (RFC 8446 §5.2): AES-128-GCM, nonce from sequence number,
- * header bytes as AAD. Fails CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED on tag
- * mismatch — that check authenticates the AAD/header too.
+ * @brief AEAD decrypt (AES-GCM open): ciphertext → plaintext.
+ *
+ * Calls psa_aead_decrypt with the nonce derived from sequence_number and
+ * the unified header bytes as additional authenticated data (aad). A tag
+ * mismatch fails with CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED, which
+ * authenticates both the ciphertext and the aad/header.
+ *
+ * @param write_key_id    PSA key handle for the AEAD key (read key for decryption).
+ * @param iv_key_id       PSA key handle of the static IV; used by ctls_nonce_generate.
+ * @param sequence_number Record sequence number (used for nonce derivation).
+ * @param aad             Additional authenticated data (unified header bytes).
+ * @param aad_len         Length of aad in bytes.
+ * @param ciphertext      Input: ciphertext || GCM tag (tag is last 16 bytes).
+ * @param ciphertext_len  Total length of ciphertext including the 16-byte tag.
+ * @param buffer          Output: decrypted plaintext; must be at least ciphertext_len - 16 bytes.
+ * @param bytes_written   Output: number of plaintext bytes written.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED.
  */
 ctls_status_t ctls_decrypt(psa_key_id_t const *write_key_id,
                            psa_key_id_t const *iv_key_id,
@@ -251,7 +522,25 @@ ctls_status_t ctls_decrypt(psa_key_id_t const *write_key_id,
                            size_t ciphertext_len,
                            uint8_t *buffer,
                            size_t *bytes_written);
-/** AEAD seal — inverse of ctls_decrypt; output = ciphertext | tag(16). */
+
+/**
+ * @brief AEAD encrypt (AES-GCM seal): plaintext → ciphertext || tag.
+ *
+ * Inverse of ctls_decrypt. Output layout is ciphertext_buffer[0..n-1] =
+ * encrypted payload, ciphertext_buffer[n..n+15] = 16-byte GCM tag.
+ *
+ * @param write_key_id       PSA key handle for the AEAD key.
+ * @param iv_key_id          PSA key handle of the static IV.
+ * @param sequence_number    Record sequence number (for nonce derivation).
+ * @param aad                Additional authenticated data (unified header bytes).
+ * @param aad_len            Length of aad in bytes.
+ * @param plaintext          Input: plaintext to encrypt.
+ * @param plaintext_length   Length of plaintext in bytes.
+ * @param ciphertext_buffer  Output: ciphertext || tag; must be at least
+ *                           plaintext_length + PSA_AEAD_TAG_MAX_SIZE bytes.
+ * @param bytes_written      Output: total bytes written (plaintext_length + 16).
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_AEAD_ENCRYPT_FAILED.
+ */
 ctls_status_t ctls_encrypt(psa_key_id_t const *write_key_id,
                            psa_key_id_t const *iv_key_id,
                            uint16_t const *sequence_number,
@@ -262,49 +551,174 @@ ctls_status_t ctls_encrypt(psa_key_id_t const *write_key_id,
                            uint8_t *ciphertext_buffer,
                            size_t *bytes_written);
 
-/** Scan certificate DER for the Ed25519 SubjectPublicKeyInfo pattern (OID 1.3.101.112) and return byte offset of the raw key material. */
+/**
+ * @brief Locate the raw Ed25519 public key material in a DER certificate.
+ *
+ * Scans certificate_der for the SubjectPublicKeyInfo OID pattern
+ * (OID 1.3.101.112 = id-Ed25519) and sets *offset to the byte immediately
+ * after the BIT STRING header, where the 32-byte raw key starts.
+ * Avoids a full X.509 parser on the constrained target.
+ *
+ * @param certificate_der         DER-encoded X.509 certificate.
+ * @param certificate_der_length  Length of certificate_der in bytes.
+ * @param offset                  Output: byte offset of the raw public key material.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_CERT_SPKI_NOT_FOUND.
+ */
 ctls_status_t ctls_certificate_bytes_offset_find(uint8_t const *certificate_der,
                                                  size_t certificate_der_length,
                                                  ctls_size_t *offset);
-/** Import the Ed25519 private key from a PKCS#8 DER into a PSA signing key handle. */
+
+/**
+ * @brief Import an Ed25519 private key from PKCS#8 DER into a PSA signing key.
+ *
+ * Parses private_certificate_der to locate the raw Ed25519 key material and
+ * imports it into a transient PSA key configured for PSA_ALG_PURE_EDDSA.
+ *
+ * @param private_certificate_der         DER-encoded PKCS#8 private key.
+ * @param private_certificate_der_length  Length of private_certificate_der.
+ * @param key_pair_id                     Output: PSA key handle for the signing key.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_CERT_KEY_PAIR_IMPORT_FAILED.
+ */
 ctls_status_t ctls_certificate_key_pair_import(uint8_t const *private_certificate_der,
                                                size_t private_certificate_der_length,
                                                psa_key_id_t *key_pair_id);
+
 /**
- * Pull the raw Ed25519 public key out of a certificate DER by scanning for
- * the SubjectPublicKeyInfo pattern (OID 1.3.101.112) and import it as a
- * PSA verify key. Avoids a full X.509 parser on the constrained target.
+ * @brief Extract and import an Ed25519 public key from a DER certificate.
+ *
+ * Uses ctls_certificate_bytes_offset_find to locate the SubjectPublicKeyInfo
+ * (OID 1.3.101.112) and imports the raw 32-byte public key as a PSA verify key
+ * configured for PSA_ALG_PURE_EDDSA.
+ *
+ * @param public_certificate_der         DER-encoded X.509 certificate.
+ * @param public_certificate_der_length  Length of public_certificate_der.
+ * @param key_id                         Output: PSA key handle for the verify key.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_CERT_PUB_KEY_IMPORT_FAILED.
  */
 ctls_status_t ctls_certificate_public_key_import(uint8_t const *public_certificate_der,
                                                  size_t public_certificate_der_length,
                                                  psa_key_id_t *key_id);
 
 /**
- * Produce the CertificateVerify signature (RFC 8446 §4.4.3): Ed25519 over
- * 64 x 0x20 | context string | 0x00 | Transcript-Hash, using
- * crypto->self_certificate_key_pair. Result written to hshk_data->client/server_signature.
+ * @brief Produce the CertificateVerify signature (RFC 8446 §4.4.3).
+ *
+ * Builds the signed content (64 × 0x20 | context string | 0x00 | Transcript-Hash)
+ * via ctls_context_string_build, then signs it with Ed25519 using
+ * crypto->self_certificate_key_pair. Result is written to
+ * hshk_data->client_signature or hshk_data->server_signature.
+ *
+ * @param entity  CTLS_ENTITY_CLIENT or CTLS_ENTITY_SERVER (selects context string and output).
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_SIGNATURE_FAILED.
  */
 ctls_status_t ctls_signed_bytes_generate(ctls_entity_t entity);
+
 /**
- * Verify the peer's CertificateVerify against the same §4.4.3 content.
- * public_key_id must be the peer's Ed25519 public key imported via
- * ctls_certificate_public_key_import.
+ * @brief Verify the peer's CertificateVerify against the §4.4.3 signed content.
+ *
+ * Reconstructs the signed content for the peer entity, then verifies the
+ * signature from hshk_data->client_signature or server_signature against
+ * public_key_id (the peer's imported Ed25519 public key).
+ *
+ * @param public_key_id  PSA key handle of the peer's Ed25519 verify key.
+ * @param entity         CTLS_ENTITY_CLIENT or CTLS_ENTITY_SERVER (selects context string and signature).
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_SIGNATURE_VERIFY_FAILED.
  */
 ctls_status_t ctls_signed_bytes_verify(psa_key_id_t const *public_key_id,
                                        ctls_entity_t entity);
-/** finished_key = HKDF-Expand-Label(base key, "finished", "", 32). */
+
+/**
+ * @brief Derive the Finished key: HKDF-Expand-Label(base_key, "finished", "", 32).
+ *
+ * Stores the result in crypto->client_finished_key or server_finished_key
+ * (selected by entity). Called once per entity before ctls_verify_data_generate.
+ *
+ * @param entity  CTLS_ENTITY_CLIENT or CTLS_ENTITY_SERVER.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_FINISHED_KEY_EXPAND_FAILED.
+ */
 ctls_status_t ctls_finished_key_generate(ctls_entity_t entity);
-/** verify_data = HMAC(finished_key, Transcript-Hash) — RFC 8446 §4.4.4. */
+
+/**
+ * @brief Compute Finished verify_data: HMAC(finished_key, Transcript-Hash).
+ *
+ * Per RFC 8446 §4.4.4. Uses the finished key for entity, snapshots the
+ * current transcript hash, and writes the HMAC result to
+ * hshk_data->client_verify_data or server_verify_data.
+ *
+ * @param entity  CTLS_ENTITY_CLIENT or CTLS_ENTITY_SERVER.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_HMAC_VERIFY_DATA_FAILED.
+ */
 ctls_status_t ctls_verify_data_generate(ctls_entity_t entity);
 
+/**
+ * @brief Run the post-Finished key schedule (RFC 8446 §7.1 second half).
+ *
+ * Derives master_secret → application traffic secrets → application write
+ * keys and IVs for both entities, then bumps the epoch twice. Call after
+ * both Finished messages are verified and CTLS_HSHK_STATE_CONNECTED is set.
+ *
+ * @return CTLS_STATUS_SUCCESS, or the first CTLS_STATUS_CRYPTO_* error.
+ */
 ctls_status_t ctls_application_key_schedule(void);
+
+/**
+ * @brief Derive master_secret: HKDF-Extract(derived_secret2, 0).
+ *
+ * derived_secret2 = Expand-Label(handshake_secret, "derived", H(""), 32).
+ * Writes result to crypto->master_secret.
+ *
+ * @param crypto  Crypto state; master_secret is set on success.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_MASTER_SECRET_EXTRACT_FAILED.
+ */
 ctls_status_t ctls_master_secret_generate(ctls_crypto_t *crypto);
+
+/**
+ * @brief Expand-Label(master_secret, "c|s ap traffic", Transcript-Hash, 32).
+ *
+ * Derives the client or server application traffic secret. Result stored in
+ * crypto->client_application_traffic_secret or server_application_traffic_secret.
+ *
+ * @param crypto  Crypto state; c/s_application_traffic_secret is set on success.
+ * @param entity  CTLS_ENTITY_CLIENT or CTLS_ENTITY_SERVER.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_APP_TRAFFIC_SECRET_EXPAND_FAILED.
+ */
 ctls_status_t ctls_application_traffic_secret_generate(
     ctls_crypto_t *crypto,
     ctls_entity_t entity);
+
+/**
+ * @brief Expand-Label(master_secret, "exp master", Transcript-Hash, 32).
+ *
+ * Stores result in crypto->exporter_master_secret. Not called by
+ * ctls_application_key_schedule — placeholder for RFC 8446 §7.5 exporter support.
+ *
+ * @param crypto  Crypto state; exporter_master_secret is set on success.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_EXPORTER_SECRET_EXPAND_FAILED.
+ */
 ctls_status_t ctls_exporter_master_secret_generate(ctls_crypto_t *crypto);
+
+/**
+ * @brief Expand-Label(app_traffic_secret, "key", "", 16) → application write key.
+ *
+ * Stores result in crypto->client_application_write_key or
+ * server_application_write_key.
+ *
+ * @param crypto  Crypto state; c/s_application_write_key is set on success.
+ * @param entity  CTLS_ENTITY_CLIENT or CTLS_ENTITY_SERVER.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_APP_WRITE_KEY_EXPAND_FAILED.
+ */
 ctls_status_t ctls_application_write_key_generate(ctls_crypto_t *crypto,
                                                   ctls_entity_t entity);
+
+/**
+ * @brief Expand-Label(app_traffic_secret, "iv", "", 12) → application IV.
+ *
+ * Stores result in crypto->client_application_iv_key or
+ * server_application_iv_key.
+ *
+ * @param crypto  Crypto state; c/s_application_iv_key is set on success.
+ * @param entity  CTLS_ENTITY_CLIENT or CTLS_ENTITY_SERVER.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_APP_IV_KEY_EXPAND_FAILED.
+ */
 ctls_status_t ctls_application_iv_key_generate(ctls_crypto_t *crypto,
                                                ctls_entity_t entity);
 

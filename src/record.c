@@ -14,7 +14,6 @@
 #include <string.h>
 #include "ctls/ctls.h"
 #include "ctls/bytes.h"
-#include "ctls/hsmg.h"
 #include "ctls/record.h"
 #include "ctls/templates.h"
 

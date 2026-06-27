@@ -312,18 +312,49 @@ ctls_status_t ctls_hsmg_finished_to_wire(uint8_t *buffer,
                                          ctls_size_t *offset,
                                          ctls_hsmg_finished_t const *finished);
 
+/**
+ * Build the server flight struct: calls ctls_hsmg_encrypted_extensions_create,
+ * ctls_hsmg_certificate_create, ctls_hsmg_certificate_verify_create, and
+ * ctls_hsmg_finished_create in order. All sub-structs populated before
+ * the combined record is encrypted by the caller.
+ */
 ctls_status_t ctls_hsmg_server_flight_create(ctls_hsmg_server_flight_t *server_flight);
+/**
+ * Parse the decrypted server flight body from buffer: reads
+ * EncryptedExtensions, Certificate, CertificateVerify, Finished in order
+ * via their respective to_struct functions. Advances an internal offset
+ * through buffer.
+ */
 ctls_status_t ctls_hsmg_server_flight_to_struct(ctls_hsmg_server_flight_t *server_flight,
                                                 uint8_t const *buffer);
+/**
+ * Emit the server flight. TRANSCRIPT_HASH: each sub-message serialized
+ * individually in TLS 1.3 form and fed to the transcript hash.
+ * DEFAULT: sub-messages written contiguously for AEAD encryption by the
+ * record layer.
+ */
 ctls_status_t ctls_hsmg_server_flight_to_wire(uint8_t *buffer,
                                               ctls_size_t *offset,
                                               ctls_hsmg_server_flight_t const *
                                               server_flight,
                                               ctls_wire_format_t wire_format);
 
+/**
+ * Build the client flight struct: calls ctls_hsmg_certificate_create,
+ * ctls_hsmg_certificate_verify_create, and ctls_hsmg_finished_create for
+ * the client entity.
+ */
 ctls_status_t ctls_hsmg_client_flight_create(ctls_hsmg_client_flight_t *client_flight);
+/**
+ * Parse the decrypted client flight body: reads Certificate,
+ * CertificateVerify, Finished in order via their to_struct functions.
+ */
 ctls_status_t ctls_hsmg_client_flight_to_struct(ctls_hsmg_client_flight_t *client_flight,
                                                 uint8_t const *buffer);
+/**
+ * Emit the client flight. Mirror of ctls_hsmg_server_flight_to_wire for
+ * the Certificate/CertificateVerify/Finished sub-messages.
+ */
 ctls_status_t ctls_hsmg_client_flight_to_wire(uint8_t *buffer,
                                               ctls_size_t *offset,
                                               ctls_hsmg_client_flight_t const *

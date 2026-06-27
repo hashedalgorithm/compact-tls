@@ -2,6 +2,23 @@
 // Created by Sanjay Kumar Kumaravelan on 31/03/26.
 //
 
+/**
+ * @file ctls.h
+ * @brief Top-level cTLS API: connection context, handshake, and application data.
+ *
+ * This is the main entry point for cTLS. Callers:
+ *   1. Populate a ctls_transport_t with send/receive callbacks.
+ *   2. Call ctls_context_init() to set up the connection.
+ *   3. Call ctls_connect() (client) or ctls_accept() (server) to handshake.
+ *   4. Exchange application data with ctls_read() / ctls_write().
+ *
+ * The context is a singleton: one connection per build target. All subsystems
+ * (crypto, record, hshk_data) are reached through the global accessors below
+ * rather than through passed pointers, to minimize constrained-target overhead.
+ *
+ * Error handling: all functions return ctls_status_t. Non-zero means failure;
+ * error codes are defined in types.h, range-partitioned by subsystem.
+ */
 
 #ifndef CTLS_H
 #define CTLS_H
@@ -15,18 +32,26 @@
 /*  MACROS                                                            */
 /* ------------------------------------------------------------------ */
 
+/** Return CTLS_STATUS_NULL_PTR if pointer is NULL. */
 #define CTLS_CHECK_NULL(pointer) \
     do { if ((pointer) == NULL) return CTLS_STATUS_NULL_PTR; } while (0)
 
+/** Return CTLS_STATUS_NULL_BUFFER if the buffer pointer is NULL. */
 #define CTLS_CHECK_NULL_BUFFER(pointer) \
     do { if ((pointer) == NULL) return CTLS_STATUS_NULL_BUFFER; } while (0)
 
+/** Return CTLS_STATUS_NULL_OFFSET if the offset pointer is NULL. */
 #define CTLS_CHECK_NULL_OFFSET(pointer) \
     do { if ((pointer) == NULL) return CTLS_STATUS_NULL_OFFSET; } while (0)
 
+/** Return CTLS_STATUS_NULL_STRUCT if the struct pointer is NULL. */
 #define CTLS_CHECK_NULL_STRUCT(pointer) \
     do { if ((pointer) == NULL) return CTLS_STATUS_NULL_STRUCT; } while (0)
 
+/**
+ * Return CTLS_STATUS_BOUNDS_EXCEEDED if writing size bytes starting at
+ * offset would exceed limit.
+ */
 #define CTLS_CHECK_BOUNDS(offset, size, limit) \
     do { if ((offset) + (size) > (limit)) return CTLS_STATUS_BOUNDS_EXCEEDED; } while (0)
 
@@ -34,11 +59,17 @@
 /*  DEFINITIONS                                                       */
 /* ------------------------------------------------------------------ */
 
+/** Scratch wire buffer used during serialization; reused between handshake steps. */
 struct ctls_hshk_buffer {
     uint8_t buffer[CTLS_SIZE_WIRE_BUFFER];
     ctls_size_t buffer_length;
 };
 
+/**
+ * Session ticket received in a NewSessionTicket message (RFC 8446 §4.6.1).
+ * Stored in hshk_data for potential PSK resumption; not used in the
+ * current PSK-less profile.
+ */
 struct ctls_ticket {
     uint32_t ticket_lifetime;
     uint32_t ticket_age_add;
@@ -73,7 +104,7 @@ struct ctls_hshk_data {
     bool isSignedCertificateTimestampRequested;
 };
 
-
+/** Transport abstraction: pluggable send/receive callbacks over any byte stream. */
 struct ctls_transport {
     ctls_recd_send recd_send;
     ctls_recd_receive recd_receive;
@@ -90,7 +121,15 @@ struct ctls_context {
     ctls_record_t record;
 };
 
-/** Global accessors — return pointers into the singleton ctls_context. */
+/**
+ * @brief Global accessors — return pointers into the singleton ctls_context.
+ *
+ * The context is a module-level static in ctls.c. These accessors let all
+ * subsystems read or mutate it without passing the context pointer everywhere.
+ * Callers must not free or replace the returned pointers.
+ *
+ * @return Pointer into the singleton context; never NULL after ctls_context_init().
+ */
 ctls_template_t const *ctls_template_get(void);
 ctls_hshk_data_t *ctls_hshk_data_get(void);
 ctls_crypto_t *ctls_crypto_get(void);
@@ -98,26 +137,116 @@ ctls_hshk_buffer_t *ctls_hshk_buffer_get(void);
 ctls_transport_t *ctls_transport_get(void);
 ctls_record_t *ctls_record_get(void);
 
-/** Initialize context with transport callbacks and run ctls_crypto_init. */
+/**
+ * @brief Initialize the connection context and underlying crypto layer.
+ *
+ * Stores the template (resolved from config.h profile id), copies the
+ * transport callbacks, zeroes hshk_data, and calls ctls_crypto_init()
+ * (psa_crypto_init, transcript hash start, algorithm/family selection).
+ * Must be called before ctls_connect() or ctls_accept().
+ *
+ * @param context    Caller-allocated context to initialize; must not be NULL.
+ * @param transport  Send/receive callback pair; must not be NULL.
+ * @return CTLS_STATUS_SUCCESS, or a CTLS_STATUS_CRYPTO_* code on init failure.
+ */
 ctls_status_t ctls_context_init(ctls_context_t *context,
                                 ctls_transport_t const *transport);
-/** Advance the handshake state machine; returns error if transition is invalid. */
+
+/**
+ * @brief Advance the handshake state machine to a new state.
+ *
+ * Validates that the transition from the current state at *location to state
+ * is legal, then writes state into *location. The handshake driver calls this
+ * after each message is sent or received to prevent out-of-order processing.
+ *
+ * @param location  Pointer to the current state variable to update.
+ * @param state     Target state to transition to.
+ * @return CTLS_STATUS_SUCCESS on a valid transition, CTLS_STATUS_HSHK_INVALID_STATE otherwise.
+ */
 ctls_status_t ctls_handshake_state_update(ctls_hshk_state_t *location,
                                           ctls_hshk_state_t state);
-/** Zero buffer and reset offset to 0. */
+
+/**
+ * @brief Zero a wire buffer and reset its offset to 0.
+ *
+ * Used between handshake steps to reclaim the scratch buffer before the
+ * next serialization. Does not free memory.
+ *
+ * @param buffer        Buffer to clear; must be CTLS_SIZE_WIRE_BUFFER bytes.
+ * @param buffer_offest Pointer to the offset to reset to 0.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_NULL_BUFFER / CTLS_STATUS_NULL_OFFSET.
+ */
 ctls_status_t ctls_wire_buffer_clear(uint8_t *buffer, ctls_size_t *buffer_offest);
-/** Verify the template has a cipher suite, DHE group, and signature algorithm set. */
+
+/**
+ * @brief Verify the active template has all mandatory fields set.
+ *
+ * Checks that cipher_suite, dhe_group, and signature_algorithm are not
+ * CTLS_DEFAULT_SENTINEL. Returns an error immediately on the first unset
+ * field; callers rely on this before starting the handshake.
+ *
+ * @return CTLS_STATUS_SUCCESS if all mandatory fields are present,
+ *         or CTLS_STATUS_TMPL_INVALID_* on the first missing field.
+ */
 ctls_status_t ctls_validate_template();
-/** Run the full client-side TLS 1.3 handshake to completion. */
+
+/**
+ * @brief Run the full client-side cTLS handshake to completion.
+ *
+ * Drives the TLS 1.3 state machine (CH → SH → key schedule →
+ * server flight → client flight) until CTLS_HSHK_STATE_CONNECTED.
+ * Blocks on transport I/O (ctls_transport_t callbacks).
+ *
+ * @param context  Initialized connection context; must not be NULL.
+ * @return CTLS_STATUS_SUCCESS on successful handshake completion,
+ *         or the first error returned by any handshake step.
+ */
 ctls_status_t ctls_connect(ctls_context_t *context);
-/** Run the full server-side TLS 1.3 handshake to completion. */
+
+/**
+ * @brief Run the full server-side cTLS handshake to completion.
+ *
+ * Mirror of ctls_connect() for the server role (CH receive → SH send →
+ * key schedule → server flight send → client flight receive).
+ *
+ * @param context  Initialized connection context; must not be NULL.
+ * @return CTLS_STATUS_SUCCESS on successful handshake completion,
+ *         or the first error returned by any handshake step.
+ */
 ctls_status_t ctls_accept(ctls_context_t *context);
-/** Read decrypted application data into buffer. */
+
+/**
+ * @brief Receive and decrypt one application data record.
+ *
+ * Reads from the transport, strips the unified header, and AEAD-decrypts the
+ * body into application_data. The caller must supply a buffer of at least
+ * application_data_length bytes. Consumes one sequence number on success.
+ *
+ * @param buffer                Wire buffer (CTLS_SIZE_WIRE_BUFFER bytes) for the raw record.
+ * @param application_data      Output buffer for the decrypted plaintext.
+ * @param application_data_length  Size of application_data in bytes.
+ * @param entity                CTLS_ENTITY_CLIENT or CTLS_ENTITY_SERVER (selects read key).
+ * @return CTLS_STATUS_SUCCESS on success, CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED on tag mismatch,
+ *         or CTLS_STATUS_TRANSPORT_RECV_FAILED on I/O error.
+ */
 ctls_status_t ctls_read(uint8_t *buffer,
                         uint8_t *application_data,
                         ctls_size_t application_data_length,
                         ctls_entity_t entity);
-/** Encrypt and send application data from buffer. */
+
+/**
+ * @brief Encrypt and send one application data record.
+ *
+ * AEAD-encrypts application_data, prepends the unified header (which doubles
+ * as the AEAD AAD), and writes the result to the transport. Consumes one
+ * sequence number on success.
+ *
+ * @param application_data        Plaintext to encrypt and send.
+ * @param application_data_length Number of plaintext bytes.
+ * @param entity                  CTLS_ENTITY_CLIENT or CTLS_ENTITY_SERVER (selects write key).
+ * @return CTLS_STATUS_SUCCESS on success, CTLS_STATUS_CRYPTO_AEAD_ENCRYPT_FAILED on cipher failure,
+ *         or CTLS_STATUS_TRANSPORT_SEND_FAILED on I/O error.
+ */
 ctls_status_t ctls_write(uint8_t const *application_data,
                          ctls_size_t application_data_length,
                          ctls_entity_t entity);

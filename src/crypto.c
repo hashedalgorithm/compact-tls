@@ -9,7 +9,6 @@
 
 #include <string.h>
 #include "psa/crypto.h"
-#include "ctls/types.h"
 #include "ctls/ctls.h"
 #include "ctls/bytes.h"
 #include "ctls/templates.h"
