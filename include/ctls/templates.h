@@ -143,8 +143,6 @@ struct ctls_template {
 };
 
 
-#if CTLS_CLIENT
-
 extern const ctls_template_t ctls_template_1;
 
 /** Point context->template at the built-in template matching profile_id. */
@@ -174,9 +172,6 @@ ctls_status_t ctls_tmpl_extension_to_wire(uint8_t *buffer,
  * identification — both peers must derive identical bytes).
  */
 ctls_status_t ctls_template_to_wire(uint8_t *buffer);
-
-
-#endif
 
 
 #if CTLS_SERVER
