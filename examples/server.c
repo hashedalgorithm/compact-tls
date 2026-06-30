@@ -71,8 +71,8 @@ static ctls_status_t udp_receive(uint8_t *buffer, ctls_size_t *length, ctls_size
     return CTLS_STATUS_SUCCESS;
 }
 
-int main(int argc, char *argv[]) {
-    int port = (argc > 1) ? atoi(argv[1]) : 4433;
+int main(void) {
+    int port = 4433;
 
     g_sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (g_sock < 0) {

@@ -55,9 +55,9 @@ static ctls_status_t udp_receive(uint8_t *buffer, ctls_size_t *length, ctls_size
     return CTLS_STATUS_SUCCESS;
 }
 
-int main(int argc, char *argv[]) {
-    const char *host = (argc > 1) ? argv[1] : "127.0.0.1";
-    int port = (argc > 2) ? atoi(argv[2]) : 4433;
+int main(void) {
+    const char *host = "127.0.0.1";
+    int port = 4433;
 
     g_sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (g_sock < 0) {
