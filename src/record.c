@@ -266,10 +266,10 @@ ctls_status_t ctls_record_preprocess(uint8_t const *buffer,
         if (result != CTLS_STATUS_SUCCESS) return result;
 
         content_type_byte = plaintext[*plaintext_offset];
+    } else {
+        /* Plaintext: first byte is content_type. */
+        record->type = CTLS_RECORD_TYPE_PLAINTEXT;
     }
-
-    /* Plaintext: first byte is content_type. Validate it. */
-    record->type = CTLS_RECORD_TYPE_PLAINTEXT;
 
     switch (content_type_byte) {
         case CTLS_RECD_CONTENT_TYPE_INVALID:
