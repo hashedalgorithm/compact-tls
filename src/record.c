@@ -994,3 +994,96 @@ ctls_status_t ctls_recd_application_data_serialize(uint8_t *buffer,
                                CTLS_PHASE_APPLICATION_DATA,
                                entity);
 }
+
+
+ctls_status_t ctls_recd_alert_create(ctls_record_t *record,
+                                     ctls_hsmg_alert_type_t const description,
+                                     ctls_hsmg_alert_level_t const alert_level) {
+    CTLS_CHECK_NULL_STRUCT(record);
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
+    result = ctls_recd_buffer_clear(record);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    record->content_type = CTLS_RECD_CONTENT_TYPE_ALERT;
+
+    result = ctls_unified_header_build(&record->unified_header, 0);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_hsmg_alert_create(&record->record_body.alert, description, alert_level);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    return CTLS_STATUS_SUCCESS;
+}
+
+ctls_status_t ctls_recd_alert_to_struct(ctls_record_t *record, uint8_t const *buffer) {
+    CTLS_CHECK_NULL_STRUCT(record);
+    CTLS_CHECK_NULL_BUFFER(buffer);
+
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+    uint8_t plaintext[CTLS_SIZE_WIRE_BUFFER];
+    ctls_size_t plaintext_offset = 0U;
+    ctls_size_t offset = 0U;
+
+    if (record->type == CTLS_RECORD_TYPE_PLAINTEXT) {
+        result = ctls_hsmg_alert_to_struct(&record->record_body.alert, buffer, &offset);
+        if (result != CTLS_STATUS_SUCCESS) return result;
+    } else {
+        result = ctls_record_decrypt(record,
+                                     buffer,
+                                     plaintext,
+                                     &plaintext_offset,
+                                     CTLS_PHASE_HANDSHAKE,
+                                     CTLS_ENTITY_SERVER);
+        if (result != CTLS_STATUS_SUCCESS) return result;
+    }
+
+    return CTLS_STATUS_SUCCESS;
+}
+
+ctls_status_t ctls_recd_alert_to_wire(uint8_t *buffer,
+                                      ctls_size_t *offset,
+                                      ctls_record_t *record,
+                                      ctls_entity_t const entity,
+                                      ctls_phase_t const phase) {
+    CTLS_CHECK_NULL_STRUCT(record);
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_OFFSET(offset);
+
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
+    uint8_t plaintext[CTLS_SIZE_WIRE_BUFFER];
+    ctls_size_t plaintext_offset = 0;
+
+    result = ctls_hsmg_alert_to_wire(record->type == CTLS_RECORD_TYPE_PLAINTEXT
+                                         ? buffer
+                                         : plaintext,
+                                     record->type == CTLS_RECORD_TYPE_PLAINTEXT
+                                         ? offset
+                                         : &plaintext_offset,
+                                     &record->record_body.alert);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    if (record->type == CTLS_RECORD_TYPE_ENCRYPTED) {
+        result = ctls_unified_header_length_update(&record->unified_header,
+                                                   (uint16_t) (
+                                                       plaintext_offset +
+                                                       CTLS_SIZE_AEAD_TAG));
+        if (result != CTLS_STATUS_SUCCESS) return result;
+
+        ctls_write_u8(plaintext, &plaintext_offset, record->content_type);
+
+        ctls_size_t ciphertext_length = 0;
+        return ctls_record_encrypt(buffer,
+                                   offset,
+                                   &record->unified_header,
+                                   plaintext,
+                                   plaintext_offset,
+                                   &ciphertext_length,
+                                   phase,
+                                   entity);
+    }
+
+
+    return CTLS_STATUS_SUCCESS;
+}

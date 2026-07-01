@@ -95,6 +95,7 @@ struct ctls_record {
     union {
         ctls_handshake_message_t handshake;
         ctls_application_data_t application;
+        ctls_hsmg_alert_t alert;
     } record_body;
 };
 
@@ -310,4 +311,15 @@ ctls_status_t ctls_recd_application_data_serialize(uint8_t *buffer,
                                                    uint8_t const *application_data,
                                                    ctls_size_t application_data_length,
                                                    ctls_entity_t entity);
+
+ctls_status_t ctls_recd_alert_create(ctls_record_t *record,
+                                     ctls_hsmg_alert_type_t description,
+                                     ctls_hsmg_alert_level_t alert_level);
+ctls_status_t ctls_recd_alert_to_struct(ctls_record_t *record, uint8_t const *buffer);
+ctls_status_t ctls_recd_alert_to_wire(uint8_t *buffer,
+                                      ctls_size_t *offset,
+                                      ctls_record_t *record,
+                                      ctls_entity_t entity,
+                                      ctls_phase_t phase);
+
 #endif

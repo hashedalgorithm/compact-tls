@@ -290,6 +290,7 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_INVALID_ARG                     ((ctls_status_t)0x0005u)
 #define CTLS_STATUS_UNKNOWN                         ((ctls_status_t)0x0006u)
 #define CTLS_STATUS_NOT_IMPLEMENTED                 ((ctls_status_t)0x0007u)
+#define CTLS_STATUS_SENT_ALERT                      ((ctls_status_t)0x0009u)
 
 /* Buffer / Memory (0x0032-0x0063) */
 #define CTLS_STATUS_BUFFER_OVERFLOW                 ((ctls_status_t)0x0032u)

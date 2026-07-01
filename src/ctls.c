@@ -388,3 +388,213 @@ ctls_status_t ctls_write(uint8_t const *application_data,
 
     return transport->recd_send(buffer, buffer_offset);
 }
+
+
+ctls_status_t ctls_status_to_alert_type_map(ctls_status_t const status,
+                                            ctls_hsmg_alert_type_t *alert_type,
+                                            ctls_hsmg_alert_level_t *alert_level) {
+    CTLS_CHECK_NULL(alert_type);
+    CTLS_CHECK_NULL(alert_level);
+
+    switch (status) {
+        case CTLS_STATUS_SUCCESS:
+            return CTLS_STATUS_INVALID_ARG;
+
+        /* unexpected_message(10) — wrong message type or out-of-order record */
+        case CTLS_STATUS_RECD_INVALID_CONTENT_TYPE:
+        case CTLS_STATUS_RECD_UNKNOWN_MSG_TYPE:
+        case CTLS_STATUS_RECD_INVALID_MSG_TYPE:
+        case CTLS_STATUS_RECD_EPOCH_MISMATCH:
+        case CTLS_STATUS_RECD_SEQUENCE_NUMBER_MISMATCH:
+        case CTLS_STATUS_RECD_DESER_STANDALONE_MSG:
+        case CTLS_STATUS_RECD_DESER_UNKNOWN_MSG:
+        case CTLS_STATUS_HSMG_UNKNOWN_MSG_TYPE:
+        /* NOTE: CTLS_STATUS_HSMG_INVALID_MSG_TYPE == CTLS_STATUS_HSMG_CH_INVALID_WIRE_FORMAT (0x0161) */
+        case CTLS_STATUS_HSMG_INVALID_MSG_TYPE:
+        case CTLS_STATUS_EXTN_UNKNOWN_MSG_TYPE:
+        case CTLS_STATUS_HSHK_INVALID_STATE:
+        case CTLS_STATUS_HSHK_ALREADY_CONNECTED:
+            *alert_type = CTLS_HSMG_ALERT_TYPE_UNEXPECTED_MESSAGE;
+            *alert_level = CTLS_HSMG_ALERT_LEVEL_FATAL;
+            break;
+
+        /* bad_record_mac(20) — AEAD tag verification failed */
+        case CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED:
+            *alert_type = CTLS_HSMG_ALERT_TYPE_BAD_RECORD_MAC;
+            *alert_level = CTLS_HSMG_ALERT_LEVEL_FATAL;
+            break;
+
+        /* record_overflow(22) — record exceeds maximum permitted size */
+        case CTLS_STATUS_BUFFER_OVERFLOW:
+        case CTLS_STATUS_BOUNDS_EXCEEDED:
+            *alert_type = CTLS_HSMG_ALERT_TYPE_RECORD_OVERFLOW;
+            *alert_level = CTLS_HSMG_ALERT_LEVEL_FATAL;
+            break;
+
+        /* handshake_failure(40) — negotiation could not proceed */
+        case CTLS_STATUS_CRYPTO_ECDH_FAILED:
+        case CTLS_STATUS_CRYPTO_UNSUPPORTED_CIPHER_SUITE:
+        case CTLS_STATUS_CRYPTO_UNSUPPORTED_DHE_GROUP:
+        case CTLS_STATUS_RECD_NO_MUTUAL_AUTH:
+        case CTLS_STATUS_RECD_CR_NO_MUTUAL_AUTH:
+        case CTLS_STATUS_TMPL_UNKNOWN_PROFILE:
+            *alert_type = CTLS_HSMG_ALERT_TYPE_HANDSHAKE_FAILURE;
+            *alert_level = CTLS_HSMG_ALERT_LEVEL_FATAL;
+            break;
+
+        /* bad_certificate(42) — certificate parse or public key import failed */
+        case CTLS_STATUS_CRYPTO_CERT_SPKI_NOT_FOUND:
+        case CTLS_STATUS_CRYPTO_CERT_KEY_PAIR_IMPORT_FAILED:
+        case CTLS_STATUS_CRYPTO_CERT_PUB_KEY_IMPORT_FAILED:
+            *alert_type = CTLS_HSMG_ALERT_TYPE_BAD_CERTIFICATE;
+            *alert_level = CTLS_HSMG_ALERT_LEVEL_FATAL;
+            break;
+
+        /* illegal_parameter(47) — value violates protocol or template constraints */
+        case CTLS_STATUS_RECD_UNSUPPORTED_CID:
+        case CTLS_STATUS_EXTN_INVALID_ENTITY_OWNERSHIP:
+        case CTLS_STATUS_EXTN_INVALID_ENTITY:
+        case CTLS_STATUS_EXTN_CERT_STATUS_INVALID_ENTITY:
+        case CTLS_STATUS_EXTN_CERT_CREATE_INVALID_ENTITY:
+        case CTLS_STATUS_TMPL_INVALID_CIPHER_SUITE:
+        case CTLS_STATUS_TMPL_INVALID_DHE_GROUP:
+        case CTLS_STATUS_TMPL_INVALID_SIG_ALGORITHM:
+        case CTLS_STATUS_TMPL_INVALID_EXTENSION:
+        case CTLS_STATUS_TMPL_UNKNOWN_ELEMENT:
+        case CTLS_STATUS_TMPL_EXTN_KEY_SHARE_IN_EXPECTED:
+        case CTLS_STATUS_TMPL_EXTN_KEY_SHARE_IN_SELF_DELIM:
+            *alert_type = CTLS_HSMG_ALERT_TYPE_ILLEGAL_PARAMETER;
+            *alert_level = CTLS_HSMG_ALERT_LEVEL_FATAL;
+            break;
+
+        /* decode_error(50) — malformed message; peer sent structurally invalid data */
+        case CTLS_STATUS_BUFFER_TOO_SMALL:
+        case CTLS_STATUS_RECD_INVALID_SEQ_LEN:
+        case CTLS_STATUS_RECD_INVALID_WIRE_FORMAT:
+        case CTLS_STATUS_RECD_HDR_DESERIALIZE_CID:
+        case CTLS_STATUS_RECD_HDR_DESERIALIZE_SEQ:
+        case CTLS_STATUS_RECD_CH_INVALID_WIRE_FORMAT:
+        case CTLS_STATUS_RECD_SH_INVALID_WIRE_FORMAT:
+        case CTLS_STATUS_RECD_EE_INVALID_WIRE_FORMAT:
+        case CTLS_STATUS_RECD_CR_INVALID_WIRE_FORMAT:
+        case CTLS_STATUS_RECD_CERT_INVALID_WIRE_FORMAT:
+        case CTLS_STATUS_RECD_CV_INVALID_WIRE_FORMAT:
+        case CTLS_STATUS_RECD_FIN_INVALID_WIRE_FORMAT:
+        case CTLS_STATUS_RECD_SF_INVALID_WIRE_FORMAT:
+        case CTLS_STATUS_RECD_CF_INVALID_WIRE_FORMAT:
+        case CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT:
+        case CTLS_STATUS_HSMG_SH_INVALID_WIRE_FORMAT:
+        case CTLS_STATUS_HSMG_EE_INVALID_WIRE_FORMAT:
+        case CTLS_STATUS_HSMG_CR_INVALID_WIRE_FORMAT:
+        case CTLS_STATUS_HSMG_CERT_INVALID_WIRE_FORMAT:
+        case CTLS_STATUS_HSMG_CV_INVALID_WIRE_FORMAT:
+        case CTLS_STATUS_HSMG_FIN_INVALID_WIRE_FORMAT:
+        case CTLS_STATUS_EXTN_INVALID_SIZE_FLAG:
+        case CTLS_STATUS_EXTN_INVALID_FORM:
+        case CTLS_STATUS_EXTN_INVALID_STATUS_TYPE:
+        case CTLS_STATUS_EXTN_INVALID_WIRE_FORMAT:
+        case CTLS_STATUS_EXTN_DESER_ENUM_SIZE_FLAG:
+        case CTLS_STATUS_EXTN_ALPN_INVALID_FORM:
+        case CTLS_STATUS_EXTN_CERT_AUTH_INVALID_FORM:
+        case CTLS_STATUS_EXTN_CH_INVALID_WIRE_FORMAT:
+        case CTLS_STATUS_EXTN_SH_INVALID_WIRE_FORMAT:
+        case CTLS_STATUS_EXTN_EE_INVALID_WIRE_FORMAT:
+        case CTLS_STATUS_EXTN_CR_INVALID_WIRE_FORMAT:
+        case CTLS_STATUS_EXTN_CERT_INVALID_WIRE_FORMAT:
+            *alert_type = CTLS_HSMG_ALERT_TYPE_DECODE_ERROR;
+            *alert_level = CTLS_HSMG_ALERT_LEVEL_FATAL;
+            break;
+
+        /* decrypt_error(51) — signature or Finished HMAC verification failed */
+        case CTLS_STATUS_CRYPTO_INVALID_SIGNATURE:
+        case CTLS_STATUS_CRYPTO_SIGNATURE_VERIFY_FAILED:
+        case CTLS_STATUS_CRYPTO_HMAC_VERIFY_DATA_FAILED:
+            *alert_type = CTLS_HSMG_ALERT_TYPE_DECRYPT_ERROR;
+            *alert_level = CTLS_HSMG_ALERT_LEVEL_FATAL;
+            break;
+
+        /* insufficient_security(71) — algorithm rejected as too weak */
+        case CTLS_STATUS_CRYPTO_NOT_SUPPORTED:
+            *alert_type = CTLS_HSMG_ALERT_TYPE_INSUFFICIENT_SECURITY;
+            *alert_level = CTLS_HSMG_ALERT_LEVEL_FATAL;
+            break;
+
+        /* unsupported_extension(110) — extension not recognised or not permitted here */
+        case CTLS_STATUS_EXTN_UNKNOWN_TYPE:
+        case CTLS_STATUS_EXTN_UNEXPECTED_EXPECTED_EXTNS:
+            *alert_type = CTLS_HSMG_ALERT_TYPE_UNSUPPORTED_EXTENSION;
+            *alert_level = CTLS_HSMG_ALERT_LEVEL_FATAL;
+            break;
+
+        /* internal_error(80) — implementation bug or crypto subsystem failure;
+         * covers NULL args, key schedule failures, hash failures, etc. */
+        default:
+            *alert_type = CTLS_HSMG_ALERT_TYPE_INTERNAL_ERROR;
+            *alert_level = CTLS_HSMG_ALERT_LEVEL_FATAL;
+            break;
+    }
+
+    return CTLS_STATUS_SUCCESS;
+}
+
+/*
+ * Send a fatal encrypted alert (RFC 8446 §6) over the transport.
+ * Inner plaintext layout: level(1) | description(1) | content_type_alert(1).
+ * Best-effort: caller has already decided to return an error, so a send
+ * failure here is silently ignored.
+ */
+
+ctls_status_t ctls_alert_send(ctls_record_t *record,
+                              ctls_hsmg_alert_type_t const alert_type,
+                              ctls_hsmg_alert_level_t const alert_level,
+                              ctls_entity_t const entity,
+                              ctls_phase_t const phase) {
+    ctls_transport_t const *transport = ctls_transport_get();
+
+    CTLS_CHECK_NULL_STRUCT(transport);
+
+
+    uint8_t buffer[CTLS_SIZE_WIRE_BUFFER];
+    ctls_size_t buffer_offset = 0;
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
+    result = ctls_recd_buffer_clear(record);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_recd_alert_create(record, alert_type, alert_level);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_recd_alert_to_wire(buffer, &buffer_offset, record, entity, phase);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = transport->recd_send(buffer, buffer_offset);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    /* Alert consumes one sequence number just like any other record. */
+    ctls_sequence_number_counter_increment();
+
+    return CTLS_STATUS_SENT_ALERT;
+}
+
+ctls_status_t ctls_alert_from_status(ctls_record_t *record,
+                                     ctls_status_t const status,
+                                     ctls_entity_t const entity,
+                                     ctls_phase_t const phase) {
+    CTLS_CHECK_NULL_STRUCT(record);
+
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
+    ctls_hsmg_alert_type_t alert_type;
+    ctls_hsmg_alert_level_t alert_level;
+
+    /*
+     * Map ctls_status_t → TLS 1.3 alert (RFC 8446 §6).
+     * In TLS 1.3 every alert except close_notify and user_canceled is FATAL.
+     * close_notify / user_canceled are not triggered by error paths, so all
+     * cases here use FATAL level.
+     */
+    result = ctls_status_to_alert_type_map(status, &alert_type, &alert_level);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    return ctls_alert_send(record, alert_type, alert_level, entity, phase);
+}

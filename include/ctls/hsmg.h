@@ -138,8 +138,8 @@ struct ctls_hsmg_application_data {
 
 /** Alert, RFC 8446 §6: level(u8) + description(u8). */
 struct ctls_hsmg_alert {
-    uint8_t level;
-    uint8_t description;
+    ctls_hsmg_alert_level_t level;
+    ctls_hsmg_alert_type_t description;
 };
 
 /**
@@ -174,8 +174,6 @@ typedef union {
     ctls_hsmg_server_hello_t server_hello;
     ctls_hsmg_server_flight_t server_flight;
     ctls_hsmg_client_flight_t client_flight;
-    ctls_hsmg_application_data_t application_data;
-    ctls_hsmg_alert_t alert;
 } ctls_hsmg_body_t;
 
 /**
@@ -361,5 +359,13 @@ ctls_status_t ctls_hsmg_client_flight_to_wire(uint8_t *buffer,
                                               client_flight,
                                               ctls_wire_format_t wire_format);
 
-
+ctls_status_t ctls_hsmg_alert_create(ctls_hsmg_alert_t *alert,
+                                     ctls_hsmg_alert_type_t description,
+                                     ctls_hsmg_alert_level_t alert_level);
+ctls_status_t ctls_hsmg_alert_to_struct(ctls_hsmg_alert_t *alert,
+                                        uint8_t const *buffer,
+                                        ctls_size_t *offset);
+ctls_status_t ctls_hsmg_alert_to_wire(uint8_t *buffer,
+                                      ctls_size_t *offset,
+                                      ctls_hsmg_alert_t const *alert);
 #endif

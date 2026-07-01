@@ -1066,3 +1066,40 @@ ctls_status_t ctls_hsmg_client_flight_to_wire(uint8_t *buffer,
 
     return ctls_hsmg_finished_to_wire(buffer, offset, &client_flight->finished);
 }
+
+
+ctls_status_t ctls_hsmg_alert_create(ctls_hsmg_alert_t *alert,
+                                     ctls_hsmg_alert_type_t const description,
+                                     ctls_hsmg_alert_level_t const alert_level) {
+    CTLS_CHECK_NULL_STRUCT(alert);
+
+    alert->level = alert_level;
+    alert->description = description;
+
+    return CTLS_STATUS_SUCCESS;
+}
+
+ctls_status_t ctls_hsmg_alert_to_struct(ctls_hsmg_alert_t *alert,
+                                        uint8_t const *buffer,
+                                        ctls_size_t *offset) {
+    CTLS_CHECK_NULL_STRUCT(alert);
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_OFFSET(offset);
+
+    alert->level = ctls_read_u8(buffer, offset);
+    alert->description = ctls_read_u8(buffer, offset);
+
+    return CTLS_STATUS_SUCCESS;
+}
+
+ctls_status_t ctls_hsmg_alert_to_wire(uint8_t *buffer,
+                                      ctls_size_t *offset,
+                                      ctls_hsmg_alert_t const *alert) {
+    CTLS_CHECK_NULL_STRUCT(alert);
+    CTLS_CHECK_NULL_OFFSET(offset);
+    CTLS_CHECK_NULL_BUFFER(buffer);
+
+    ctls_write_u8(buffer, offset, alert->level);
+    ctls_write_u8(buffer, offset, alert->description);
+    return CTLS_STATUS_SUCCESS;
+}

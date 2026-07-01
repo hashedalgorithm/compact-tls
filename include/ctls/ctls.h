@@ -250,4 +250,18 @@ ctls_status_t ctls_read(uint8_t *buffer,
 ctls_status_t ctls_write(uint8_t const *application_data,
                          ctls_size_t application_data_length,
                          ctls_entity_t entity);
+
+ctls_status_t ctls_status_to_alert_type_map(ctls_status_t status,
+                                            ctls_hsmg_alert_type_t *alert_type,
+                                            ctls_hsmg_alert_level_t *alert_level);
+ctls_status_t ctls_alert_send(ctls_record_t *record,
+                              ctls_hsmg_alert_type_t alert_type,
+                              ctls_hsmg_alert_level_t alert_level,
+                              ctls_entity_t entity,
+                              ctls_phase_t phase);
+ctls_status_t ctls_alert_from_status(ctls_record_t *record,
+                                     ctls_status_t status,
+                                     ctls_entity_t entity,
+                                     ctls_phase_t phase);
+
 #endif
