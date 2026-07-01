@@ -981,19 +981,29 @@ ctls_status_t ctls_recd_application_data_serialize(uint8_t *buffer,
 
     ctls_status_t result = ctls_recd_buffer_clear(record);
     if (result != CTLS_STATUS_SUCCESS) return result;
+
+    record->content_type = CTLS_RECD_CONTENT_TYPE_APPLICATION_DATA;
+
+    /* TLSInnerPlaintext (RFC 8446 §5.2): application_data || content_type,
+     * encrypted together — mirrors the flight/alert to_wire functions. */
+    uint8_t plaintext[CTLS_SIZE_WIRE_BUFFER];
+    ctls_size_t plaintext_offset = application_data_length;
+
+    ctls_write_bytes(
+            plaintext, &plaintext_offset, application_data_length, application_data);
+
     ctls_write_u8(plaintext, &plaintext_offset, record->content_type);
 
-    result = ctls_unified_header_build(&record->unified_header,
-                                       (uint16_t) (
-                                           application_data_length + CTLS_SIZE_AEAD_TAG));
+    result = ctls_unified_header_build(
+            &record->unified_header, (uint16_t) (plaintext_offset + CTLS_SIZE_AEAD_TAG));
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     ctls_size_t ciphertext_length = 0;
     return ctls_record_encrypt(buffer,
                                offset,
                                &record->unified_header,
-                               application_data,
-                               application_data_length,
+                               plaintext,
+                               plaintext_offset,
                                &ciphertext_length,
                                CTLS_PHASE_APPLICATION_DATA,
                                entity);
