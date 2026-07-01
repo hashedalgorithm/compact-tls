@@ -273,6 +273,9 @@ ctls_status_t ctls_server_handshake(ctls_context_t *context) {
     result = context->transport.recd_send(buffer, buffer_offset);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
+    result = ctls_core_server_flight_op(&context->record);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
     // Client Flight (mutual auth)
     if (context->template->mutual_auth == 1) {
         result = ctls_wire_buffer_clear(buffer, &buffer_offset);
