@@ -298,8 +298,6 @@ ctls_status_t ctls_server_handshake(ctls_context_t *context) {
 
     return ctls_core_handshake_state_update(CTLS_HSHK_STATE_CONNECTED);
 
-    return CTLS_STATUS_SUCCESS;
-
 onerror:
     ctls_core_handshake_state_update(CTLS_HSHK_STATE_ERROR);
 
@@ -307,7 +305,7 @@ onerror:
     ctls_wire_buffer_clear(buffer, &buffer_offset);
 
     return ctls_alert_send(
-            &context->record, result, CTLS_ENTITY_CLIENT, CTLS_PHASE_HANDSHAKE);
+            &context->record, result, CTLS_ENTITY_SERVER, CTLS_PHASE_HANDSHAKE);
 }
 #endif /* CTLS_SERVER */
 

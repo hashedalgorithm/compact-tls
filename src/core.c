@@ -48,9 +48,7 @@ ctls_status_t ctls_core_client_hello_internal_op(ctls_record_t *record) {
      * no on-wire cipher/extension negotiation) — a mismatch means the
      * client is running a different profile than we are. */
     if (record->profile_id != template->profile_id) {
-        return ctls_alert_send(record, CTLS_HSMG_ALERT_TYPE_ILLEGAL_PARAMETER,
-                               CTLS_HSMG_ALERT_LEVEL_FATAL, CTLS_ENTITY_SERVER,
-                               CTLS_PHASE_HANDSHAKE);
+        return CTLS_STATUS_ALERT_ILLEGAL_PARAMETER;
     }
     result = ctls_core_handshake_state_update(CTLS_HSHK_STATE_WAIT_SERVER_HELLO);
     if (result != CTLS_STATUS_SUCCESS) return result;
@@ -256,7 +254,7 @@ ctls_status_t ctls_core_server_flight_op(ctls_record_t const *record) {
 #elif CTLS_SERVER
     return ctls_transcript_hash_update(record, CTLS_HSMG_TYPE_SERVER_FLIGHT);
 #else
-    return CTLS_STATUS_INVALID_INVOCATION
+    return CTLS_STATUS_INVALID_INVOCATION;
 #endif
 }
 
@@ -290,8 +288,9 @@ ctls_status_t ctls_core_client_flight_op(ctls_record_t const *record) {
 
     result = ctls_core_finished_internal_op();
     if (result != CTLS_STATUS_SUCCESS) return result;
+
     return ctls_transcript_hash_update(record, CTLS_HSMG_TYPE_CLIENT_FLIGHT);
 #else
-    return CTLS_STATUS_INVALID_INVOCATION
+    return CTLS_STATUS_INVALID_INVOCATION;
 #endif
 }
