@@ -56,8 +56,8 @@ These fire before any subsystem logic executes.
 | 0x0004 | `CTLS_STATUS_NULL_STRUCT`     | The primary struct pointer (e.g. `hsmg`, `record`, `template`, `crypto`) was NULL. Caller forgot to allocate/pass the object.                                             |
 | 0x0005 | `CTLS_STATUS_INVALID_ARG`     | A non-pointer argument held an illegal value (enum out of defined range, zero where non-zero required, etc.).                                                             |
 | 0x0006 | `CTLS_STATUS_UNKNOWN`         | Unclassified internal error. Should not appear in production; means a code path returned without setting a real code.                                                     |
-| 0x0007 | `CTLS_STATUS_NOT_IMPLEMENTED` | Called a function stub (`ctls_hsmg_server_hello_create`, `ctls_hsmg_finished_*`, etc.) that has no body yet. Replaces silent empty returns that currently return garbage. |
-| 0x0008 | `CTLS_STATUS_INVALID_INVOCATION` | A `ctls_core_*_internal_op` hook was called under neither `CTLS_CLIENT` nor `CTLS_SERVER` (build misconfiguration — the `#else` branch of the role guard). |
+| 0x0007 | `CTLS_STATUS_NOT_IMPLEMENTED` | The function exists and is a valid call for this build, but its body is an unfinished stub — no role/context issue, just no logic written yet (e.g. `ctls_hsmg_certificate_request_create`, `ctls_extn_encrypted_extensions_create`, `ctls_extn_certificate_request_create`). |
+| 0x0008 | `CTLS_STATUS_INVALID_INVOCATION` | The function has real logic, but it was called in a build/role that isn't supposed to call it at all. Two shapes: (1) a `ctls_core_*_internal_op` hook's `#else` branch — built under neither `CTLS_CLIENT` nor `CTLS_SERVER`; (2) `ctls_connect`/`ctls_accept` called on the wrong role's build (e.g. `ctls_connect` on a `CTLS_SERVER` build, or vice versa) — right function, wrong role. |
 | 0x0009 | `CTLS_STATUS_SENT_ALERT` | Reserved sentinel, currently unused. `ctls_alert_send` now returns the *original* status on success (see 0x0226-0x0240 below) instead of this code, so the caller still sees the real failure. |
 
 ---
