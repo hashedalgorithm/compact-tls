@@ -868,7 +868,10 @@ ctls_status_t ctls_hsmg_finished_create(ctls_hsmg_finished_t *finished,
     ctls_status_t result = ctls_finished_key_generate(entity);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_verify_data_generate(entity);
+    result = ctls_verify_data_generate(entity,
+                                       entity == CTLS_ENTITY_CLIENT
+                                           ? hshk_data->client_verify_data
+                                           : hshk_data->server_verify_data);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     finished->verify_data = entity == CTLS_ENTITY_CLIENT

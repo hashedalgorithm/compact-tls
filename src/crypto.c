@@ -1463,14 +1463,14 @@ cleanup:
 }
 
 
-ctls_status_t ctls_verify_data_generate(ctls_entity_t const entity) {
+ctls_status_t ctls_verify_data_generate(ctls_entity_t const entity, uint8_t *verify_data) {
     /* verify_data = HMAC-SHA256(finished_key, transcript_hash)
      * [RFC 8446 §4.4.4] */
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
     ctls_crypto_t const *crypto = ctls_crypto_get();
 
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
-            CTLS_STATUS_CRYPTO_INVALID_ARG;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_CRYPTO_INVALID_ARG;
 
     psa_status_t psa_st = PSA_SUCCESS;
 
@@ -1483,9 +1483,7 @@ ctls_status_t ctls_verify_data_generate(ctls_entity_t const entity) {
                              PSA_ALG_HMAC(crypto->hash_algorithm),
                              hshk_data->transcript_hash,
                              CTLS_SIZE_HASH,
-                             entity == CTLS_ENTITY_CLIENT
-                                 ? hshk_data->client_verify_data
-                                 : hshk_data->server_verify_data,
+                             verify_data,
                              CTLS_SIZE_HASH,
                              &bytes_written);
     if (psa_st != PSA_SUCCESS) goto cleanup;
