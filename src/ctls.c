@@ -74,7 +74,8 @@ ctls_status_t ctls_context_init(ctls_context_t *context,
     result = ctls_crypto_init();
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    context->state = CTLS_HSHK_STATE_START;
+    result = ctls_core_handshake_state_update(CTLS_HSHK_STATE_START);
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
     return ctls_validate_template();
 }
@@ -111,9 +112,9 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     result = context->transport.recd_send(buffer, buffer_offset);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
-    result = ctls_transcript_hash_update(&context->record, CTLS_HSMG_TYPE_CLIENT_HELLO);
+    result = ctls_core_client_hello_internal_op(&context->record);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
-    context->state = CTLS_HSHK_STATE_WAIT_SERVER_HELLO;
+
     // Server Hello
     result = ctls_wire_buffer_clear(buffer, &buffer_offset);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
@@ -130,16 +131,13 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     result = ctls_core_server_hello_internal_op(&context->record);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
-    result = ctls_transcript_hash_update(&context->record, CTLS_HSMG_TYPE_SERVER_HELLO);
-    if (result != CTLS_STATUS_SUCCESS) goto onerror;
-
-    context->state = CTLS_HSHK_STATE_KEY_SCHEDULED;
-
     // Key schedule
     result = ctls_key_schedule();
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    context->state = CTLS_HSHK_STATE_WAIT_ENCRYPTED_EXTENSIONS;
+    result = ctls_core_handshake_state_update(CTLS_HSHK_STATE_WAIT_ENCRYPTED_EXTENSIONS);
+    if (result != CTLS_STATUS_SUCCESS) goto onerror;
+
     result = ctls_wire_buffer_clear(buffer, &buffer_offset);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
@@ -154,9 +152,6 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     result = ctls_core_server_flight_op(&context->record);
-    if (result != CTLS_STATUS_SUCCESS) goto onerror;
-
-    result = ctls_transcript_hash_update(&context->record, CTLS_HSMG_TYPE_SERVER_FLIGHT);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     // Client Flight
@@ -176,25 +171,26 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
 
         result = ctls_core_client_flight_op(&context->record);
         if (result != CTLS_STATUS_SUCCESS) goto onerror;
-
-        result = ctls_transcript_hash_update(&context->record,
-                                             CTLS_HSMG_TYPE_CLIENT_FLIGHT);
-        if (result != CTLS_STATUS_SUCCESS) goto onerror;
     }
 
     result = ctls_application_key_schedule();
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
-    context->state = CTLS_HSHK_STATE_CONNECTED;
-    context->hshk_data.isHandshakeComplete = true;
+    return ctls_core_handshake_state_update(CTLS_HSHK_STATE_CONNECTED);
 
-    return CTLS_STATUS_SUCCESS;
 
 onerror:
-    context->state = CTLS_HSHK_STATE_ERROR;
+    ctls_core_handshake_state_update(CTLS_HSHK_STATE_ERROR);
+
     ctls_recd_buffer_clear(&context->record);
     ctls_wire_buffer_clear(buffer, &buffer_offset);
-    return result;
+
+    if (result == CTLS_STATUS_SENT_ALERT) return result;
+
+    return ctls_alert_from_status(&context->record,
+                                  result,
+                                  CTLS_ENTITY_CLIENT,
+                                  CTLS_PHASE_HANDSHAKE);
 }
 #endif /* CTLS_CLIENT */
 
@@ -348,11 +344,9 @@ ctls_status_t ctls_read(uint8_t *buffer,
                         ctls_size_t const application_data_length,
                         ctls_entity_t const entity) {
     ctls_transport_t const *transport = ctls_transport_get();
-    ctls_record_t *record = ctls_record_get();
 
     CTLS_CHECK_NULL_BUFFER(application_data);
     CTLS_CHECK_NULL_STRUCT(transport);
-    CTLS_CHECK_NULL_STRUCT(record);
 
     ctls_size_t buffer_offset = 0;
     ctls_status_t result = transport->recd_receive(buffer,

@@ -85,6 +85,7 @@ struct ctls_ticket {
  * Keys (finished_key, write keys, IVs) live in ctls_crypto_t, not here.
  */
 struct ctls_hshk_data {
+    ctls_hshk_state_t state;
     uint16_t sequence_number;
     uint64_t epoch;
     uint8_t transcript_hash[CTLS_SIZE_TRANSCRIPT_HASH]; // running hash snapshot
@@ -99,7 +100,6 @@ struct ctls_hshk_data {
     ctls_size_t server_verify_data_length;
     ctls_ticket_t ticket;
     // flags
-    bool isHandshakeComplete;
     bool isCertificateStatusRequested;
     bool isSignedCertificateTimestampRequested;
 };
@@ -114,7 +114,6 @@ struct ctls_transport {
 struct ctls_context {
     ctls_template_t const *template;
     ctls_crypto_t crypto;
-    ctls_hshk_state_t state;
     ctls_hshk_buffer_t *hshk_buffer;
     ctls_hshk_data_t hshk_data;
     ctls_transport_t transport;

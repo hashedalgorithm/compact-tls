@@ -28,23 +28,69 @@
 
 #include "types.h"
 
-/** Hook called after ClientHello is deserialized (server side). */
+ctls_status_t ctls_core_handshake_state_update(ctls_hshk_state_t state);
+
+/**
+ * @brief Hook called after ClientHello is deserialized (server side).
+ * @param record  Freshly deserialized ClientHello record.
+ * @return CTLS_STATUS_SUCCESS to continue, any error to abort the handshake.
+ */
 ctls_status_t ctls_core_client_hello_internal_op(ctls_record_t *record);
-/** Hook called after ServerHello is deserialized and accepted. */
+
+/**
+ * @brief Hook called after ServerHello is deserialized and accepted.
+ * @param record  Freshly deserialized ServerHello record.
+ * @return CTLS_STATUS_SUCCESS to continue, any error to abort the handshake.
+ */
 ctls_status_t ctls_core_server_hello_internal_op(ctls_record_t *record);
-/** Hook called after EncryptedExtensions is deserialized. */
+
+/**
+ * @brief Hook called after EncryptedExtensions is deserialized.
+ * @param record  Freshly deserialized EncryptedExtensions record.
+ * @return CTLS_STATUS_SUCCESS to continue, any error to abort the handshake.
+ */
 ctls_status_t ctls_core_encrypted_extensions_internal_op(ctls_record_t *record);
-/** Hook called after CertificateRequest is deserialized. */
+
+/**
+ * @brief Hook called after CertificateRequest is deserialized.
+ * @param record  Freshly deserialized CertificateRequest record.
+ * @return CTLS_STATUS_SUCCESS to continue, any error to abort the handshake.
+ */
 ctls_status_t ctls_core_certificate_request_internal_op(ctls_record_t *record);
-/** Hook called after Certificate is deserialized (chain validation goes here). */
+
+/**
+ * @brief Hook called after Certificate is deserialized (chain validation goes here).
+ * @param record  Freshly deserialized Certificate record.
+ * @return CTLS_STATUS_SUCCESS to continue, any error to abort the handshake.
+ */
 ctls_status_t ctls_core_certificate_internal_op(ctls_record_t *record);
-/** Hook called after CertificateVerify is deserialized and signature checked. */
+
+/**
+ * @brief Hook called after CertificateVerify is deserialized and signature checked.
+ * @param record  Freshly deserialized CertificateVerify record.
+ * @return CTLS_STATUS_SUCCESS to continue, any error to abort the handshake.
+ */
 ctls_status_t ctls_core_certificate_verify_internal_op(ctls_record_t *record);
-/** Hook called after Finished is deserialized and verify_data is authenticated. */
+
+/**
+ * @brief Hook called after Finished is deserialized and verify_data is authenticated.
+ * @param record  Freshly deserialized Finished record.
+ * @return CTLS_STATUS_SUCCESS to continue, any error to abort the handshake.
+ */
 ctls_status_t ctls_core_finished_internal_op(ctls_record_t *record);
-/** Hook called after the client flight (Certificate+CertVerify+Finished) is sent. */
+
+/**
+ * @brief Hook called after the client flight (Certificate+CertVerify+Finished) is sent.
+ * @param record  The client flight record as serialized and encrypted.
+ * @return CTLS_STATUS_SUCCESS to continue, any error to abort the handshake.
+ */
 ctls_status_t ctls_core_client_flight_op(ctls_record_t *record);
-/** Hook called after the server flight (EE+Certificate+CertVerify+Finished) is received. */
+
+/**
+ * @brief Hook called after the server flight (EE+Certificate+CertVerify+Finished) is received.
+ * @param record  The decrypted and deserialized server flight record.
+ * @return CTLS_STATUS_SUCCESS to continue, any error to abort the handshake.
+ */
 ctls_status_t ctls_core_server_flight_op(ctls_record_t *record);
 
 #endif //CTLS_CORE_H
