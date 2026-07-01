@@ -43,8 +43,8 @@ AlignOperands: Align
 AlignConsecutiveDeclarations: None
 AlignConsecutiveAssignments: None
 AlignTrailingComments: true
-BinPackArguments: true
-BinPackParameters: true
+BinPackArguments: false
+BinPackParameters: false
 
 # Short blocks — never collapse
 AllowShortFunctionsOnASingleLine: None
