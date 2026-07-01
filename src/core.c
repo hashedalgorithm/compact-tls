@@ -30,18 +30,32 @@ ctls_status_t ctls_core_handshake_state_update(ctls_hshk_state_t const state) {
 ctls_status_t ctls_core_client_hello_internal_op(ctls_record_t *record) {
     CTLS_CHECK_NULL_STRUCT(record);
 
-#if CTLS_CLIENT
     ctls_status_t result = CTLS_STATUS_SUCCESS;
+#if CTLS_CLIENT
 
     result = ctls_core_handshake_state_update(CTLS_HSHK_STATE_WAIT_SERVER_HELLO);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     return ctls_transcript_hash_update(record, CTLS_HSMG_TYPE_CLIENT_HELLO);
 #elif CTLS_SERVER
-    /* TODO: server-side ClientHello validation. */
-    (void) record; return CTLS_STATUS_SUCCESS;
+    result = ctls_core_handshake_state_update(CTLS_HSHK_STATE_START);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    ctls_template_t const *template = ctls_template_get();
+    CTLS_CHECK_NULL_STRUCT(template);
+
+    /* profile_id selects the template both peers pre-negotiated (cTLS has
+     * no on-wire cipher/extension negotiation) — a mismatch means the
+     * client is running a different profile than we are. */
+    if (record->profile_id != template->profile_id) {
+        return ctls_alert_send(record, CTLS_HSMG_ALERT_TYPE_ILLEGAL_PARAMETER,
+                               CTLS_HSMG_ALERT_LEVEL_FATAL, CTLS_ENTITY_SERVER,
+                               CTLS_PHASE_HANDSHAKE);
+    }
+    result = ctls_core_handshake_state_update(CTLS_HSHK_STATE_WAIT_SERVER_HELLO);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    return ctls_transcript_hash_update(record, CTLS_HSMG_TYPE_CLIENT_HELLO);
 #else
-    (void) record; return CTLS_STATUS_NOT_IMPLEMENTED;
+    return CTLS_STATUS_INVALID_INVOCATION;
 #endif
 }
 
@@ -53,46 +67,42 @@ ctls_status_t ctls_core_client_hello_internal_op(ctls_record_t *record) {
  *   SERVER: called after SH is serialized and sent — TODO: hash SH.
  */
 ctls_status_t ctls_core_server_hello_internal_op(ctls_record_t *record) {
+    CTLS_CHECK_NULL_STRUCT(record);
+
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
 #if CTLS_CLIENT
-    ctls_hsmg_server_hello_t const *server_hello = &record->record_body.handshake.
-            handshake_message_body.server_hello;
+    ctls_hsmg_server_hello_t const *server_hello =
+            &record->record_body.handshake.handshake_message_body.server_hello;
     ctls_template_t const *template = ctls_template_get();
 
     CTLS_CHECK_NULL_STRUCT(template);
+    CTLS_CHECK_NULL_STRUCT(record);
     /* Verify the negotiated TLS version is 1.3 (RFC 8446 §4.1.3). */
-    if (server_hello->protocol_version != CTLS_HSMG_PROTOCOL_VERSION_1_3) {
-        ctls_alert_send(record,
-                        CTLS_HSMG_ALERT_TYPE_PROTOCOL_VERSION,
-                        CTLS_HSMG_ALERT_LEVEL_FATAL,
-                        CTLS_ENTITY_CLIENT,
-                        CTLS_PHASE_HANDSHAKE);
-        return CTLS_STATUS_HSMG_INVALID_MSG_TYPE;
-    }
+    if (server_hello->protocol_version != CTLS_HSMG_PROTOCOL_VERSION_1_3)
+        return CTLS_STATUS_ALERT_PROTOCOL_VERSION;
+
 
     /*
      * If cipher_suite is present on the wire (non-zero sentinel), verify it
      * matches what the template pins. A mismatch indicates a misconfigured
      * peer or a downgrade attempt.
      */
-    if (server_hello->cipher_suite != CTLS_HSMG_CIPHER_SUITE_SENTINEL && server_hello->
-        cipher_suite != template->cipher_suite) {
-        ctls_alert_send(record,
-                        CTLS_HSMG_ALERT_TYPE_ILLEGAL_PARAMETER,
-                        CTLS_HSMG_ALERT_LEVEL_FATAL,
-                        CTLS_ENTITY_CLIENT,
-                        CTLS_PHASE_HANDSHAKE);
-        return CTLS_STATUS_HSMG_INVALID_MSG_TYPE;
-    }
+    if (server_hello->cipher_suite != CTLS_HSMG_CIPHER_SUITE_SENTINEL &&
+        server_hello->cipher_suite != template->cipher_suite)
+        return CTLS_STATUS_ALERT_ILLEGAL_PARAMETER;
 
-    ctls_core_handshake_state_update(CTLS_HSHK_STATE_KEY_SCHEDULED);
+    result = ctls_core_handshake_state_update(CTLS_HSHK_STATE_KEY_SCHEDULED);
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
     return ctls_transcript_hash_update(record, CTLS_HSMG_TYPE_SERVER_HELLO);
 
 #elif CTLS_SERVER
-    /* TODO: server-side: hash ServerHello after sending. */
-    (void) record; return CTLS_STATUS_SUCCESS;
+    result = ctls_core_handshake_state_update(CTLS_HSHK_STATE_KEY_SCHEDULED);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    return ctls_transcript_hash_update(record, CTLS_HSMG_TYPE_SERVER_HELLO);
 #else
-    (void) record; return CTLS_STATUS_NOT_IMPLEMENTED;
+    return CTLS_STATUS_INVALID_INVOCATION;
 #endif
 }
 
@@ -101,13 +111,14 @@ ctls_status_t ctls_core_server_hello_internal_op(ctls_record_t *record) {
  * model; EE is processed inside ctls_core_server_flight_op).
  */
 ctls_status_t ctls_core_encrypted_extensions_internal_op(ctls_record_t *record) {
-    (void) record;
+    CTLS_CHECK_NULL(record);
+
 #if CTLS_CLIENT
-    return CTLS_STATUS_NOT_IMPLEMENTED;
+    return CTLS_STATUS_SUCCESS;
 #elif CTLS_SERVER
-    return CTLS_STATUS_SUCCESS; /* TODO */
+    return CTLS_STATUS_SUCCESS;
 #else
-    return CTLS_STATUS_NOT_IMPLEMENTED;
+    return CTLS_STATUS_INVALID_INVOCATION;
 #endif
 }
 
@@ -115,56 +126,90 @@ ctls_status_t ctls_core_encrypted_extensions_internal_op(ctls_record_t *record) 
  * CertificateRequest — individual hook (not invoked in current flow).
  */
 ctls_status_t ctls_core_certificate_request_internal_op(ctls_record_t *record) {
-    (void) record;
+    CTLS_CHECK_NULL(record);
+
 #if CTLS_CLIENT
-    return CTLS_STATUS_NOT_IMPLEMENTED;
+    return CTLS_STATUS_SUCCESS;
 #elif CTLS_SERVER
-    return CTLS_STATUS_SUCCESS; /* TODO */
+    return CTLS_STATUS_SUCCESS;
 #else
-    return CTLS_STATUS_NOT_IMPLEMENTED;
+    return CTLS_STATUS_INVALID_INVOCATION;
 #endif
 }
 
 /*
  * Certificate — individual hook (not invoked in current flow).
  */
-ctls_status_t ctls_core_certificate_internal_op(ctls_record_t *record) {
-    (void) record;
-#if CTLS_CLIENT
-    return CTLS_STATUS_NOT_IMPLEMENTED;
-#elif CTLS_SERVER
-    return CTLS_STATUS_SUCCESS; /* TODO */
-#else
-    return CTLS_STATUS_NOT_IMPLEMENTED;
-#endif
+ctls_status_t
+ctls_core_certificate_internal_op(ctls_hsmg_certificate_t const *certificate) {
+    ctls_crypto_t *crypto = ctls_crypto_get();
+    ctls_template_t const *template = ctls_template_get();
+
+    CTLS_CHECK_NULL_STRUCT(template);
+    CTLS_CHECK_NULL_STRUCT(crypto);
+    CTLS_CHECK_NULL_STRUCT(certificate);
+
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
+    uint16_t const cert_id = certificate->certificate_entries[0].certificate_id;
+    result = CTLS_STATUS_CRYPTO_CERT_PUB_KEY_IMPORT_FAILED;
+
+    for (uint8_t i = 0; i < CTLS_COUNT_KNOWN_CERTIFICATES; i++) {
+        if (template->known_certificates.entries[i].certificate_id == cert_id) {
+            result = ctls_certificate_public_key_import(
+                    template->known_certificates.entries[i].certificate,
+                    template->known_certificates.entries[i].certificate_length,
+                    &crypto->peer_certificate_public_key);
+            break;
+        }
+    }
+    if (result != CTLS_STATUS_SUCCESS) return CTLS_STATUS_ALERT_UNKNOWN_CA;
+
+    result = ctls_core_handshake_state_update(CTLS_HSHK_STATE_WAIT_FINISHED);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    return result;
 }
 
 /*
  * CertificateVerify — individual hook (not invoked in current flow).
  */
-ctls_status_t ctls_core_certificate_verify_internal_op(ctls_record_t *record) {
-    (void) record;
-#if CTLS_CLIENT
-    return CTLS_STATUS_NOT_IMPLEMENTED;
-#elif CTLS_SERVER
-    return CTLS_STATUS_SUCCESS; /* TODO */
-#else
-    return CTLS_STATUS_NOT_IMPLEMENTED;
-#endif
+ctls_status_t ctls_core_certificate_verify_internal_op() {
+    ctls_crypto_t const *crypto = ctls_crypto_get();
+    CTLS_CHECK_NULL_STRUCT(crypto);
+
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
+    result = ctls_signed_bytes_verify(&crypto->peer_certificate_public_key,
+                                      CTLS_ENTITY_SERVER);
+    if (result != CTLS_STATUS_SUCCESS) return CTLS_STATUS_ALERT_DECRYPT_ERROR;
+
+    return result;
 }
 
 /*
  * Finished — individual hook (not invoked in current flow).
  */
-ctls_status_t ctls_core_finished_internal_op(ctls_record_t *record) {
-    (void) record;
-#if CTLS_CLIENT
-    return CTLS_STATUS_NOT_IMPLEMENTED;
-#elif CTLS_SERVER
-    return CTLS_STATUS_SUCCESS; /* TODO */
-#else
-    return CTLS_STATUS_NOT_IMPLEMENTED;
-#endif
+ctls_status_t ctls_core_finished_internal_op() {
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+
+    CTLS_CHECK_NULL_STRUCT(hshk_data);
+
+    uint8_t verify_data_expected[CTLS_SIZE_HASH];
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
+    result = ctls_finished_key_generate(CTLS_ENTITY_SERVER);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_verify_data_generate(CTLS_ENTITY_SERVER, verify_data_expected);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    if (memcmp(verify_data_expected, hshk_data->server_verify_data, CTLS_SIZE_HASH) !=
+        0) {
+        return CTLS_STATUS_ALERT_DECODE_ERROR;
+    }
+
+    return result;
 }
 
 /*
@@ -185,78 +230,32 @@ ctls_status_t ctls_core_finished_internal_op(ctls_record_t *record) {
  *   SERVER: not called in the server flow.
  */
 
-ctls_status_t ctls_core_server_flight_op(ctls_record_t *record) {
-#if CTLS_CLIENT
-    ctls_crypto_t *crypto = ctls_crypto_get();
-    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
-    ctls_template_t const *tmpl = ctls_template_get();
-
-    ctls_hsmg_server_flight_t const *flight = &record->record_body.handshake.
-            handshake_message_body.server_flight;
-
+ctls_status_t ctls_core_server_flight_op(ctls_record_t const *record) {
     ctls_status_t result = CTLS_STATUS_SUCCESS;
-
+#if CTLS_CLIENT
     result = ctls_core_handshake_state_update(CTLS_HSHK_STATE_WAIT_CERTIFICATE_VERIFY);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    uint16_t const cert_id = flight->certificate.certificate_entries[0].certificate_id;
-    result = CTLS_STATUS_CRYPTO_CERT_PUB_KEY_IMPORT_FAILED;
-    for (uint8_t i = 0; i < CTLS_COUNT_KNOWN_CERTIFICATES; i++) {
-        if (tmpl->known_certificates.entries[i].certificate_id == cert_id) {
-            result = ctls_certificate_public_key_import(tmpl->known_certificates.entries[
-                                                            i].certificate,
-                                                        tmpl->known_certificates.entries[
-                                                            i].certificate_length,
-                                                        &crypto->
-                                                        peer_certificate_public_key);
-            break;
-        }
-    }
-    if (result != CTLS_STATUS_SUCCESS) {
-        return ctls_alert_send(record,
-                               CTLS_HSMG_ALERT_TYPE_UNKNOWN_CA,
-                               CTLS_HSMG_ALERT_LEVEL_FATAL,
-                               CTLS_ENTITY_CLIENT,
-                               CTLS_PHASE_HANDSHAKE);
-    }
+    result = ctls_core_certificate_internal_op(
+            &record->record_body.handshake.handshake_message_body.server_flight
+                     .certificate);
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
     result = ctls_core_handshake_state_update(CTLS_HSHK_STATE_WAIT_FINISHED);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_signed_bytes_verify(&crypto->peer_certificate_public_key,
-                                      CTLS_ENTITY_SERVER);
-    if (result != CTLS_STATUS_SUCCESS) {
-        return ctls_alert_send(record,
-                               CTLS_HSMG_ALERT_TYPE_DECRYPT_ERROR,
-                               CTLS_HSMG_ALERT_LEVEL_FATAL,
-                               CTLS_ENTITY_CLIENT,
-                               CTLS_PHASE_HANDSHAKE);
-    }
-
-    uint8_t verify_data_expected[CTLS_SIZE_HASH];
-
-    result = ctls_finished_key_generate(CTLS_ENTITY_SERVER);
+    result = ctls_core_certificate_verify_internal_op();
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_verify_data_generate(CTLS_ENTITY_SERVER, verify_data_expected);
+    result = ctls_core_finished_internal_op();
     if (result != CTLS_STATUS_SUCCESS) return result;
-
-    if (memcmp(verify_data_expected, hshk_data->server_verify_data, CTLS_SIZE_HASH) !=
-        0) {
-        return ctls_alert_send(record,
-                               CTLS_HSMG_ALERT_TYPE_DECRYPT_ERROR,
-                               CTLS_HSMG_ALERT_LEVEL_FATAL,
-                               CTLS_ENTITY_CLIENT,
-                               CTLS_PHASE_HANDSHAKE);
-    }
 
     return ctls_transcript_hash_update(record, CTLS_HSMG_TYPE_SERVER_FLIGHT);
 
 #elif CTLS_SERVER
-    /* Server does not receive a server flight — this hook is unused. */
-    return CTLS_STATUS_NOT_IMPLEMENTED;
+    return ctls_transcript_hash_update(record, CTLS_HSMG_TYPE_SERVER_FLIGHT);
 #else
-    (void) record; return CTLS_STATUS_NOT_IMPLEMENTED;
+    return CTLS_STATUS_INVALID_INVOCATION
 #endif
 }
 
@@ -267,15 +266,29 @@ ctls_status_t ctls_core_server_flight_op(ctls_record_t *record) {
  *   SERVER: called after the client flight is decrypted and parsed —
  *           TODO: verify CertificateVerify and Finished.
  */
-ctls_status_t ctls_core_client_flight_op(ctls_record_t *record) {
+ctls_status_t ctls_core_client_flight_op(ctls_record_t const *record) {
 #if CTLS_CLIENT
     return ctls_transcript_hash_update(record, CTLS_HSMG_TYPE_CLIENT_FLIGHT);
 #elif CTLS_SERVER
-    /* TODO: server-side client flight verification (mirror of server_flight_op). */
-    (void) record; return CTLS_STATUS_SUCCESS;
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
+    result = ctls_core_handshake_state_update(CTLS_HSHK_STATE_WAIT_CERTIFICATE_VERIFY);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_core_certificate_internal_op(
+            &record->record_body.handshake.handshake_message_body.client_flight
+                     .certificate);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    result = ctls_core_handshake_state_update(CTLS_HSHK_STATE_WAIT_FINISHED);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_core_certificate_verify_internal_op();
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_core_finished_internal_op();
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    return ctls_transcript_hash_update(record, CTLS_HSMG_TYPE_CLIENT_FLIGHT);
 #else
-    (void) record; return CTLS_STATUS_NOT_IMPLEMENTED;
+    return CTLS_STATUS_INVALID_INVOCATION
 #endif
 }
-
-

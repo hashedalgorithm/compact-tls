@@ -60,38 +60,37 @@ ctls_status_t ctls_core_certificate_request_internal_op(ctls_record_t *record);
 
 /**
  * @brief Hook called after Certificate is deserialized (chain validation goes here).
- * @param record  Freshly deserialized Certificate record.
+ * @param certificate  Freshly deserialized Certificate handshake message pointer.
  * @return CTLS_STATUS_SUCCESS to continue, any error to abort the handshake.
  */
-ctls_status_t ctls_core_certificate_internal_op(ctls_record_t *record);
+ctls_status_t ctls_core_certificate_internal_op(
+    ctls_hsmg_certificate_t const *certificate);
 
 /**
  * @brief Hook called after CertificateVerify is deserialized and signature checked.
- * @param record  Freshly deserialized CertificateVerify record.
  * @return CTLS_STATUS_SUCCESS to continue, any error to abort the handshake.
  */
-ctls_status_t ctls_core_certificate_verify_internal_op(ctls_record_t *record);
+ctls_status_t ctls_core_certificate_verify_internal_op();
 
 /**
  * @brief Hook called after Finished is deserialized and verify_data is authenticated.
- * @param record  Freshly deserialized Finished record.
  * @return CTLS_STATUS_SUCCESS to continue, any error to abort the handshake.
  */
-ctls_status_t ctls_core_finished_internal_op(ctls_record_t *record);
+ctls_status_t ctls_core_finished_internal_op();
 
 /**
  * @brief Hook called after the client flight (Certificate+CertVerify+Finished) is sent.
  * @param record  The client flight record as serialized and encrypted.
  * @return CTLS_STATUS_SUCCESS to continue, any error to abort the handshake.
  */
-ctls_status_t ctls_core_client_flight_op(ctls_record_t *record);
+ctls_status_t ctls_core_client_flight_op(ctls_record_t const *record);
 
 /**
  * @brief Hook called after the server flight (EE+Certificate+CertVerify+Finished) is received.
  * @param record  The decrypted and deserialized server flight record.
  * @return CTLS_STATUS_SUCCESS to continue, any error to abort the handshake.
  */
-ctls_status_t ctls_core_server_flight_op(ctls_record_t *record);
+ctls_status_t ctls_core_server_flight_op(ctls_record_t const *record);
 
 #endif //CTLS_CORE_H
 
