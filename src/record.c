@@ -793,6 +793,7 @@ ctls_status_t ctls_recd_server_flight_create(ctls_record_t *record) {
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     record->type = CTLS_RECORD_TYPE_ENCRYPTED;
+    record->content_type = CTLS_RECD_CONTENT_TYPE_HANDSHAKE;
     record->record_body.handshake.sequence_number = 0;
 
     result = ctls_unified_header_build(&record->unified_header, 0);
@@ -879,6 +880,7 @@ ctls_status_t ctls_recd_client_flight_create(ctls_record_t *record) {
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     record->type = CTLS_RECORD_TYPE_ENCRYPTED;
+    record->content_type = CTLS_RECD_CONTENT_TYPE_HANDSHAKE;
     record->record_body.handshake.sequence_number = 0;
 
     result = ctls_unified_header_build(&record->unified_header, 0);
