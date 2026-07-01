@@ -161,8 +161,9 @@ typedef enum {
     /* 28 - 30 is unassigned in IANA registry.
      * Since ContentType for template is not assigned, we are using 28 for this implementation.
      * https://arc.net/l/quote/voyphzxt
+     * 0x1A specifically to not clash with first 3 bytes to identify encrypted/plaintext record
      */
-    CTLS_RECD_CONTENT_TYPE_TEMPLATE = 0x28,
+    CTLS_RECD_CONTENT_TYPE_TEMPLATE = 0x1A,
     CTLS_RECD_CONTENT_TYPE_SENTINEL = 0xFF, // default value (uninitialized)
 } ctls_recd_content_type_t;
 
@@ -451,6 +452,9 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_RECD_HDR_SERIALIZE_SEQ          ((ctls_status_t)0x0136u)
 #define CTLS_STATUS_RECD_HDR_DESERIALIZE_CID        ((ctls_status_t)0x0137u)
 #define CTLS_STATUS_RECD_HDR_DESERIALIZE_SEQ        ((ctls_status_t)0x0138u)
+#define CTLS_STATUS_RECD_INVALID_AAD_LENGTH         ((ctls_status_t)0x0139u)
+#define CTLS_STATUS_RECD_EPOCH_MISMATCH             ((ctls_status_t)0x013Au)
+#define CTLS_STATUS_RECD_SEQUENCE_NUMBER_MISMATCH   ((ctls_status_t)0x013Bu)
 /* 0x0139-0x013B reserved */
 
 /* --- 0x013C-0x0147: message-type dispatch failures --- */

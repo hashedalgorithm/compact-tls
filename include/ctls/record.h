@@ -88,7 +88,7 @@ struct ctls_application_data {
 
 /** One record: framing fields + the handshake message body it carries. */
 struct ctls_record {
-    uint8_t content_type; // Used only in CH, SH
+    ctls_recd_content_type_t content_type; // Used only in CH, SH
     uint8_t profile_id; // Used only in CH, SH
     ctls_record_type_t type; // For internal reference
     ctls_unified_header_t unified_header;
@@ -150,6 +150,14 @@ ctls_status_t ctls_unified_header_deserialize(ctls_unified_header_t *unified_hea
  */
 ctls_status_t ctls_unified_header_length_update(ctls_unified_header_t *unified_header,
                                                 uint16_t length);
+
+ctls_status_t ctls_record_preprocess(uint8_t const *buffer,
+                                     ctls_size_t bytes_received,
+                                     ctls_record_t *record,
+                                     uint8_t *plaintext,
+                                     ctls_size_t *plaintext_offset);
+
+
 /**
  * Record struct -> final wire bytes. PLAINTEXT records serialize directly;
  * ENCRYPTED records serialize body into a scratch buffer and go through
@@ -167,7 +175,8 @@ ctls_status_t ctls_record_serialize(ctls_record_t *record,
  */
 ctls_status_t ctls_record_deserialize(ctls_record_t *record,
                                       ctls_hsmg_type_t hsmg_type,
-                                      uint8_t const *buffer);
+                                      uint8_t const *buffer,
+                                      ctls_size_t bytes_received);
 
 /**
  * Encrypted record -> body plaintext. Deserializes the header (its wire

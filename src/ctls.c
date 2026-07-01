@@ -123,7 +123,8 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
 
     result = ctls_record_deserialize(&context->record,
                                      CTLS_HSMG_TYPE_SERVER_HELLO,
-                                     buffer);
+                                     buffer,
+                                     buffer_offset);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     result = ctls_core_server_hello_internal_op(&context->record);
@@ -146,10 +147,10 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
-    context->state = CTLS_HSHK_STATE_WAIT_CERTIFICATE_VERIFY;
     result = ctls_record_deserialize(&context->record,
                                      CTLS_HSMG_TYPE_SERVER_FLIGHT,
-                                     buffer);
+                                     buffer,
+                                     buffer_offset);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     result = ctls_core_server_flight_op(&context->record);
