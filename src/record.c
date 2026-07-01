@@ -265,7 +265,10 @@ ctls_status_t ctls_record_preprocess(uint8_t const *buffer,
                                      CTLS_ENTITY_SERVER);
         if (result != CTLS_STATUS_SUCCESS) return result;
 
-        content_type_byte = plaintext[*plaintext_offset];
+        /* Inner plaintext layout is body || content_type (RFC 8446 §5.2);
+         * content_type is the last byte, at index (length - 1), not at
+         * plaintext_offset itself (that's the count, one past the end). */
+        content_type_byte = plaintext[*plaintext_offset - 1];
     } else {
         /* Plaintext: first byte is content_type. */
         record->type = CTLS_RECORD_TYPE_PLAINTEXT;
