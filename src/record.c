@@ -848,13 +848,13 @@ ctls_status_t ctls_recd_server_flight_to_wire(uint8_t *buffer,
                                              wire_format);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
+    ctls_write_u8(plaintext, &plaintext_offset, record->content_type);
+
     result = ctls_unified_header_length_update(&record->unified_header,
                                                (uint16_t) (
                                                    plaintext_offset +
                                                    CTLS_SIZE_AEAD_TAG));
     if (result != CTLS_STATUS_SUCCESS) return result;
-
-    ctls_write_u8(plaintext, &plaintext_offset, record->content_type);
 
     ctls_size_t ciphertext_length = 0;
     return ctls_record_encrypt(buffer,
@@ -981,13 +981,12 @@ ctls_status_t ctls_recd_application_data_serialize(uint8_t *buffer,
 
     ctls_status_t result = ctls_recd_buffer_clear(record);
     if (result != CTLS_STATUS_SUCCESS) return result;
+    ctls_write_u8(plaintext, &plaintext_offset, record->content_type);
 
     result = ctls_unified_header_build(&record->unified_header,
                                        (uint16_t) (
                                            application_data_length + CTLS_SIZE_AEAD_TAG));
     if (result != CTLS_STATUS_SUCCESS) return result;
-
-    ctls_write_u8(buffer, offset, record->content_type);
 
     ctls_size_t ciphertext_length = 0;
     return ctls_record_encrypt(buffer,
@@ -1070,13 +1069,13 @@ ctls_status_t ctls_recd_alert_to_wire(uint8_t *buffer,
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     if (record->type == CTLS_RECORD_TYPE_ENCRYPTED) {
+        ctls_write_u8(plaintext, &plaintext_offset, record->content_type);
+
         result = ctls_unified_header_length_update(&record->unified_header,
                                                    (uint16_t) (
                                                        plaintext_offset +
                                                        CTLS_SIZE_AEAD_TAG));
         if (result != CTLS_STATUS_SUCCESS) return result;
-
-        ctls_write_u8(plaintext, &plaintext_offset, record->content_type);
 
         ctls_size_t ciphertext_length = 0;
         return ctls_record_encrypt(buffer,
