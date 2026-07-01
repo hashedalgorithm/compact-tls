@@ -161,7 +161,6 @@ typedef enum {
     /* 28 - 30 is unassigned in IANA registry.
      * Since ContentType for template is not assigned, we are using 28 for this implementation.
      * https://arc.net/l/quote/voyphzxt
-     * 0x1A specifically to not clash with first 3 bytes to identify encrypted/plaintext record
      */
     CTLS_RECD_CONTENT_TYPE_TEMPLATE = 0x1A,
     CTLS_RECD_CONTENT_TYPE_SENTINEL = 0xFF, // default value (uninitialized)
@@ -526,11 +525,12 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_HSHK_ALREADY_CONNECTED          ((ctls_status_t)0x01F5u)
 
 /*
- * Alert Mapping (0x0226-0x0241) — one status code per ctls_hsmg_alert_type_t
+ * Alert Mapping (0x0226-0x0240) — one status code per ctls_hsmg_alert_type_t
  * value (RFC 8446 §6.2). Hooks return one of these instead of calling
  * ctls_alert_send directly; the top-level handshake driver's onerror path
- * maps the code back to its alert type via ctls_alert_from_status and sends
- * a single alert, then returns the original status code to the caller.
+ * calls ctls_alert_send(record, status, entity, phase), which maps the code
+ * back to its alert type via ctls_status_to_alert_type_map, sends a single
+ * alert, then returns status unchanged to the caller.
  */
 #define CTLS_STATUS_ALERT_CLOSE_NOTIFY               ((ctls_status_t)0x0226u)
 #define CTLS_STATUS_ALERT_UNEXPECTED_MESSAGE         ((ctls_status_t)0x0227u)

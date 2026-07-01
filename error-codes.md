@@ -32,7 +32,7 @@ typedef uint16_t ctls_status_t;
 | 0x0190–0x01C1 | Template / Profile      |
 | 0x01C2–0x01F3 | Transport               |
 | 0x01F4–0x0225 | Handshake State Machine |
-| 0x0226–0x0241 | Alert Mapping           |
+| 0x0226–0x0240 | Alert Mapping           |
 
 ---
 
@@ -58,7 +58,7 @@ These fire before any subsystem logic executes.
 | 0x0006 | `CTLS_STATUS_UNKNOWN`         | Unclassified internal error. Should not appear in production; means a code path returned without setting a real code.                                                     |
 | 0x0007 | `CTLS_STATUS_NOT_IMPLEMENTED` | Called a function stub (`ctls_hsmg_server_hello_create`, `ctls_hsmg_finished_*`, etc.) that has no body yet. Replaces silent empty returns that currently return garbage. |
 | 0x0008 | `CTLS_STATUS_INVALID_INVOCATION` | A `ctls_core_*_internal_op` hook was called under neither `CTLS_CLIENT` nor `CTLS_SERVER` (build misconfiguration — the `#else` branch of the role guard). |
-| 0x0009 | `CTLS_STATUS_SENT_ALERT` | Sentinel returned by the handshake `onerror` path once an alert has already been sent for this failure. Prevents `ctls_alert_from_status` from mapping and sending a second alert for the same error. |
+| 0x0009 | `CTLS_STATUS_SENT_ALERT` | Reserved sentinel, currently unused. `ctls_alert_send` now returns the *original* status on success (see 0x0226-0x0240 below) instead of this code, so the caller still sees the real failure. |
 
 ---
 
@@ -371,13 +371,13 @@ Sub-band layout:
 
 ---
 
-## 0x0226–0x0241 — Alert Mapping
+## 0x0226–0x0240 — Alert Mapping
 
 One status code per `ctls_hsmg_alert_type_t` value (RFC 8446 §6.2), full 1:1 mirror of the alert enum.
 
-**Why this band exists (bug 4 fix):** hooks previously called `ctls_alert_send` directly and returned its result, which could silently overwrite the original failure status. Under the new architecture, hooks return one of these `CTLS_STATUS_ALERT_*` codes instead of sending an alert themselves. The top-level handshake driver's `onerror` path calls `ctls_alert_from_status`, which maps the code back to its `ctls_hsmg_alert_type_t` and sends exactly one alert — then the driver returns the *original* `CTLS_STATUS_ALERT_*` code to the caller, not `CTLS_STATUS_SENT_ALERT` or the alert-send result.
+**Why this band exists (bug 4 fix):** hooks previously called `ctls_alert_send` directly and returned its result, which could silently overwrite the original failure status. Under the new architecture, hooks return one of these `CTLS_STATUS_ALERT_*` codes instead of sending an alert themselves. The top-level handshake driver's `onerror` path calls `ctls_alert_send(record, status, entity, phase)`, which internally calls `ctls_status_to_alert_type_map` to map the code to its `ctls_hsmg_alert_type_t`, sends exactly one alert, then returns *status unchanged* — so the driver still returns the original `CTLS_STATUS_ALERT_*` code to the caller, not `CTLS_STATUS_SENT_ALERT` or a separate alert-send result.
 
-Fatal/Warning level (RFC 8446 §6.2 — every alert is FATAL except `close_notify` and `user_canceled`, which are WARNING) is applied by `ctls_alert_from_status` at send time, not encoded in the status code itself.
+Fatal/Warning level (RFC 8446 §6.2 — every alert is FATAL except `close_notify` and `user_canceled`, which are WARNING) is applied by `ctls_status_to_alert_type_map` at send time, not encoded in the status code itself.
 
 | Code   | Name                                       | Maps to alert type                          |
 |--------|---------------------------------------------|----------------------------------------------|

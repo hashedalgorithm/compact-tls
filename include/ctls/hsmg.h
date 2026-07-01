@@ -359,12 +359,15 @@ ctls_status_t ctls_hsmg_client_flight_to_wire(uint8_t *buffer,
                                               client_flight,
                                               ctls_wire_format_t wire_format);
 
+/** Fill an Alert struct: level(u8) + description(u8) (RFC 8446 §6). */
 ctls_status_t ctls_hsmg_alert_create(ctls_hsmg_alert_t *alert,
                                      ctls_hsmg_alert_type_t description,
                                      ctls_hsmg_alert_level_t alert_level);
+/** Parse a 2-byte Alert (level, description) from buffer+*offset. */
 ctls_status_t ctls_hsmg_alert_to_struct(ctls_hsmg_alert_t *alert,
                                         uint8_t const *buffer,
                                         ctls_size_t *offset);
+/** Emit a 2-byte Alert (level, description) to buffer+*offset. */
 ctls_status_t ctls_hsmg_alert_to_wire(uint8_t *buffer,
                                       ctls_size_t *offset,
                                       ctls_hsmg_alert_t const *alert);

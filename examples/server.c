@@ -2,10 +2,9 @@
  * cTLS example server.
  *
  * Binds a UDP socket, waits for a ClientHello, runs the server-side
- * handshake to completion, then exits.
+ * handshake to completion, then exchanges one application data message.
  *
- * Usage:  ./compact_tls [port]
- * Default: 4433
+ * Usage:  ./compact_tls  (port hardcoded below, no command-line args)
  *
  * Wireshark filter:  udp.port == 4433
  */

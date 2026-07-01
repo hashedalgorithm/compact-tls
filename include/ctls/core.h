@@ -19,8 +19,17 @@
  *   - Return CTLS_STATUS_SUCCESS to allow the handshake to continue.
  *   - Return any error to abort; the driver propagates it and sets
  *     CTLS_HSHK_STATE_ERROR.
+ *   - On a validation failure, return one of the CTLS_STATUS_ALERT_* codes
+ *     (types.h, 0x0226-0x0240) instead of calling ctls_alert_send directly.
+ *     The handshake driver's onerror path is the single call site that maps
+ *     the code to a ctls_hsmg_alert_type_t and sends the alert, so exactly
+ *     one alert goes out per failure and the original status code still
+ *     reaches the caller.
  *
- * Currently all stubs return CTLS_STATUS_NOT_IMPLEMENTED.
+ * ctls_core_encrypted_extensions_internal_op, ctls_core_certificate_request_internal_op,
+ * ctls_core_certificate_verify_internal_op, and ctls_core_finished_internal_op are
+ * implemented but not called individually in the current combined-flight model —
+ * their work happens inline inside ctls_core_server_flight_op / ctls_core_client_flight_op.
  */
 
 #ifndef CTLS_CORE_H

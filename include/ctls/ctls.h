@@ -250,9 +250,39 @@ ctls_status_t ctls_write(uint8_t const *application_data,
                          ctls_size_t application_data_length,
                          ctls_entity_t entity);
 
+/**
+ * @brief Map a ctls_status_t to its RFC 8446 §6.2 alert type and level.
+ *
+ * Direct 1:1 mapping for the CTLS_STATUS_ALERT_* band (types.h,
+ * 0x0226-0x0240) returned by hooks; every other status is mapped to the
+ * closest alert by failure category (record layer, crypto, extensions,
+ * ...), defaulting to internal_error. alert_level is FATAL except for
+ * close_notify and user_canceled, which are WARNING.
+ *
+ * @param status      Status code to map (hook return value or any error).
+ * @param alert_type  Output: RFC 8446 §6.2 alert description.
+ * @param alert_level Output: CTLS_HSMG_ALERT_LEVEL_FATAL or _WARNING.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_INVALID_ARG if status was
+ *         CTLS_STATUS_SUCCESS (there is no alert for "no error").
+ */
 ctls_status_t ctls_status_to_alert_type_map(ctls_status_t status,
                                             ctls_hsmg_alert_type_t *alert_type,
                                             ctls_hsmg_alert_level_t *alert_level);
+
+/**
+ * @brief Map status to an alert, send it, and return status unchanged.
+ *
+ * Single call site for sending alerts (bug 4 fix) — called once from a
+ * handshake driver's onerror path. See the definition in ctls.c for the
+ * full contract.
+ *
+ * @param record  Scratch record, cleared and reused to build the alert.
+ * @param status  Original failure status to map and report back.
+ * @param entity  CTLS_ENTITY_CLIENT or CTLS_ENTITY_SERVER (selects write key/IV).
+ * @param phase   Handshake phase (selects plaintext vs encrypted framing).
+ * @return status on success (alert sent), or the first error encountered
+ *         while mapping/building/sending the alert.
+ */
 ctls_status_t ctls_alert_send(ctls_record_t *record,
                               ctls_status_t status,
                               ctls_entity_t entity,

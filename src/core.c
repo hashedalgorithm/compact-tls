@@ -24,8 +24,9 @@ ctls_status_t ctls_core_handshake_state_update(ctls_hshk_state_t const state) {
  *
  *   CLIENT: called after CH is serialized and sent — hash it into the
  *           transcript. No validation needed on what we constructed.
- *   SERVER: called after CH is deserialized — TODO: validate extensions,
- *           check profile_id matches our template, etc.
+ *   SERVER: called after CH is deserialized — checks profile_id against the
+ *           active template (RFC 8446 illegal_parameter on mismatch), then
+ *           hashes CH. Extension-level validation is still open.
  */
 ctls_status_t ctls_core_client_hello_internal_op(ctls_record_t *record) {
     CTLS_CHECK_NULL_STRUCT(record);
@@ -64,7 +65,7 @@ ctls_status_t ctls_core_client_hello_internal_op(ctls_record_t *record) {
  *
  *   CLIENT: called after SH is deserialized — validate protocol version and
  *           cipher suite against the active template, then hash SH.
- *   SERVER: called after SH is serialized and sent — TODO: hash SH.
+ *   SERVER: called after SH is serialized and sent — hash SH.
  */
 ctls_status_t ctls_core_server_hello_internal_op(ctls_record_t *record) {
     CTLS_CHECK_NULL_STRUCT(record);
@@ -263,8 +264,10 @@ ctls_status_t ctls_core_server_flight_op(ctls_record_t const *record) {
  * ClientFlight (Certificate + CertificateVerify + Finished).
  *
  *   CLIENT: called after the client flight is serialized and sent — hash it.
- *   SERVER: called after the client flight is decrypted and parsed —
- *           TODO: verify CertificateVerify and Finished.
+ *   SERVER: called after the client flight is decrypted and parsed — imports
+ *           the peer certificate, verifies CertificateVerify and Finished
+ *           (same sequence as ctls_core_server_flight_op's CLIENT branch),
+ *           then hashes the flight.
  */
 ctls_status_t ctls_core_client_flight_op(ctls_record_t const *record) {
 #if CTLS_CLIENT

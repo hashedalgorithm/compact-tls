@@ -152,6 +152,31 @@ ctls_status_t ctls_unified_header_deserialize(ctls_unified_header_t *unified_hea
 ctls_status_t ctls_unified_header_length_update(ctls_unified_header_t *unified_header,
                                                 uint16_t length);
 
+/**
+ * Wire preprocess: bytes -> record type/content_type, decrypting if needed.
+ * Called once from ctls_record_deserialize before any per-message parsing.
+ *
+ * Config-octet bits 001 (0xE0 mask == 0x20) select the ENCRYPTED path:
+ * deserializes the unified header, validates aad_length != 0, epoch low
+ * bits match hshk_data->epoch, and sequence_number matches
+ * hshk_data->sequence_number (out-of-order/replay detection), backfills
+ * length from bytes_received when the header omitted it (l_bit == 0), then
+ * decrypts the body into plaintext and reads content_type from the
+ * decrypted byte. Otherwise treated as PLAINTEXT and content_type is read
+ * directly from buffer[0]. Either way content_type is validated against
+ * the known ctls_recd_content_type_t values before returning.
+ *
+ * @param buffer           Raw wire bytes received from the transport.
+ * @param bytes_received   Total bytes in buffer (used to back-fill header length).
+ * @param record           Output: type and content_type are set; unified_header
+ *                         is filled for the ENCRYPTED path.
+ * @param plaintext        Output buffer for the decrypted body (ENCRYPTED path only).
+ * @param plaintext_offset Output: bytes written to plaintext (ENCRYPTED path only).
+ * @return CTLS_STATUS_SUCCESS, CTLS_STATUS_RECD_INVALID_AAD_LENGTH,
+ *         CTLS_STATUS_RECD_EPOCH_MISMATCH, CTLS_STATUS_RECD_SEQUENCE_NUMBER_MISMATCH,
+ *         CTLS_STATUS_RECD_INVALID_CONTENT_TYPE, or a decrypt error from
+ *         ctls_record_decrypt.
+ */
 ctls_status_t ctls_record_preprocess(uint8_t const *buffer,
                                      ctls_size_t bytes_received,
                                      ctls_record_t *record,
@@ -226,6 +251,7 @@ ctls_status_t ctls_recd_client_hello_create(ctls_record_t *record);
 ctls_status_t ctls_recd_client_hello_to_struct(ctls_record_t *record,
                                                uint8_t const *buffer,
                                                ctls_size_t *offset);
+/** Emit a compact ClientHello record: content_type, profile_id, then the handshake body. */
 ctls_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
                                              ctls_size_t *offset,
                                              ctls_record_t const *record,
@@ -233,9 +259,11 @@ ctls_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
 
 /** Build a ServerHello record struct: generate server random, fill extensions, set framing fields. */
 ctls_status_t ctls_recd_server_hello_create(ctls_record_t *record);
+/** Parse a compact ServerHello record from buffer+*offset (mirrors ctls_recd_client_hello_to_struct). */
 ctls_status_t ctls_recd_server_hello_to_struct(ctls_record_t *record,
                                                uint8_t const *buffer,
                                                ctls_size_t *offset);
+/** Emit a compact ServerHello record: content_type, profile_id, then the handshake body. */
 ctls_status_t ctls_recd_server_hello_to_wire(uint8_t *buffer,
                                              ctls_size_t *offset,
                                              ctls_record_t const *record,
@@ -312,10 +340,26 @@ ctls_status_t ctls_recd_application_data_serialize(uint8_t *buffer,
                                                    ctls_size_t application_data_length,
                                                    ctls_entity_t entity);
 
+/**
+ * Build an Alert record: clears record, sets content_type = alert, builds
+ * the unified header (length 0 — filled in later by to_wire), then the
+ * 2-byte Alert body via ctls_hsmg_alert_create.
+ */
 ctls_status_t ctls_recd_alert_create(ctls_record_t *record,
                                      ctls_hsmg_alert_type_t description,
                                      ctls_hsmg_alert_level_t alert_level);
+/**
+ * Parse a received Alert: PLAINTEXT records read the 2-byte body directly;
+ * ENCRYPTED records go through ctls_record_decrypt first. Dispatched on
+ * record->type, set earlier by ctls_record_preprocess.
+ */
 ctls_status_t ctls_recd_alert_to_struct(ctls_record_t *record, uint8_t const *buffer);
+/**
+ * Emit an Alert record. PLAINTEXT writes the 2-byte body straight to
+ * buffer; ENCRYPTED writes it to a scratch plaintext buffer first, then
+ * AEAD-encrypts via ctls_record_encrypt (entity/phase select the write
+ * key/IV and plaintext vs handshake framing).
+ */
 ctls_status_t ctls_recd_alert_to_wire(uint8_t *buffer,
                                       ctls_size_t *offset,
                                       ctls_record_t *record,

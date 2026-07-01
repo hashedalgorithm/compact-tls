@@ -605,11 +605,25 @@ ctls_status_t ctls_status_to_alert_type_map(ctls_status_t const status,
     return CTLS_STATUS_SUCCESS;
 }
 
-/*
- * Send a fatal encrypted alert (RFC 8446 §6) over the transport.
- * Inner plaintext layout: level(1) | description(1) | content_type_alert(1).
- * Best-effort: caller has already decided to return an error, so a send
- * failure here is silently ignored.
+/**
+ * @brief Map status to alert type/level, send the alert, then return the
+ *        original status.
+ *
+ * Called once from a handshake driver's onerror path (bug 4 fix — hooks
+ * return a CTLS_STATUS_ALERT_* code instead of sending an alert themselves,
+ * so exactly one alert is ever sent per failure). Clears the record, maps
+ * status via ctls_status_to_alert_type_map, builds and serializes the alert
+ * record, and writes it to the transport. Any step failing (map, build,
+ * serialize, or transport send) returns that step's error immediately —
+ * this is NOT best-effort/silent. On success returns status unchanged so
+ * the caller still sees the original failure, not CTLS_STATUS_SUCCESS.
+ *
+ * @param record  Scratch record, cleared and reused to build the alert.
+ * @param status  Original failure status to map and report back.
+ * @param entity  CTLS_ENTITY_CLIENT or CTLS_ENTITY_SERVER (selects write key/IV).
+ * @param phase   Handshake phase (selects plaintext vs encrypted framing).
+ * @return status on success (alert sent), or the first error encountered
+ *         while mapping/building/sending the alert.
  */
 
 ctls_status_t ctls_alert_send(ctls_record_t *record,
