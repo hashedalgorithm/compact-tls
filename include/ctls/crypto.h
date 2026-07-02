@@ -348,12 +348,16 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t key_usage,
  * @param offset    Current write position in buffer; advanced past written bytes.
  * @param entity    CTLS_ENTITY_CLIENT or CTLS_ENTITY_SERVER (selects c/s label variant).
  * @param key_type  Which label or signing context to build (one of CTLS_KEY_TYPE_*).
- * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_CRYPTO_CONTEXT_STR_UNKNOWN_KEY_TYPE.
+ * @param limit     Capacity of buffer (caller's real array size, e.g. sizeof(info)) —
+ *                  every internal write is bounds-checked against this.
+ * @return CTLS_STATUS_SUCCESS, CTLS_STATUS_CRYPTO_CONTEXT_STR_UNKNOWN_KEY_TYPE, or
+ *         CTLS_STATUS_BOUNDS_EXCEEDED if a write would exceed limit.
  */
 ctls_status_t ctls_context_string_build(uint8_t *buffer,
                                         ctls_size_t *offset,
                                         ctls_entity_t entity,
-                                        ctls_key_type_t key_type);
+                                        ctls_key_type_t key_type,
+                                        ctls_size_t limit);
 
 /* ------------------------------------------------------------------ */
 /* Key schedule step functions (file-header diagram order)            */
