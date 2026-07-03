@@ -13,15 +13,19 @@
  *
  * Convention: each write/read advances *offset past the bytes it consumed.
  *
- * Bounds checking (write side only): every ctls_write_* takes an explicit
- * `limit` — the capacity of the destination buffer, NOT always
- * CTLS_SIZE_WIRE_BUFFER. Pass CTLS_SIZE_WIRE_BUFFER for wire-buffer
- * serialization; pass the real size (e.g. sizeof(local_array)) for smaller
- * scratch buffers such as crypto.c's HKDF label/context builders. Each
- * function returns CTLS_STATUS_BOUNDS_EXCEEDED and writes nothing if the
- * write would exceed limit; callers must check the return value like any
- * other ctls_status_t-returning call. Read primitives are unchanged/unchecked
- * for now.
+ * Bounds checking: every ctls_write_* / ctls_read_* takes an explicit `limit`
+ * — the capacity of the buffer being written to (write) or read from
+ * (read), NOT always CTLS_SIZE_WIRE_BUFFER. Pass CTLS_SIZE_WIRE_BUFFER for
+ * wire-buffer operations; pass the real size (e.g. sizeof(local_array)) for
+ * smaller scratch buffers such as crypto.c's HKDF label/context builders.
+ * The check is against the buffer's allocated capacity (offset + size <=
+ * limit), not the number of bytes actually received on the wire — that's a
+ * separate message-level validation concern, not a memory-safety one. Each
+ * function returns CTLS_STATUS_BOUNDS_EXCEEDED and reads/writes nothing if
+ * the operation would exceed limit; callers must check the return value
+ * like any other ctls_status_t-returning call. Reads write their result
+ * through an output pointer instead of returning it directly, since the
+ * return value is now the status.
  */
 
 #ifndef CTLS_BYTES_H
@@ -76,6 +80,7 @@ static inline ctls_status_t ctls_write_u24(uint8_t *buffer,
 
 static inline ctls_status_t ctls_write_u32(uint8_t *buffer,
                                            ctls_size_t *offset,
+
                                            uint32_t const value,
                                            ctls_size_t const limit) {
     ctls_status_t const result = ctls_bounds_check(*offset, 4U, limit);
@@ -125,38 +130,64 @@ static inline ctls_status_t ctls_write_char_bytes(uint8_t *destination_buffer,
 }
 
 // read primitives — big-endian, network byte order
-static inline uint8_t ctls_read_u8(uint8_t const *buffer, ctls_size_t *offset) {
-    return buffer[(*offset)++];
+static inline ctls_status_t ctls_read_u8(uint8_t const *buffer,
+                                         ctls_size_t *offset,
+                                         ctls_size_t const limit,
+                                         uint8_t *value) {
+    ctls_status_t const result = ctls_bounds_check(*offset, 1U, limit);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    *value = buffer[(*offset)++];
+    return CTLS_STATUS_SUCCESS;
 }
 
-static inline uint16_t ctls_read_u16(uint8_t const *buffer, ctls_size_t *offset) {
-    const uint16_t value = (uint16_t) ((buffer[*offset] << 8) | buffer[*offset + 1]);
+static inline ctls_status_t ctls_read_u16(uint8_t const *buffer,
+                                          ctls_size_t *offset,
+                                          ctls_size_t const limit,
+                                          uint16_t *value) {
+    ctls_status_t const result = ctls_bounds_check(*offset, 2U, limit);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    *value = (uint16_t) ((buffer[*offset] << 8) | buffer[*offset + 1]);
     *offset += 2;
-    return value;
+    return CTLS_STATUS_SUCCESS;
 }
 
-static inline uint32_t ctls_read_u24(uint8_t const *buffer, ctls_size_t *offset) {
-    const uint32_t value = ((uint32_t) buffer[*offset] << 16) | (
-                               (uint32_t) buffer[*offset + 1] << 8) | (uint32_t) buffer[
-                               *offset + 2];
+static inline ctls_status_t ctls_read_u24(uint8_t const *buffer,
+                                          ctls_size_t *offset,
+                                          ctls_size_t const limit,
+                                          uint32_t *value) {
+    ctls_status_t const result = ctls_bounds_check(*offset, 3U, limit);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    *value = ((uint32_t) buffer[*offset] << 16) | ((uint32_t) buffer[*offset + 1] << 8) |
+             (uint32_t) buffer[*offset + 2];
     *offset += 3;
-    return value;
+    return CTLS_STATUS_SUCCESS;
 }
 
-static inline uint64_t ctls_read_u64(uint8_t const *buffer, ctls_size_t *offset) {
-    uint64_t value = 0;
+static inline ctls_status_t ctls_read_u64(uint8_t const *buffer,
+                                          ctls_size_t *offset,
+                                          ctls_size_t const limit,
+                                          uint64_t *value) {
+    ctls_status_t const result = ctls_bounds_check(*offset, 8U, limit);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    uint64_t v = 0;
     for (int i = 0; i < 8; i++) {
-        value = (value << 8) | buffer[(*offset)++];
+        v = (v << 8) | buffer[(*offset)++];
     }
-    return value;
+    *value = v;
+    return CTLS_STATUS_SUCCESS;
 }
 
-static inline void ctls_read_bytes(uint8_t *destination_buffer,
-                                   ctls_size_t write_size,
-                                   uint8_t const *source_buffer,
-                                   ctls_size_t *source_buffer_offset) {
+static inline ctls_status_t ctls_read_bytes(uint8_t *destination_buffer,
+                                            ctls_size_t write_size,
+                                            uint8_t const *source_buffer,
+                                            ctls_size_t *source_buffer_offset,
+                                            ctls_size_t const limit) {
+    ctls_status_t const result =
+            ctls_bounds_check(*source_buffer_offset, write_size, limit);
+    if (result != CTLS_STATUS_SUCCESS) return result;
     memcpy(destination_buffer, source_buffer + *source_buffer_offset, write_size);
     *source_buffer_offset += write_size;
+    return CTLS_STATUS_SUCCESS;
 }
 
 /*

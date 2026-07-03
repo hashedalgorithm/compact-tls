@@ -183,6 +183,7 @@ ctls_status_t ctls_unified_header_deserialize(ctls_unified_header_t *unified_hea
     CTLS_CHECK_NULL_STRUCT(unified_header);
     CTLS_CHECK_BOUNDS(*offset, 2, CTLS_SIZE_WIRE_BUFFER);
 
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
     uint8_t const first_part = buffer[(*offset)++];
 
     unified_header->config_octet.c_bit =
@@ -200,12 +201,18 @@ ctls_status_t ctls_unified_header_deserialize(ctls_unified_header_t *unified_hea
         return CTLS_STATUS_RECD_HDR_DESERIALIZE_SEQ;
 
     if (unified_header->config_octet.s_bit == 0) {
-        unified_header->sequence_number = ctls_read_u8(buffer, offset);
+        uint8_t sequence_number_u8 = 0;
+        result = ctls_read_u8(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &sequence_number_u8);
+        if (result != CTLS_STATUS_SUCCESS) return result;
+        unified_header->sequence_number = sequence_number_u8;
     } else {
-        unified_header->sequence_number = ctls_read_u16(buffer, offset);
+        result = ctls_read_u16(buffer, offset, CTLS_SIZE_WIRE_BUFFER,
+                               &unified_header->sequence_number);
+        if (result != CTLS_STATUS_SUCCESS) return result;
     }
     if (unified_header->config_octet.l_bit == 1) {
-        unified_header->length = ctls_read_u16(buffer, offset);
+        result = ctls_read_u16(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &unified_header->length);
+        if (result != CTLS_STATUS_SUCCESS) return result;
     }
 
     ctls_epoch_expand(unified_header->config_octet.epoch, &unified_header->epoch);
@@ -616,9 +623,20 @@ ctls_status_t ctls_recd_client_hello_to_struct(ctls_record_t *record,
     CTLS_CHECK_NULL_OFFSET(offset);
     CTLS_CHECK_NULL_STRUCT(template);
 
-    record->content_type = ctls_read_u8(buffer, offset);
-    ctls_read_u8(buffer, offset); /* profile_id_length — always 1 */
-    record->profile_id = ctls_read_u8(buffer, offset);
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+    uint8_t content_type_u8 = 0;
+    uint8_t profile_id_length_u8 = 0;
+
+    result = ctls_read_u8(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &content_type_u8);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    record->content_type = content_type_u8;
+
+    result = ctls_read_u8(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &profile_id_length_u8);
+    if (result != CTLS_STATUS_SUCCESS) return result; /* profile_id_length — always 1 */
+
+    result = ctls_read_u8(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &record->profile_id);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
     record->type = CTLS_RECORD_TYPE_PLAINTEXT;
     record->unified_header.sequence_number = 0;
 
@@ -732,10 +750,18 @@ ctls_status_t ctls_recd_server_hello_to_struct(ctls_record_t *record,
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
 
-    record->content_type = ctls_read_u8(buffer, offset);
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+    uint8_t content_type_u8 = 0;
+
+    result = ctls_read_u8(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &content_type_u8);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    record->content_type = content_type_u8;
+
     record->type = CTLS_RECORD_TYPE_PLAINTEXT;
     record->unified_header.sequence_number = 0;
-    record->unified_header.length = ctls_read_u16(buffer, offset);
+
+    result = ctls_read_u16(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &record->unified_header.length);
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
     return ctls_hsmg_server_hello_to_struct(&record->record_body.handshake,
                                             buffer,

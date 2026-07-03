@@ -74,20 +74,32 @@ ctls_status_t ctls_hsmg_client_hello_to_struct(ctls_handshake_message_t *hsmg,
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
 
-    ctls_read_u16(buffer, offset); /* body_length — advance past it */
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+    uint16_t body_length_u16 = 0;
+    uint8_t type_u8 = 0;
 
-    ctls_hsmg_type_t const type = ctls_read_u8(buffer, offset);
+    result = ctls_read_u16(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &body_length_u16);
+    if (result != CTLS_STATUS_SUCCESS) return result; /* body_length — advance past it */
+
+    result = ctls_read_u8(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &type_u8);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    ctls_hsmg_type_t const type = type_u8;
     if (type != CTLS_HSMG_TYPE_CLIENT_HELLO) return CTLS_STATUS_HSMG_INVALID_MSG_TYPE;
 
-    hsmg->sequence_number = ctls_read_u16(buffer, offset);
+    result = ctls_read_u16(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &hsmg->sequence_number);
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
-    ctls_read_bytes(hshk_data->client_random, template->random, buffer, offset);
+    result = ctls_read_bytes(hshk_data->client_random, template->random, buffer, offset,
+                             CTLS_SIZE_WIRE_BUFFER);
+    if (result != CTLS_STATUS_SUCCESS) return result;
     hsmg->handshake_message_body.client_hello.random.buffer = hshk_data->client_random;
     hsmg->handshake_message_body.client_hello.random.buffer_length = template->random;
 
     if (template->cipher_suite == 0) {
-        hsmg->handshake_message_body.client_hello.cipher_suite =
-                ctls_read_u16(buffer, offset);
+        uint16_t cipher_suite_u16 = 0;
+        result = ctls_read_u16(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &cipher_suite_u16);
+        if (result != CTLS_STATUS_SUCCESS) return result;
+        hsmg->handshake_message_body.client_hello.cipher_suite = cipher_suite_u16;
     } else {
         hsmg->handshake_message_body.client_hello.cipher_suite = template->cipher_suite;
     }
@@ -304,16 +316,25 @@ ctls_status_t ctls_hsmg_server_hello_to_struct(ctls_handshake_message_t *hsmg,
     CTLS_CHECK_NULL(hshk_data);
     CTLS_CHECK_NULL_OFFSET(offset);
 
-    ctls_hsmg_type_t const type = ctls_read_u8(buffer, offset);
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+    uint8_t type_u8 = 0;
+
+    result = ctls_read_u8(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &type_u8);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    ctls_hsmg_type_t const type = type_u8;
     if (type != CTLS_HSMG_TYPE_SERVER_HELLO) return CTLS_STATUS_HSMG_INVALID_MSG_TYPE;
 
-    ctls_read_bytes(hshk_data->server_random, template->random, buffer, offset);
+    result = ctls_read_bytes(hshk_data->server_random, template->random, buffer, offset,
+                             CTLS_SIZE_WIRE_BUFFER);
+    if (result != CTLS_STATUS_SUCCESS) return result;
     hsmg->handshake_message_body.server_hello.random.buffer = hshk_data->server_random;
     hsmg->handshake_message_body.server_hello.random.buffer_length = template->random;
 
     if (template->cipher_suite == 0) {
-        hsmg->handshake_message_body.server_hello.cipher_suite =
-                ctls_read_u16(buffer, offset);
+        uint16_t cipher_suite_u16 = 0;
+        result = ctls_read_u16(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &cipher_suite_u16);
+        if (result != CTLS_STATUS_SUCCESS) return result;
+        hsmg->handshake_message_body.server_hello.cipher_suite = cipher_suite_u16;
     } else {
         hsmg->handshake_message_body.server_hello.cipher_suite = template->cipher_suite;
     }
@@ -470,8 +491,10 @@ ctls_status_t ctls_hsmg_encrypted_extensions_to_struct(
     CTLS_CHECK_NULL_OFFSET(offset);
     CTLS_CHECK_NULL_BUFFER(buffer);
 
-
-    ctls_hsmg_type_t const type = ctls_read_u8(buffer, offset);
+    uint8_t type_u8 = 0;
+    ctls_status_t const result = ctls_read_u8(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &type_u8);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    ctls_hsmg_type_t const type = type_u8;
     if (type != CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS) return
             CTLS_STATUS_HSMG_INVALID_MSG_TYPE;
 
@@ -551,18 +574,28 @@ ctls_status_t ctls_hsmg_certificate_request_to_struct(
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL(hshk_data);
 
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+    uint8_t type_u8 = 0;
 
-    ctls_hsmg_type_t const type = ctls_read_u8(buffer, offset);
+    result = ctls_read_u8(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &type_u8);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    ctls_hsmg_type_t const type = type_u8;
     if (type != CTLS_HSMG_TYPE_CERTIFICATE_REQUEST) return
             CTLS_STATUS_HSMG_INVALID_MSG_TYPE;
 
-
-    ctls_size_t const certificate_request_context_length = ctls_read_u8(buffer, offset);
+    uint8_t certificate_request_context_length_u8 = 0;
+    result = ctls_read_u8(buffer, offset, CTLS_SIZE_WIRE_BUFFER,
+                          &certificate_request_context_length_u8);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    ctls_size_t const certificate_request_context_length =
+            certificate_request_context_length_u8;
     if (certificate_request_context_length > 0) {
-        ctls_read_bytes(hshk_data->certificate_request_context,
-                        certificate_request_context_length,
-                        buffer,
-                        offset);
+        result = ctls_read_bytes(hshk_data->certificate_request_context,
+                                 certificate_request_context_length,
+                                 buffer,
+                                 offset,
+                                 CTLS_SIZE_WIRE_BUFFER);
+        if (result != CTLS_STATUS_SUCCESS) return result;
     }
 
     return ctls_extn_certificate_request_to_struct(&certificate_request->extensions);
@@ -677,38 +710,61 @@ ctls_status_t ctls_hsmg_certificate_to_struct(ctls_hsmg_certificate_t *certifica
     CTLS_CHECK_NULL_OFFSET(offset);
     CTLS_CHECK_NULL(hshk_data);
 
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+    uint8_t type_u8 = 0;
 
-    ctls_hsmg_type_t const type = ctls_read_u8(buffer, offset);
+    result = ctls_read_u8(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &type_u8);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    ctls_hsmg_type_t const type = type_u8;
     if (type != CTLS_HSMG_TYPE_CERTIFICATE) return CTLS_STATUS_HSMG_INVALID_MSG_TYPE;
 
-    ctls_size_t const certificate_request_context_length = ctls_read_u8(buffer, offset);
+    uint8_t certificate_request_context_length_u8 = 0;
+    result = ctls_read_u8(buffer, offset, CTLS_SIZE_WIRE_BUFFER,
+                          &certificate_request_context_length_u8);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    ctls_size_t const certificate_request_context_length =
+            certificate_request_context_length_u8;
     if (certificate_request_context_length > 0) {
-        ctls_read_bytes(hshk_data->certificate_request_context,
-                        certificate_request_context_length,
-                        buffer,
-                        offset);
-    } else ctls_read_u8(buffer, offset);
+        result = ctls_read_bytes(hshk_data->certificate_request_context,
+                                 certificate_request_context_length,
+                                 buffer,
+                                 offset,
+                                 CTLS_SIZE_WIRE_BUFFER);
+        if (result != CTLS_STATUS_SUCCESS) return result;
+    } else {
+        uint8_t discard_u8 = 0;
+        result = ctls_read_u8(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &discard_u8);
+        if (result != CTLS_STATUS_SUCCESS) return result;
+    }
     certificate->certificate_request_context.buffer = hshk_data->
             certificate_request_context;
     certificate->certificate_request_context.buffer_length =
             certificate_request_context_length;
 
-    ctls_size_t const certificate_entries_length = ctls_read_u24(buffer, offset);
+    uint32_t certificate_entries_length_u32 = 0;
+    result = ctls_read_u24(buffer, offset, CTLS_SIZE_WIRE_BUFFER,
+                           &certificate_entries_length_u32);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    ctls_size_t const certificate_entries_length = (ctls_size_t) certificate_entries_length_u32;
     ctls_size_t certificate_entries_index = 0;
     ctls_size_t const certificate_entries_absolute_length =
             *offset + certificate_entries_length;
 
     while (*offset < certificate_entries_absolute_length) {
         *offset += 2; // certificate data length
-        certificate->certificate_entries[certificate_entries_index].certificate_id =
-                ctls_read_u16(buffer, offset);
+        result = ctls_read_u16(buffer, offset, CTLS_SIZE_WIRE_BUFFER,
+                               &certificate->certificate_entries[certificate_entries_index].
+                               certificate_id);
+        if (result != CTLS_STATUS_SUCCESS) return result;
 
-        ctls_size_t const certificate_extensions_length = ctls_read_u24(buffer, offset);
-        if (certificate_extensions_length > 0) {
-            ctls_status_t const result =
-                    ctls_extn_certificate_to_struct(&certificate->certificate_entries[
-                                                        certificate_entries_index].
-                                                    extensions);
+        uint32_t certificate_extensions_length_u32 = 0;
+        result = ctls_read_u24(buffer, offset, CTLS_SIZE_WIRE_BUFFER,
+                               &certificate_extensions_length_u32);
+        if (result != CTLS_STATUS_SUCCESS) return result;
+        if (certificate_extensions_length_u32 > 0) {
+            result = ctls_extn_certificate_to_struct(&certificate->certificate_entries[
+                                                          certificate_entries_index].
+                                                      extensions);
             if (result != CTLS_STATUS_SUCCESS) return result;
         }
         certificate_entries_index++;
@@ -911,17 +967,28 @@ ctls_status_t ctls_hsmg_certificate_verify_to_struct(
     CTLS_CHECK_NULL_OFFSET(offset);
     CTLS_CHECK_NULL_OFFSET(hshk_data);
 
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+    uint8_t type_u8 = 0;
 
-    ctls_hsmg_type_t const type = ctls_read_u8(buffer, offset);
+    result = ctls_read_u8(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &type_u8);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    ctls_hsmg_type_t const type = type_u8;
     if (type != CTLS_HSMG_TYPE_CERTIFICATE_VERIFY)
         return CTLS_STATUS_HSMG_INVALID_MSG_TYPE;
-    certificate_verify->signature_scheme = ctls_read_u16(buffer, offset);
 
-    ctls_size_t const signed_bytes_length = ctls_read_u16(buffer, offset);
+    uint16_t signature_scheme_u16 = 0;
+    result = ctls_read_u16(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &signature_scheme_u16);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    certificate_verify->signature_scheme = signature_scheme_u16;
+
+    ctls_size_t signed_bytes_length = 0;
+    result = ctls_read_u16(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &signed_bytes_length);
+    if (result != CTLS_STATUS_SUCCESS) return result;
     uint8_t *sig_buf = entity == CTLS_ENTITY_CLIENT
                            ? hshk_data->client_signature
                            : hshk_data->server_signature;
-    ctls_read_bytes(sig_buf, signed_bytes_length, buffer, offset);
+    result = ctls_read_bytes(sig_buf, signed_bytes_length, buffer, offset, CTLS_SIZE_WIRE_BUFFER);
+    if (result != CTLS_STATUS_SUCCESS) return result;
     certificate_verify->signature_length = (uint8_t) signed_bytes_length;
     certificate_verify->signature = sig_buf;
 
@@ -1007,16 +1074,22 @@ ctls_status_t ctls_hsmg_finished_to_struct(ctls_hsmg_finished_t *finished,
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(hshk_data);
 
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+    uint8_t type_u8 = 0;
 
-    ctls_hsmg_type_t const type = ctls_read_u8(buffer, offset);
+    result = ctls_read_u8(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &type_u8);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    ctls_hsmg_type_t const type = type_u8;
     if (type != CTLS_HSMG_TYPE_FINISHED) return CTLS_STATUS_HSMG_INVALID_MSG_TYPE;
 
-    ctls_read_bytes(entity == CTLS_ENTITY_CLIENT
-                        ? hshk_data->client_verify_data
-                        : hshk_data->server_verify_data,
-                    CTLS_SIZE_HASH,
-                    buffer,
-                    offset);
+    result = ctls_read_bytes(entity == CTLS_ENTITY_CLIENT
+                                 ? hshk_data->client_verify_data
+                                 : hshk_data->server_verify_data,
+                             CTLS_SIZE_HASH,
+                             buffer,
+                             offset,
+                             CTLS_SIZE_WIRE_BUFFER);
+    if (result != CTLS_STATUS_SUCCESS) return result;
     finished->verify_data = entity == CTLS_ENTITY_CLIENT
                                 ? hshk_data->client_verify_data
                                 : hshk_data->server_verify_data;
@@ -1201,8 +1274,17 @@ ctls_status_t ctls_hsmg_alert_to_struct(ctls_hsmg_alert_t *alert,
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_OFFSET(offset);
 
-    alert->level = ctls_read_u8(buffer, offset);
-    alert->description = ctls_read_u8(buffer, offset);
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+    uint8_t level_u8 = 0;
+    uint8_t description_u8 = 0;
+
+    result = ctls_read_u8(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &level_u8);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    alert->level = level_u8;
+
+    result = ctls_read_u8(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &description_u8);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    alert->description = description_u8;
 
     return CTLS_STATUS_SUCCESS;
 }
