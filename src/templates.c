@@ -241,9 +241,11 @@ ctls_status_t ctls_tmpl_extension_to_wire(uint8_t *buffer,
         if (result != CTLS_STATUS_SUCCESS) return result;
     }
 
-    ctls_write_u16(buffer,
+    result = ctls_write_u16(buffer,
                    &predefined_extensions_length_offset,
-                   *offset - predefined_extensions_length_offset);
+                   *offset - predefined_extensions_length_offset,
+                   CTLS_SIZE_WIRE_BUFFER);
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
     ctls_size_t expected_extensions_length = *offset;
     *offset += 2;
@@ -252,11 +254,14 @@ ctls_status_t ctls_tmpl_extension_to_wire(uint8_t *buffer,
         if (extensions->expected_extensions[i] == CTLS_EXTN_TYPE_KEY_SHARE)
             return CTLS_STATUS_TMPL_EXTN_KEY_SHARE_IN_EXPECTED;
 
-        ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_KEY_SHARE);
+        result = ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_KEY_SHARE, CTLS_SIZE_WIRE_BUFFER);
+        if (result != CTLS_STATUS_SUCCESS) return result;
     }
-    ctls_write_u16(buffer,
+    result = ctls_write_u16(buffer,
                    &expected_extensions_length,
-                   *offset - expected_extensions_length);
+                   *offset - expected_extensions_length,
+                   CTLS_SIZE_WIRE_BUFFER);
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
     ctls_size_t self_delimited_extensions_length = *offset;
     *offset += 2;
@@ -265,13 +270,17 @@ ctls_status_t ctls_tmpl_extension_to_wire(uint8_t *buffer,
         if (extensions->self_delimiting_aextensions[i] == CTLS_EXTN_TYPE_KEY_SHARE)
             return CTLS_STATUS_TMPL_EXTN_KEY_SHARE_IN_SELF_DELIM;
 
-        ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_KEY_SHARE);
+        result = ctls_write_u16(buffer, offset, CTLS_EXTN_TYPE_KEY_SHARE, CTLS_SIZE_WIRE_BUFFER);
+        if (result != CTLS_STATUS_SUCCESS) return result;
     }
-    ctls_write_u16(buffer,
+    result = ctls_write_u16(buffer,
                    &self_delimited_extensions_length,
-                   *offset - self_delimited_extensions_length);
+                   *offset - self_delimited_extensions_length,
+                   CTLS_SIZE_WIRE_BUFFER);
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
-    ctls_write_u8(buffer, offset, extensions->allow_additional);
+    result = ctls_write_u8(buffer, offset, extensions->allow_additional, CTLS_SIZE_WIRE_BUFFER);
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
     return CTLS_STATUS_SUCCESS;
 }
@@ -299,81 +308,128 @@ ctls_status_t ctls_template_element_to_wire(uint8_t *buffer,
                                             ctls_size_t *offset,
                                             ctls_template_t const *tmpl,
                                             ctls_tmpl_type_t const type) {
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
     switch (type) {
         case CTLS_TMPL_TYPE_PROFILE_ID:
-            ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_PROFILE_ID);
-            ctls_write_u32(buffer, offset, sizeof(uint8_t) + sizeof(tmpl->profile_id));
-            ctls_write_u8(buffer, offset, sizeof(tmpl->profile_id));
-            ctls_write_u8(buffer, offset, tmpl->profile_id);
+            result = ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_PROFILE_ID, CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u32(buffer, offset, sizeof(uint8_t) + sizeof(tmpl->profile_id),
+                                    CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, sizeof(tmpl->profile_id), CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, tmpl->profile_id, CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
             break;
         case CTLS_TMPL_TYPE_VERSION:
-            ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_VERSION);
-            ctls_write_u32(buffer, offset, sizeof(tmpl->protocol_version));
-            ctls_write_u16(buffer, offset, tmpl->protocol_version);
+            result = ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_VERSION, CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u32(buffer, offset, sizeof(tmpl->protocol_version),
+                                    CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u16(buffer, offset, tmpl->protocol_version, CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
             break;
         case CTLS_TMPL_TYPE_CIPHER_SUITE:
-            ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_CIPHER_SUITE);
-            ctls_write_u32(buffer, offset, sizeof(tmpl->cipher_suite));
-            ctls_write_u16(buffer, offset, tmpl->cipher_suite);
+            result = ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_CIPHER_SUITE, CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u32(buffer, offset, sizeof(tmpl->cipher_suite),
+                                    CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u16(buffer, offset, tmpl->cipher_suite, CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
             break;
         case CTLS_TMPL_TYPE_DH_GROUP:
-            ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_DH_GROUP);
-            ctls_write_u32(buffer,
+            result = ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_DH_GROUP, CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u32(buffer,
                            offset,
                            sizeof(tmpl->dhe_group.dhe_group) + sizeof(tmpl->dhe_group.
-                               key_share_length));
-            ctls_write_u16(buffer, offset, tmpl->dhe_group.dhe_group);
-            ctls_write_u16(buffer, offset, tmpl->dhe_group.key_share_length);
+                               key_share_length),
+                           CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u16(buffer, offset, tmpl->dhe_group.dhe_group, CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u16(buffer, offset, tmpl->dhe_group.key_share_length,
+                                    CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
             break;
         case CTLS_TMPL_TYPE_SIGNATURE_ALGORITHM:
-            ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_SIGNATURE_ALGORITHM);
-            ctls_write_u32(buffer,
+            result = ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_SIGNATURE_ALGORITHM,
+                                    CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u32(buffer,
                            offset,
                            sizeof(tmpl->signature_algorithm.signature_algorithm_type) +
-                           sizeof(tmpl->signature_algorithm.signature_length));
-            ctls_write_u16(buffer,
+                           sizeof(tmpl->signature_algorithm.signature_length),
+                           CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u16(buffer,
                            offset,
-                           tmpl->signature_algorithm.signature_algorithm_type);
-            ctls_write_u16(buffer, offset, tmpl->signature_algorithm.signature_length);
+                           tmpl->signature_algorithm.signature_algorithm_type,
+                           CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u16(buffer, offset, tmpl->signature_algorithm.signature_length,
+                                    CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
             break;
         case CTLS_TMPL_TYPE_RANDOM:
-            ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_RANDOM);
-            ctls_write_u32(buffer, offset, sizeof(tmpl->random));
-            ctls_write_u16(buffer, offset, tmpl->random);
+            result = ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_RANDOM, CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u32(buffer, offset, sizeof(tmpl->random), CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u16(buffer, offset, tmpl->random, CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
             break;
         case CTLS_TMPL_TYPE_MUTUAL_AUTH:
-            ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_MUTUAL_AUTH);
-            ctls_write_u32(buffer, offset, sizeof(tmpl->mutual_auth));
-            ctls_write_u16(buffer, offset, tmpl->mutual_auth);
+            result = ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_MUTUAL_AUTH, CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u32(buffer, offset, sizeof(tmpl->mutual_auth), CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u16(buffer, offset, tmpl->mutual_auth, CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
             break;
         case CTLS_TMPL_TYPE_HANDSHAKE_FRAMING:
-            ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_HANDSHAKE_FRAMING);
-            ctls_write_u32(buffer, offset, sizeof(tmpl->handshake_framing));
-            ctls_write_u16(buffer, offset, tmpl->handshake_framing);
+            result = ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_HANDSHAKE_FRAMING,
+                                    CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u32(buffer, offset, sizeof(tmpl->handshake_framing),
+                                    CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u16(buffer, offset, tmpl->handshake_framing, CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
             break;
         case CTLS_TMPL_TYPE_CLIENT_HELLO_EXTENSIONS:
-            ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_CLIENT_HELLO_EXTENSIONS);
+            result = ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_CLIENT_HELLO_EXTENSIONS,
+                                    CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
             ctls_tmpl_extension_to_wire(buffer,
                                         offset,
                                         CTLS_HSMG_TYPE_CLIENT_HELLO,
                                         &tmpl->client_hello_extension);
             break;
         case CTLS_TMPL_TYPE_SERVER_HELLO_EXTENSIONS:
-            ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_SERVER_HELLO_EXTENSIONS);
+            result = ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_SERVER_HELLO_EXTENSIONS,
+                                    CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
             ctls_tmpl_extension_to_wire(buffer,
                                         offset,
                                         CTLS_HSMG_TYPE_SERVER_HELLO,
                                         &tmpl->server_hello_extension);
             break;
         case CTLS_TMPL_TYPE_ENCRYPTED_EXTENSIONS:
-            ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_ENCRYPTED_EXTENSIONS);
+            result = ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_ENCRYPTED_EXTENSIONS,
+                                    CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
             ctls_tmpl_extension_to_wire(buffer,
                                         offset,
                                         CTLS_HSMG_TYPE_ENCRYPTED_EXTENSIONS,
                                         &tmpl->encrypted_extension);
             break;
         case CTLS_TMPL_TYPE_CERTIFICATE_REQUEST_EXTENSIONS:
-            ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_CERTIFICATE_REQUEST_EXTENSIONS);
+            result = ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_CERTIFICATE_REQUEST_EXTENSIONS,
+                                    CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
             ctls_tmpl_extension_to_wire(buffer,
                                         offset,
                                         CTLS_HSMG_TYPE_CERTIFICATE_REQUEST,
@@ -381,19 +437,28 @@ ctls_status_t ctls_template_element_to_wire(uint8_t *buffer,
             break;
         case CTLS_TMPL_TYPE_KNOWN_CERTIFICATES:
             for (int i = 0; i < sizeof(tmpl->known_certificates); i++) {
-                ctls_write_u8(buffer,
+                result = ctls_write_u8(buffer,
                               offset,
-                              tmpl->known_certificates.entries[i].certificate_id);
-                ctls_write_bytes(buffer,
+                              tmpl->known_certificates.entries[i].certificate_id,
+                              CTLS_SIZE_WIRE_BUFFER);
+                if (result != CTLS_STATUS_SUCCESS) return result;
+                result = ctls_write_bytes(buffer,
                                  offset,
                                  tmpl->known_certificates.entries[i].certificate_length,
-                                 tmpl->known_certificates.entries[i].certificate);
+                                 tmpl->known_certificates.entries[i].certificate,
+                                 CTLS_SIZE_WIRE_BUFFER);
+                if (result != CTLS_STATUS_SUCCESS) return result;
             }
             break;
         case CTLS_TMPL_TYPE_FINISHED_SIZE:
-            ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_FINISHED_SIZE);
-            ctls_write_u32(buffer, offset, sizeof(tmpl->finished_size));
-            ctls_write_u16(buffer, offset, tmpl->finished_size);
+            result = ctls_write_u16(buffer, offset, CTLS_TMPL_TYPE_FINISHED_SIZE,
+                                    CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u32(buffer, offset, sizeof(tmpl->finished_size),
+                                    CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u16(buffer, offset, tmpl->finished_size, CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
             break;
         default: return CTLS_STATUS_TMPL_UNKNOWN_ELEMENT;
     }
@@ -412,26 +477,37 @@ ctls_status_t ctls_template_element_to_wire(uint8_t *buffer,
  * Both peers must derive identical bytes from their template copies — this
  * form is what makes the template hashable/identifiable.
  */
-ctls_status_t ctls_template_to_wire(uint8_t *buffer) {
+ctls_status_t ctls_template_to_wire(uint8_t *buffer,
+                                    ctls_size_t const limit,
+                                    ctls_size_t *bytes_written) {
     ctls_template_t const *tmpl = ctls_template_get();
     if (!tmpl) return CTLS_STATUS_TMPL_TO_WIRE_NULL;
+    CTLS_CHECK_NULL_OFFSET(bytes_written);
 
     ctls_size_t offset = 0, template_body_length;
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
 
-    ctls_write_u8(buffer, &offset, CTLS_RECD_CONTENT_TYPE_TEMPLATE);
+    result = ctls_write_u8(buffer, &offset, CTLS_RECD_CONTENT_TYPE_TEMPLATE, limit);
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
     template_body_length = offset;
     offset += 3;
 
-    ctls_write_u8(buffer, &offset, CTLS_VERSION);
+    result = ctls_write_u8(buffer, &offset, CTLS_VERSION, limit);
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
     ctls_size_t template_element_length = offset;
     offset += 4;
 
-    ctls_template_element_to_wire(buffer, &offset, tmpl, CTLS_TMPL_TYPE_PROFILE_ID);
-    ctls_write_u32(buffer, &template_element_length, offset - template_element_length);
+    result = ctls_template_element_to_wire(buffer, &offset, tmpl, CTLS_TMPL_TYPE_PROFILE_ID);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    result = ctls_write_u32(buffer, &template_element_length, offset - template_element_length,
+                            limit);
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
-    ctls_write_u24(buffer, &template_body_length, offset - template_body_length);
+    result = ctls_write_u24(buffer, &template_body_length, offset - template_body_length, limit);
+    if (result != CTLS_STATUS_SUCCESS) return result;
 
+    *bytes_written = offset;
     return CTLS_STATUS_SUCCESS;
 }

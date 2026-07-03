@@ -164,8 +164,21 @@ ctls_status_t ctls_transcript_hash_init(ctls_crypto_t *crypto,
                                                crypto->hash_algorithm);
     if (result != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_HASH_INIT_FAILED;
 
-    ctls_status_t const res = ctls_template_to_wire(transcript_hash);
+    /* The serialized template (TLV fields + extension blocks + embedded
+     * certificate DER bytes) does not fit in transcript_hash's
+     * CTLS_SIZE_TRANSCRIPT_HASH (32) bytes — it needs its own
+     * CTLS_SIZE_WIRE_BUFFER-sized scratch buffer, separate from the digest
+     * output buffer. */
+    uint8_t template_scratch[CTLS_SIZE_WIRE_BUFFER];
+    ctls_size_t template_bytes_written = 0;
+    ctls_status_t const res = ctls_template_to_wire(template_scratch, CTLS_SIZE_WIRE_BUFFER,
+                                                    &template_bytes_written);
     if (res != CTLS_STATUS_SUCCESS) return res;
+
+    psa_status_t const update_result = psa_hash_update(&crypto->transcript_hash_operator,
+                                                        template_scratch,
+                                                        template_bytes_written);
+    if (update_result != PSA_SUCCESS) return CTLS_STATUS_CRYPTO_HASH_UPD_FAILED;
 
     return ctls_transcript_hash_calculate(&crypto->transcript_hash_operator,
                                           transcript_hash);
@@ -529,7 +542,8 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
 ctls_status_t ctls_context_string_build(uint8_t *buffer,
                                         ctls_size_t *offset,
                                         ctls_entity_t const entity,
-                                        ctls_key_type_t const key_type) {
+                                        ctls_key_type_t const key_type,
+                                        ctls_size_t const limit) {
     /*
      * HkdfLabel encoding (RFC 8446 §7.1), label prefix "Sctls " per the
      * cTLS profile instead of "tls13 ":
@@ -550,6 +564,7 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
 
     char const *context_string = NULL;
     uint8_t context_string_length = 0;
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
 
     if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
             CTLS_STATUS_CRYPTO_INVALID_ARG;
@@ -568,12 +583,19 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
             context_string = "Sctls derived";
             context_string_length = strlen(context_string) - 1U;
 
-            ctls_write_u16(buffer, offset, 0x00);
-            ctls_write_u8(buffer, offset, 0x20);
-            ctls_write_u8(buffer, offset, context_string_length);
-            ctls_write_char_bytes(buffer, offset, context_string_length, context_string);
-            ctls_write_u8(buffer, offset, 0x20);
-            ctls_write_bytes(buffer, offset, 32U, hshk_data->transcript_hash);
+            result = ctls_write_u16(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x20, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, context_string_length, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_char_bytes(buffer, offset, context_string_length,
+                                           context_string, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x20, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_bytes(buffer, offset, 32U, hshk_data->transcript_hash, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
         }
         break;
         case CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_SECRET: {
@@ -584,12 +606,20 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
                 context_string = "Sctls s hs traffic";
                 context_string_length = strlen(context_string) - 1U;
             }
-            ctls_write_u16(buffer, offset, 0x00);
-            ctls_write_u8(buffer, offset, 0x20);
-            ctls_write_u8(buffer, offset, context_string_length);
-            ctls_write_char_bytes(buffer, offset, context_string_length, context_string);
-            ctls_write_u8(buffer, offset, CTLS_SIZE_HASH);
-            ctls_write_bytes(buffer, offset, CTLS_SIZE_HASH, hshk_data->transcript_hash);
+            result = ctls_write_u16(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x20, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, context_string_length, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_char_bytes(buffer, offset, context_string_length,
+                                           context_string, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, CTLS_SIZE_HASH, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_bytes(buffer, offset, CTLS_SIZE_HASH, hshk_data->transcript_hash,
+                                      limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
         }
         break;
         case CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_WRITE_KEYS: {
@@ -597,22 +627,34 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
             context_string_length = strlen(context_string) - 1U;
 
 
-            ctls_write_u16(buffer, offset, 0x00);
-            ctls_write_u8(buffer, offset, 0x10);
-            ctls_write_u8(buffer, offset, context_string_length);
-            ctls_write_char_bytes(buffer, offset, context_string_length, context_string);
-            ctls_write_u8(buffer, offset, 0x00);
+            result = ctls_write_u16(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x10, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, context_string_length, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_char_bytes(buffer, offset, context_string_length,
+                                           context_string, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
         }
         break;
         case CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_IV_KEY: {
             context_string = "Sctls iv";
             context_string_length = strlen(context_string) - 1U;
 
-            ctls_write_u16(buffer, offset, 0x00);
-            ctls_write_u8(buffer, offset, 0x0C);
-            ctls_write_u8(buffer, offset, context_string_length);
-            ctls_write_char_bytes(buffer, offset, context_string_length, context_string);
-            ctls_write_u8(buffer, offset, 0x00);
+            result = ctls_write_u16(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x0C, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, context_string_length, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_char_bytes(buffer, offset, context_string_length,
+                                           context_string, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
         }
         break;
         case CTLS_KEY_TYPE_SIGNED_BYTES: {
@@ -624,63 +666,98 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
                 context_string_length = strlen(context_string) - 1U;
             }
 
+            result = ctls_bounds_check(*offset, 64U, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
             memset(buffer, 0x20, 64U);
             *offset += 64U;
-            ctls_write_bytes(buffer,
+            result = ctls_write_bytes(buffer,
                              offset,
                              context_string_length,
-                             (uint8_t *) context_string);
-            ctls_write_u8(buffer, offset, 0x00);
-            ctls_write_bytes(buffer,
+                             (uint8_t *) context_string,
+                             limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_bytes(buffer,
                              offset,
                              CTLS_SIZE_TRANSCRIPT_HASH,
-                             hshk_data->transcript_hash);
+                             hshk_data->transcript_hash,
+                             limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
         }
         break;
         case CTLS_KEY_TYPE_FINISHED_KEY: {
             context_string = "Sctls finished";
             context_string_length = strlen(context_string) - 1U;
 
-            ctls_write_u16(buffer, offset, 0x00);
-            ctls_write_u8(buffer, offset, 0x00);
-            ctls_write_u16(buffer, offset, context_string_length);
-            ctls_write_char_bytes(buffer, offset, context_string_length, context_string);
-            ctls_write_u8(buffer, offset, 0x00);
+            result = ctls_write_u16(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u16(buffer, offset, context_string_length, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_char_bytes(buffer, offset, context_string_length,
+                                           context_string, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
         }
         break;
         case CTLS_KEY_TYPE_BINDER_KEY: {
             context_string = "Sctls res binder";
             context_string_length = strlen(context_string) - 1U;
 
-            ctls_write_u16(buffer, offset, 0x00);
-            ctls_write_u8(buffer, offset, 0x20);
-            ctls_write_u8(buffer, offset, context_string_length);
-            ctls_write_char_bytes(buffer, offset, context_string_length, context_string);
-            ctls_write_u8(buffer, offset, 0x00);
+            result = ctls_write_u16(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x20, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, context_string_length, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_char_bytes(buffer, offset, context_string_length,
+                                           context_string, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
         }
         break;
         case CTLS_KEY_TYPE_CLIENT_EARLY_KEY: {
             context_string = "Sctls c e traffic";
             context_string_length = strlen(context_string) - 1U;
 
-            ctls_write_u16(buffer, offset, 0x00);
-            ctls_write_u8(buffer, offset, 0x20);
-            ctls_write_u8(buffer, offset, context_string_length);
-            ctls_write_char_bytes(buffer, offset, context_string_length, context_string);
-            ctls_write_u8(buffer, offset, CTLS_SIZE_HASH);
-            ctls_write_bytes(buffer, offset, CTLS_SIZE_HASH, hshk_data->transcript_hash);
+            result = ctls_write_u16(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x20, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, context_string_length, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_char_bytes(buffer, offset, context_string_length,
+                                           context_string, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, CTLS_SIZE_HASH, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_bytes(buffer, offset, CTLS_SIZE_HASH, hshk_data->transcript_hash,
+                                      limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
         }
         break;
         case CTLS_KEY_TYPE_EXPORTER_MASTER_SECRET: {
             context_string = "Sctls exp master";
             context_string_length = strlen(context_string) - 1U;
 
-            ctls_write_u16(buffer, offset, 0x00);
-            ctls_write_u8(buffer, offset, 0x20);
-            ctls_write_u8(buffer, offset, context_string_length);
-            ctls_write_char_bytes(buffer, offset, context_string_length, context_string);
-            ctls_write_u8(buffer, offset, CTLS_SIZE_HASH);
-            ctls_write_bytes(buffer, offset, CTLS_SIZE_HASH, hshk_data->transcript_hash);
+            result = ctls_write_u16(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x20, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, context_string_length, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_char_bytes(buffer, offset, context_string_length,
+                                           context_string, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, CTLS_SIZE_HASH, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_bytes(buffer, offset, CTLS_SIZE_HASH, hshk_data->transcript_hash,
+                                      limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
         }
         break;
         case CTLS_KEY_TYPE_APPLICATION_TRAFFIC_SECRET: {
@@ -691,34 +768,54 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
                 context_string = "Sctls s ap traffic";
                 context_string_length = strlen(context_string) - 1U;
             }
-            ctls_write_u16(buffer, offset, 0x00);
-            ctls_write_u8(buffer, offset, 0x20);
-            ctls_write_u8(buffer, offset, context_string_length);
-            ctls_write_char_bytes(buffer, offset, context_string_length, context_string);
-            ctls_write_u8(buffer, offset, CTLS_SIZE_HASH);
-            ctls_write_bytes(buffer, offset, CTLS_SIZE_HASH, hshk_data->transcript_hash);
+            result = ctls_write_u16(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x20, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, context_string_length, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_char_bytes(buffer, offset, context_string_length,
+                                           context_string, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, CTLS_SIZE_HASH, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_bytes(buffer, offset, CTLS_SIZE_HASH, hshk_data->transcript_hash,
+                                      limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
         }
         break;
         case CTLS_KEY_TYPE_APPLICATION_TRAFFIC_WRITE_KEYS: {
             context_string = "Sctls key";
             context_string_length = strlen(context_string) - 1U;
 
-            ctls_write_u16(buffer, offset, 0x00);
-            ctls_write_u8(buffer, offset, 0x10);
-            ctls_write_u8(buffer, offset, context_string_length);
-            ctls_write_char_bytes(buffer, offset, context_string_length, context_string);
-            ctls_write_u8(buffer, offset, 0x00);
+            result = ctls_write_u16(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x10, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, context_string_length, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_char_bytes(buffer, offset, context_string_length,
+                                           context_string, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
         }
         break;
         case CTLS_KEY_TYPE_APPLICATION_TRAFFIC_IV_KEY: {
             context_string = "Sctls iv";
             context_string_length = strlen(context_string) - 1U;
 
-            ctls_write_u16(buffer, offset, 0x00);
-            ctls_write_u8(buffer, offset, 0x0C);
-            ctls_write_u8(buffer, offset, context_string_length);
-            ctls_write_char_bytes(buffer, offset, context_string_length, context_string);
-            ctls_write_u8(buffer, offset, 0x00);
+            result = ctls_write_u16(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x0C, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, context_string_length, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_char_bytes(buffer, offset, context_string_length,
+                                           context_string, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
         }
         break;
         default: return CTLS_STATUS_CRYPTO_CONTEXT_STR_UNKNOWN_KEY_TYPE;
@@ -792,7 +889,8 @@ ctls_status_t ctls_derived_secret_generate(ctls_crypto_t *crypto) {
     ctls_status_t result = ctls_context_string_build(info,
                                                      &offset,
                                                      CTLS_ENTITY_CLIENT,
-                                                     CTLS_KEY_TYPE_DERIVED_SECRET);
+                                                     CTLS_KEY_TYPE_DERIVED_SECRET,
+                                                     sizeof(info));
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
     result = ctls_hkdf_expand(&crypto->derived_secret,
@@ -885,7 +983,8 @@ ctls_status_t ctls_handshake_traffic_secret_generate(ctls_crypto_t *crypto,
     result = ctls_context_string_build(info,
                                        &info_offset,
                                        entity,
-                                       CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_SECRET);
+                                       CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_SECRET,
+                                       sizeof(info));
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
 
@@ -919,7 +1018,8 @@ ctls_status_t ctls_handshake_write_key_generate(ctls_crypto_t *crypto,
     result = ctls_context_string_build(info,
                                        &info_offset,
                                        entity,
-                                       CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_WRITE_KEYS);
+                                       CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_WRITE_KEYS,
+                                       sizeof(info));
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
     return ctls_hkdf_expand(entity == CTLS_ENTITY_CLIENT
@@ -954,7 +1054,8 @@ ctls_status_t ctls_handshake_iv_key_generate(ctls_crypto_t *crypto,
     result = ctls_context_string_build(info,
                                        &info_offset,
                                        entity,
-                                       CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_IV_KEY);
+                                       CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_IV_KEY,
+                                       sizeof(info));
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
     return ctls_hkdf_expand(entity == CTLS_ENTITY_CLIENT
@@ -1117,7 +1218,9 @@ ctls_status_t ctls_nonce_generate(uint8_t *buffer,
 
     ctls_size_t offset = 0;
 
-    ctls_write_bytes(buffer, &offset, CTLS_SIZE_NONCE, iv_key);
+    ctls_status_t const result = ctls_write_bytes(buffer, &offset, CTLS_SIZE_NONCE, iv_key,
+                                                  CTLS_SIZE_NONCE);
+    if (result != CTLS_STATUS_SUCCESS) return result;
     for (int i = 0; i < 8; i++) {
         buffer[11 - i] ^= (uint8_t) (*sequence_number >> (i * 8U));
     }
@@ -1358,7 +1461,8 @@ ctls_status_t ctls_signed_bytes_generate(ctls_entity_t const entity) {
     ctls_status_t const result = ctls_context_string_build(info,
                                                            &info_offset,
                                                            entity,
-                                                           CTLS_KEY_TYPE_SIGNED_BYTES);
+                                                           CTLS_KEY_TYPE_SIGNED_BYTES,
+                                                           sizeof(info));
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
 
@@ -1405,7 +1509,8 @@ ctls_status_t ctls_signed_bytes_verify(psa_key_id_t const *public_key_id,
     ctls_status_t const result = ctls_context_string_build(info,
                                                            &info_offset,
                                                            entity,
-                                                           CTLS_KEY_TYPE_SIGNED_BYTES);
+                                                           CTLS_KEY_TYPE_SIGNED_BYTES,
+                                                           sizeof(info));
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
     psa_st = psa_verify_message(*public_key_id,
@@ -1442,7 +1547,8 @@ ctls_status_t ctls_finished_key_generate(ctls_entity_t const entity) {
     result = ctls_context_string_build(info,
                                        &info_offset,
                                        entity,
-                                       CTLS_KEY_TYPE_FINISHED_KEY);
+                                       CTLS_KEY_TYPE_FINISHED_KEY,
+                                       sizeof(info));
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
 
@@ -1463,14 +1569,14 @@ cleanup:
 }
 
 
-ctls_status_t ctls_verify_data_generate(ctls_entity_t const entity) {
+ctls_status_t ctls_verify_data_generate(ctls_entity_t const entity, uint8_t *verify_data) {
     /* verify_data = HMAC-SHA256(finished_key, transcript_hash)
      * [RFC 8446 §4.4.4] */
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
     ctls_crypto_t const *crypto = ctls_crypto_get();
 
-    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER) return
-            CTLS_STATUS_CRYPTO_INVALID_ARG;
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_CRYPTO_INVALID_ARG;
 
     psa_status_t psa_st = PSA_SUCCESS;
 
@@ -1483,9 +1589,7 @@ ctls_status_t ctls_verify_data_generate(ctls_entity_t const entity) {
                              PSA_ALG_HMAC(crypto->hash_algorithm),
                              hshk_data->transcript_hash,
                              CTLS_SIZE_HASH,
-                             entity == CTLS_ENTITY_CLIENT
-                                 ? hshk_data->client_verify_data
-                                 : hshk_data->server_verify_data,
+                             verify_data,
                              CTLS_SIZE_HASH,
                              &bytes_written);
     if (psa_st != PSA_SUCCESS) goto cleanup;
@@ -1581,7 +1685,8 @@ ctls_status_t ctls_application_traffic_secret_generate(
     result = ctls_context_string_build(info,
                                        &info_offset,
                                        entity,
-                                       CTLS_KEY_TYPE_APPLICATION_TRAFFIC_SECRET);
+                                       CTLS_KEY_TYPE_APPLICATION_TRAFFIC_SECRET,
+                                       sizeof(info));
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
     return ctls_hkdf_expand(entity == CTLS_ENTITY_CLIENT
@@ -1607,7 +1712,8 @@ ctls_status_t ctls_exporter_master_secret_generate(ctls_crypto_t *crypto) {
     result = ctls_context_string_build(info,
                                        &info_offset,
                                        CTLS_ENTITY_CLIENT,
-                                       CTLS_KEY_TYPE_EXPORTER_MASTER_SECRET);
+                                       CTLS_KEY_TYPE_EXPORTER_MASTER_SECRET,
+                                       sizeof(info));
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
     return ctls_hkdf_expand(&crypto->exporter_master_secret,
@@ -1634,7 +1740,8 @@ ctls_status_t ctls_application_write_key_generate(ctls_crypto_t *crypto,
     result = ctls_context_string_build(info,
                                        &info_offset,
                                        entity,
-                                       CTLS_KEY_TYPE_APPLICATION_TRAFFIC_WRITE_KEYS);
+                                       CTLS_KEY_TYPE_APPLICATION_TRAFFIC_WRITE_KEYS,
+                                       sizeof(info));
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
     return ctls_hkdf_expand(entity == CTLS_ENTITY_CLIENT
@@ -1669,7 +1776,8 @@ ctls_status_t ctls_application_iv_key_generate(ctls_crypto_t *crypto,
     result = ctls_context_string_build(info,
                                        &info_offset,
                                        entity,
-                                       CTLS_KEY_TYPE_APPLICATION_TRAFFIC_IV_KEY);
+                                       CTLS_KEY_TYPE_APPLICATION_TRAFFIC_IV_KEY,
+                                       sizeof(info));
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
     return ctls_hkdf_expand(entity == CTLS_ENTITY_CLIENT

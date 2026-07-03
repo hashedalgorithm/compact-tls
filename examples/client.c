@@ -1,11 +1,10 @@
 /*
  * cTLS example client.
  *
- * Sends a ClientHello to a UDP server and exits. Useful for packet capture
- * in Wireshark before a real server is available.
+ * Runs the full client-side handshake against a UDP server, then exchanges
+ * one application data message.
  *
- * Usage:  ./compact_tls [host] [port]
- * Default: 127.0.0.1 4433
+ * Usage:  ./compact_tls  (host/port hardcoded below, no command-line args)
  *
  * Wireshark filter:  udp.port == 4433
  */
@@ -55,9 +54,9 @@ static ctls_status_t udp_receive(uint8_t *buffer, ctls_size_t *length, ctls_size
     return CTLS_STATUS_SUCCESS;
 }
 
-int main(int argc, char *argv[]) {
-    const char *host = (argc > 1) ? argv[1] : "127.0.0.1";
-    int port = (argc > 2) ? atoi(argv[2]) : 4433;
+int main(void) {
+    const char *host = "127.0.0.1";
+    int port = 4433;
 
     g_sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (g_sock < 0) {

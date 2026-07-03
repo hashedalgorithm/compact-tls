@@ -162,7 +162,7 @@ typedef enum {
      * Since ContentType for template is not assigned, we are using 28 for this implementation.
      * https://arc.net/l/quote/voyphzxt
      */
-    CTLS_RECD_CONTENT_TYPE_TEMPLATE = 0x28,
+    CTLS_RECD_CONTENT_TYPE_TEMPLATE = 0x1A,
     CTLS_RECD_CONTENT_TYPE_SENTINEL = 0xFF, // default value (uninitialized)
 } ctls_recd_content_type_t;
 
@@ -289,6 +289,8 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_INVALID_ARG                     ((ctls_status_t)0x0005u)
 #define CTLS_STATUS_UNKNOWN                         ((ctls_status_t)0x0006u)
 #define CTLS_STATUS_NOT_IMPLEMENTED                 ((ctls_status_t)0x0007u)
+#define CTLS_STATUS_INVALID_INVOCATION              ((ctls_status_t)0x0008u)
+#define CTLS_STATUS_SENT_ALERT                      ((ctls_status_t)0x0009u)
 
 /* Buffer / Memory (0x0032-0x0063) */
 #define CTLS_STATUS_BUFFER_OVERFLOW                 ((ctls_status_t)0x0032u)
@@ -451,6 +453,9 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_RECD_HDR_SERIALIZE_SEQ          ((ctls_status_t)0x0136u)
 #define CTLS_STATUS_RECD_HDR_DESERIALIZE_CID        ((ctls_status_t)0x0137u)
 #define CTLS_STATUS_RECD_HDR_DESERIALIZE_SEQ        ((ctls_status_t)0x0138u)
+#define CTLS_STATUS_RECD_INVALID_AAD_LENGTH         ((ctls_status_t)0x0139u)
+#define CTLS_STATUS_RECD_EPOCH_MISMATCH             ((ctls_status_t)0x013Au)
+#define CTLS_STATUS_RECD_SEQUENCE_NUMBER_MISMATCH   ((ctls_status_t)0x013Bu)
 /* 0x0139-0x013B reserved */
 
 /* --- 0x013C-0x0147: message-type dispatch failures --- */
@@ -518,6 +523,42 @@ typedef uint16_t ctls_status_t;
 /* Handshake State Machine (0x01F4-0x0225) */
 #define CTLS_STATUS_HSHK_INVALID_STATE              ((ctls_status_t)0x01F4u)
 #define CTLS_STATUS_HSHK_ALREADY_CONNECTED          ((ctls_status_t)0x01F5u)
+
+/*
+ * Alert Mapping (0x0226-0x0240) — one status code per ctls_hsmg_alert_type_t
+ * value (RFC 8446 §6.2). Hooks return one of these instead of calling
+ * ctls_alert_send directly; the top-level handshake driver's onerror path
+ * calls ctls_alert_send(record, status, entity, phase), which maps the code
+ * back to its alert type via ctls_status_to_alert_type_map, sends a single
+ * alert, then returns status unchanged to the caller.
+ */
+#define CTLS_STATUS_ALERT_CLOSE_NOTIFY               ((ctls_status_t)0x0226u)
+#define CTLS_STATUS_ALERT_UNEXPECTED_MESSAGE         ((ctls_status_t)0x0227u)
+#define CTLS_STATUS_ALERT_BAD_RECORD_MAC             ((ctls_status_t)0x0228u)
+#define CTLS_STATUS_ALERT_RECORD_OVERFLOW            ((ctls_status_t)0x0229u)
+#define CTLS_STATUS_ALERT_HANDSHAKE_FAILURE          ((ctls_status_t)0x022Au)
+#define CTLS_STATUS_ALERT_BAD_CERTIFICATE            ((ctls_status_t)0x022Bu)
+#define CTLS_STATUS_ALERT_UNSUPPORTED_CERTIFICATE    ((ctls_status_t)0x022Cu)
+#define CTLS_STATUS_ALERT_CERTIFICATE_REVOKED        ((ctls_status_t)0x022Du)
+#define CTLS_STATUS_ALERT_CERTIFICATE_EXPIRED        ((ctls_status_t)0x022Eu)
+#define CTLS_STATUS_ALERT_CERTIFICATE_UNKNOWN        ((ctls_status_t)0x022Fu)
+#define CTLS_STATUS_ALERT_ILLEGAL_PARAMETER          ((ctls_status_t)0x0230u)
+#define CTLS_STATUS_ALERT_UNKNOWN_CA                 ((ctls_status_t)0x0231u)
+#define CTLS_STATUS_ALERT_ACCESS_DENIED              ((ctls_status_t)0x0232u)
+#define CTLS_STATUS_ALERT_DECODE_ERROR               ((ctls_status_t)0x0233u)
+#define CTLS_STATUS_ALERT_DECRYPT_ERROR              ((ctls_status_t)0x0234u)
+#define CTLS_STATUS_ALERT_PROTOCOL_VERSION           ((ctls_status_t)0x0235u)
+#define CTLS_STATUS_ALERT_INSUFFICIENT_SECURITY      ((ctls_status_t)0x0236u)
+#define CTLS_STATUS_ALERT_INTERNAL_ERROR             ((ctls_status_t)0x0237u)
+#define CTLS_STATUS_ALERT_INAPPROPRIATE_FALLBACK     ((ctls_status_t)0x0238u)
+#define CTLS_STATUS_ALERT_USER_CANCELED              ((ctls_status_t)0x0239u)
+#define CTLS_STATUS_ALERT_MISSING_EXTENSION          ((ctls_status_t)0x023Au)
+#define CTLS_STATUS_ALERT_UNSUPPORTED_EXTENSION      ((ctls_status_t)0x023Bu)
+#define CTLS_STATUS_ALERT_UNRECOGNIZED_NAME          ((ctls_status_t)0x023Cu)
+#define CTLS_STATUS_ALERT_BAD_CERTIFICATE_STATUS     ((ctls_status_t)0x023Du)
+#define CTLS_STATUS_ALERT_UNKNOWN_PSK_IDENTITY       ((ctls_status_t)0x023Eu)
+#define CTLS_STATUS_ALERT_CERTIFICATE_REQUIRED       ((ctls_status_t)0x023Fu)
+#define CTLS_STATUS_ALERT_NO_APPLICATION_PROTOCOL    ((ctls_status_t)0x0240u)
 
 typedef enum {
     CTLS_EXTN_CERTIFICATE_TYPE_X509 = 0x00,

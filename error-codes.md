@@ -32,6 +32,7 @@ typedef uint16_t ctls_status_t;
 | 0x0190–0x01C1 | Template / Profile      |
 | 0x01C2–0x01F3 | Transport               |
 | 0x01F4–0x0225 | Handshake State Machine |
+| 0x0226–0x0240 | Alert Mapping           |
 
 ---
 
@@ -55,7 +56,9 @@ These fire before any subsystem logic executes.
 | 0x0004 | `CTLS_STATUS_NULL_STRUCT`     | The primary struct pointer (e.g. `hsmg`, `record`, `template`, `crypto`) was NULL. Caller forgot to allocate/pass the object.                                             |
 | 0x0005 | `CTLS_STATUS_INVALID_ARG`     | A non-pointer argument held an illegal value (enum out of defined range, zero where non-zero required, etc.).                                                             |
 | 0x0006 | `CTLS_STATUS_UNKNOWN`         | Unclassified internal error. Should not appear in production; means a code path returned without setting a real code.                                                     |
-| 0x0007 | `CTLS_STATUS_NOT_IMPLEMENTED` | Called a function stub (`ctls_hsmg_server_hello_create`, `ctls_hsmg_finished_*`, etc.) that has no body yet. Replaces silent empty returns that currently return garbage. |
+| 0x0007 | `CTLS_STATUS_NOT_IMPLEMENTED` | The function exists and is a valid call for this build, but its body is an unfinished stub — no role/context issue, just no logic written yet (e.g. `ctls_hsmg_certificate_request_create`, `ctls_extn_encrypted_extensions_create`, `ctls_extn_certificate_request_create`). |
+| 0x0008 | `CTLS_STATUS_INVALID_INVOCATION` | The function has real logic, but it was called in a build/role that isn't supposed to call it at all. Two shapes: (1) a `ctls_core_*_internal_op` hook's `#else` branch — built under neither `CTLS_CLIENT` nor `CTLS_SERVER`; (2) `ctls_connect`/`ctls_accept` called on the wrong role's build (e.g. `ctls_connect` on a `CTLS_SERVER` build, or vice versa) — right function, wrong role. |
+| 0x0009 | `CTLS_STATUS_SENT_ALERT` | Reserved sentinel, currently unused. `ctls_alert_send` now returns the *original* status on success (see 0x0226-0x0240 below) instead of this code, so the caller still sees the real failure. |
 
 ---
 
@@ -244,7 +247,7 @@ Sub-band layout:
 ```
 0x012C–0x015D  Record Layer
   ├─ 0x012C–0x0133  Existing shared codes (preserved, never renumbered)
-  ├─ 0x0134–0x013B  Header field violations (per call-site; 0x0139–0x013B reserved)
+  ├─ 0x0134–0x013B  Header field violations (per call-site)
   ├─ 0x013C–0x0147  Message-type dispatch failures (per call-site; 0x0142–0x0147 reserved)
   ├─ 0x0148–0x0155  Wire-format guard, one code per _to_wire function (0x0151–0x0155 reserved)
   └─ 0x0156–0x015D  Entity / protocol violations (per call-site; 0x0159–0x015D reserved)
@@ -272,6 +275,9 @@ Sub-band layout:
 | 0x0136 | `CTLS_STATUS_RECD_HDR_SERIALIZE_SEQ`    | `ctls_unified_header_serialize`: `s_bit` not in {0, 1}. Struct was mutated after construction.                                           |
 | 0x0137 | `CTLS_STATUS_RECD_HDR_DESERIALIZE_CID`  | `ctls_unified_header_deserialize`: parsed C bit = 1 from wire byte. Peer sent a CID-bearing record.                                      |
 | 0x0138 | `CTLS_STATUS_RECD_HDR_DESERIALIZE_SEQ`  | `ctls_unified_header_deserialize`: parsed `s_bit > 1`. Wire header byte is malformed.                                                    |
+| 0x0139 | `CTLS_STATUS_RECD_INVALID_AAD_LENGTH`   | Wire preprocess (`ctls_core_wire_preprocess`): parsed `unified_header.aad_length == 0` for an encrypted record. AAD is the unified header itself and can never be zero-length; peer sent a malformed header. |
+| 0x013A | `CTLS_STATUS_RECD_EPOCH_MISMATCH`       | Wire preprocess: parsed header `epoch` (low 2 bits) does not match `hshk_data->epoch`. Record was encrypted under a different key generation than the one currently active (stale or replayed record). |
+| 0x013B | `CTLS_STATUS_RECD_SEQUENCE_NUMBER_MISMATCH` | Wire preprocess: parsed header `sequence_number` does not equal `hshk_data->sequence_number`. Records arrived out of order or one was dropped/duplicated — cTLS uses a single shared counter incremented on every send/receive. |
 
 ### 0x013C–0x0147: Message-type dispatch failures
 
@@ -362,6 +368,46 @@ Sub-band layout:
 |--------|-----------------------------------|-------------------------------------------------------------------------------------------------------------------------|
 | 0x01F4 | `CTLS_STATUS_HSHK_INVALID_STATE`     | An operation was attempted in a handshake state where it is not valid (e.g. trying to decrypt before keys are derived). |
 | 0x01F5 | `CTLS_STATUS_HSHK_ALREADY_CONNECTED` | `ctls_connect` or `ctls_handshake` called when state is already `CTLS_HSHK_STATE_CONNECTED`.                            |
+
+---
+
+## 0x0226–0x0240 — Alert Mapping
+
+One status code per `ctls_hsmg_alert_type_t` value (RFC 8446 §6.2), full 1:1 mirror of the alert enum.
+
+**Why this band exists (bug 4 fix):** hooks previously called `ctls_alert_send` directly and returned its result, which could silently overwrite the original failure status. Under the new architecture, hooks return one of these `CTLS_STATUS_ALERT_*` codes instead of sending an alert themselves. The top-level handshake driver's `onerror` path calls `ctls_alert_send(record, status, entity, phase)`, which internally calls `ctls_status_to_alert_type_map` to map the code to its `ctls_hsmg_alert_type_t`, sends exactly one alert, then returns *status unchanged* — so the driver still returns the original `CTLS_STATUS_ALERT_*` code to the caller, not `CTLS_STATUS_SENT_ALERT` or a separate alert-send result.
+
+Fatal/Warning level (RFC 8446 §6.2 — every alert is FATAL except `close_notify` and `user_canceled`, which are WARNING) is applied by `ctls_status_to_alert_type_map` at send time, not encoded in the status code itself.
+
+| Code   | Name                                       | Maps to alert type                          |
+|--------|---------------------------------------------|----------------------------------------------|
+| 0x0226 | `CTLS_STATUS_ALERT_CLOSE_NOTIFY`            | `CTLS_HSMG_ALERT_TYPE_CLOSE_NOTIFY` (warning) |
+| 0x0227 | `CTLS_STATUS_ALERT_UNEXPECTED_MESSAGE`      | `CTLS_HSMG_ALERT_TYPE_UNEXPECTED_MESSAGE`    |
+| 0x0228 | `CTLS_STATUS_ALERT_BAD_RECORD_MAC`          | `CTLS_HSMG_ALERT_TYPE_BAD_RECORD_MAC`        |
+| 0x0229 | `CTLS_STATUS_ALERT_RECORD_OVERFLOW`         | `CTLS_HSMG_ALERT_TYPE_RECORD_OVERFLOW`       |
+| 0x022A | `CTLS_STATUS_ALERT_HANDSHAKE_FAILURE`       | `CTLS_HSMG_ALERT_TYPE_HANDSHAKE_FAILURE`     |
+| 0x022B | `CTLS_STATUS_ALERT_BAD_CERTIFICATE`         | `CTLS_HSMG_ALERT_TYPE_BAD_CERTIFICATE`       |
+| 0x022C | `CTLS_STATUS_ALERT_UNSUPPORTED_CERTIFICATE` | `CTLS_HSMG_ALERT_TYPE_UNSUPPORTED_CERTIFICATE` |
+| 0x022D | `CTLS_STATUS_ALERT_CERTIFICATE_REVOKED`     | `CTLS_HSMG_ALERT_TYPE_CERTIFICATE_REVOKED`   |
+| 0x022E | `CTLS_STATUS_ALERT_CERTIFICATE_EXPIRED`     | `CTLS_HSMG_ALERT_TYPE_CERTIFICATE_EXPIRED`   |
+| 0x022F | `CTLS_STATUS_ALERT_CERTIFICATE_UNKNOWN`     | `CTLS_HSMG_ALERT_TYPE_CERTIFICATE_UNKNOWN`   |
+| 0x0230 | `CTLS_STATUS_ALERT_ILLEGAL_PARAMETER`       | `CTLS_HSMG_ALERT_TYPE_ILLEGAL_PARAMETER`     |
+| 0x0231 | `CTLS_STATUS_ALERT_UNKNOWN_CA`              | `CTLS_HSMG_ALERT_TYPE_UNKNOWN_CA`            |
+| 0x0232 | `CTLS_STATUS_ALERT_ACCESS_DENIED`           | `CTLS_HSMG_ALERT_TYPE_ACCESS_DENIED`         |
+| 0x0233 | `CTLS_STATUS_ALERT_DECODE_ERROR`            | `CTLS_HSMG_ALERT_TYPE_DECODE_ERROR`          |
+| 0x0234 | `CTLS_STATUS_ALERT_DECRYPT_ERROR`           | `CTLS_HSMG_ALERT_TYPE_DECRYPT_ERROR`         |
+| 0x0235 | `CTLS_STATUS_ALERT_PROTOCOL_VERSION`        | `CTLS_HSMG_ALERT_TYPE_PROTOCOL_VERSION`      |
+| 0x0236 | `CTLS_STATUS_ALERT_INSUFFICIENT_SECURITY`   | `CTLS_HSMG_ALERT_TYPE_INSUFFICIENT_SECURITY` |
+| 0x0237 | `CTLS_STATUS_ALERT_INTERNAL_ERROR`          | `CTLS_HSMG_ALERT_TYPE_INTERNAL_ERROR`        |
+| 0x0238 | `CTLS_STATUS_ALERT_INAPPROPRIATE_FALLBACK`  | `CTLS_HSMG_ALERT_TYPE_INAPPROPRIATE_FALLBACK` |
+| 0x0239 | `CTLS_STATUS_ALERT_USER_CANCELED`           | `CTLS_HSMG_ALERT_TYPE_USER_CANCELED` (warning) |
+| 0x023A | `CTLS_STATUS_ALERT_MISSING_EXTENSION`       | `CTLS_HSMG_ALERT_TYPE_MISSING_EXTENSION`     |
+| 0x023B | `CTLS_STATUS_ALERT_UNSUPPORTED_EXTENSION`   | `CTLS_HSMG_ALERT_TYPE_UNSUPPORTED_EXTENSION` |
+| 0x023C | `CTLS_STATUS_ALERT_UNRECOGNIZED_NAME`       | `CTLS_HSMG_ALERT_TYPE_UNRECOGNIZED_NAME`     |
+| 0x023D | `CTLS_STATUS_ALERT_BAD_CERTIFICATE_STATUS`  | `CTLS_HSMG_ALERT_TYPE_BAD_CERTIFICATE_STATUS` |
+| 0x023E | `CTLS_STATUS_ALERT_UNKNOWN_PSK_IDENTITY`    | `CTLS_HSMG_ALERT_TYPE_UNKNOWN_PSK_IDENTITY`  |
+| 0x023F | `CTLS_STATUS_ALERT_CERTIFICATE_REQUIRED`    | `CTLS_HSMG_ALERT_TYPE_CERTIFICATE_REQUIRED`  |
+| 0x0240 | `CTLS_STATUS_ALERT_NO_APPLICATION_PROTOCOL` | `CTLS_HSMG_ALERT_TYPE_NO_APPLICATION_PROTOCOL` |
 
 ---
 
