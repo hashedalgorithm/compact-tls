@@ -1,0 +1,64 @@
+---
+Language: Cpp
+BasedOnStyle: LLVM
+
+# Indentation
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 8
+IndentCaseLabels: true
+NamespaceIndentation: All
+IndentPPDirectives: None
+AccessModifierOffset: -4
+
+# Column limit
+ColumnLimit: 90
+
+# Braces — Attach (K&R), matches END_OF_LINE settings in CLion profile
+BreakBeforeBraces: Attach
+
+# Pointers/refs — space before *, none after (int *x, not int* x / int * x)
+PointerAlignment: Right
+ReferenceAlignment: Right
+SpaceAroundPointerQualifiers: Default
+
+# Spacing
+SpaceAfterCStyleCast: true
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeParens: ControlStatements
+SpaceInEmptyParentheses: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+SpacesInCStyleCastParentheses: false
+SpaceBeforeCpp11BracedList: false
+Cpp11BracedListStyle: true
+SpaceBeforeRangeBasedForLoopColon: true
+
+# Line breaks
+BreakBeforeTernaryOperators: true
+BreakBeforeBinaryOperators: None
+AlignAfterOpenBracket: Align
+AlignOperands: Align
+AlignConsecutiveDeclarations: None
+AlignConsecutiveAssignments: None
+AlignTrailingComments: true
+BinPackArguments: false
+BinPackParameters: false
+
+# Short blocks — never collapse
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+
+# Blank lines
+MaxEmptyLinesToKeep: 2
+KeepEmptyLinesAtTheStartOfBlocks: false
+
+# Includes — don't reorder (mirrors existing header comment grouping)
+SortIncludes: Never
+
+# Enums
+AllowShortEnumsOnASingleLine: true

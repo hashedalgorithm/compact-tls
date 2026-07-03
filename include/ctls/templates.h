@@ -170,8 +170,15 @@ ctls_status_t ctls_tmpl_extension_to_wire(uint8_t *buffer,
  * | element_length(u32, backfilled) | elements.
  * Gives the template a canonical byte form (e.g. for hashing /
  * identification — both peers must derive identical bytes).
+ *
+ * @param buffer        Output buffer.
+ * @param limit         Capacity of buffer; every internal write is bounds-checked
+ *                       against this.
+ * @param bytes_written Output: total bytes written to buffer.
  */
-ctls_status_t ctls_template_to_wire(uint8_t *buffer);
+ctls_status_t ctls_template_to_wire(uint8_t *buffer,
+                                    ctls_size_t limit,
+                                    ctls_size_t *bytes_written);
 
 
 #if CTLS_SERVER
