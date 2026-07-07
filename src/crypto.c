@@ -1,7 +1,7 @@
 
 /*
  * Crypto layer over PSA Crypto. See crypto.h for the key schedule diagram
- * (RFC 8446 §7.1 with cTLS "Sctls " labels) and per-function API docs.
+ * (RFC 8446 §7.1 with cTLS CTLS_LABEL_PREFIX labels) and per-function API docs.
  * Pattern used throughout: import key material as a transient PSA key,
  * run the operation, destroy the key and reset attributes in the cleanup
  * path — no raw secrets persist beyond hshk_data.
@@ -545,8 +545,8 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
                                         ctls_key_type_t const key_type,
                                         ctls_size_t const limit) {
     /*
-     * HkdfLabel encoding (RFC 8446 §7.1), label prefix "Sctls " per the
-     * cTLS profile instead of "tls13 ":
+     * HkdfLabel encoding (RFC 8446 §7.1), label prefix CTLS_LABEL_PREFIX
+     * per the cTLS profile instead of "tls13 ":
      *
      *     output_length(u16) | label_length(u8) | label bytes
      *     | context_length(u8) | context bytes
@@ -572,15 +572,15 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
     switch (key_type) {
         case CTLS_KEY_TYPE_DERIVED_SECRET: {
             /*
-             *Label prefix: "Sctls " (cTLS draft-10 §6)
+             * Label prefix: CTLS_LABEL_PREFIX (cTLS draft-10 §2.3.2/§6)
              * HkdfLabel encoding:
              *   uint16 length       = 32
-             *   uint8  label_len    = len("Sctls derived")
-             *   bytes  label        = "Sctls derived"
+             *   uint8  label_len    = len(CTLS_LABEL_PREFIX "derived")
+             *   bytes  label        = CTLS_LABEL_PREFIX "derived"
              *   uint8  context_len  = 32
              *   bytes  context      = H("")
              */
-            context_string = "Sctls derived";
+            context_string = CTLS_LABEL_PREFIX "derived";
             context_string_length = strlen(context_string) - 1U;
 
             result = ctls_write_u16(buffer, offset, 0x00, limit);
@@ -600,10 +600,10 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
         break;
         case CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_SECRET: {
             if (entity == CTLS_ENTITY_CLIENT) {
-                context_string = "Sctls c hs traffic";
+                context_string = CTLS_LABEL_PREFIX "c hs traffic";
                 context_string_length = strlen(context_string) - 1U;
             } else {
-                context_string = "Sctls s hs traffic";
+                context_string = CTLS_LABEL_PREFIX "s hs traffic";
                 context_string_length = strlen(context_string) - 1U;
             }
             result = ctls_write_u16(buffer, offset, 0x00, limit);
@@ -623,7 +623,7 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
         }
         break;
         case CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_WRITE_KEYS: {
-            context_string = "Sctls key";
+            context_string = CTLS_LABEL_PREFIX "key";
             context_string_length = strlen(context_string) - 1U;
 
 
@@ -641,7 +641,7 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
         }
         break;
         case CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_IV_KEY: {
-            context_string = "Sctls iv";
+            context_string = CTLS_LABEL_PREFIX "iv";
             context_string_length = strlen(context_string) - 1U;
 
             result = ctls_write_u16(buffer, offset, 0x00, limit);
@@ -687,7 +687,7 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
         }
         break;
         case CTLS_KEY_TYPE_FINISHED_KEY: {
-            context_string = "Sctls finished";
+            context_string = CTLS_LABEL_PREFIX "finished";
             context_string_length = strlen(context_string) - 1U;
 
             result = ctls_write_u16(buffer, offset, 0x00, limit);
@@ -704,7 +704,7 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
         }
         break;
         case CTLS_KEY_TYPE_BINDER_KEY: {
-            context_string = "Sctls res binder";
+            context_string = CTLS_LABEL_PREFIX "res binder";
             context_string_length = strlen(context_string) - 1U;
 
             result = ctls_write_u16(buffer, offset, 0x00, limit);
@@ -721,7 +721,7 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
         }
         break;
         case CTLS_KEY_TYPE_CLIENT_EARLY_KEY: {
-            context_string = "Sctls c e traffic";
+            context_string = CTLS_LABEL_PREFIX "c e traffic";
             context_string_length = strlen(context_string) - 1U;
 
             result = ctls_write_u16(buffer, offset, 0x00, limit);
@@ -741,7 +741,7 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
         }
         break;
         case CTLS_KEY_TYPE_EXPORTER_MASTER_SECRET: {
-            context_string = "Sctls exp master";
+            context_string = CTLS_LABEL_PREFIX "exp master";
             context_string_length = strlen(context_string) - 1U;
 
             result = ctls_write_u16(buffer, offset, 0x00, limit);
@@ -762,10 +762,10 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
         break;
         case CTLS_KEY_TYPE_APPLICATION_TRAFFIC_SECRET: {
             if (entity == CTLS_ENTITY_CLIENT) {
-                context_string = "Sctls c ap traffic";
+                context_string = CTLS_LABEL_PREFIX "c ap traffic";
                 context_string_length = strlen(context_string) - 1U;
             } else {
-                context_string = "Sctls s ap traffic";
+                context_string = CTLS_LABEL_PREFIX "s ap traffic";
                 context_string_length = strlen(context_string) - 1U;
             }
             result = ctls_write_u16(buffer, offset, 0x00, limit);
@@ -785,7 +785,7 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
         }
         break;
         case CTLS_KEY_TYPE_APPLICATION_TRAFFIC_WRITE_KEYS: {
-            context_string = "Sctls key";
+            context_string = CTLS_LABEL_PREFIX "key";
             context_string_length = strlen(context_string) - 1U;
 
             result = ctls_write_u16(buffer, offset, 0x00, limit);
@@ -802,7 +802,7 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
         }
         break;
         case CTLS_KEY_TYPE_APPLICATION_TRAFFIC_IV_KEY: {
-            context_string = "Sctls iv";
+            context_string = CTLS_LABEL_PREFIX "iv";
             context_string_length = strlen(context_string) - 1U;
 
             result = ctls_write_u16(buffer, offset, 0x00, limit);

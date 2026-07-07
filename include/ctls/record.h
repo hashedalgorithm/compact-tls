@@ -24,11 +24,26 @@
  *
  * # Unified header wire format (RFC 9147 §4 model)
  *
+ * draft-ietf-tls-ctls §2.2 splits the S bit / sequence number field in two,
+ * selected at compile time by CTLS_TRANSPORT_RELIABLE / _UNRELIABLE
+ * (config.h):
+ *
+ *   CTLS_TRANSPORT_UNRELIABLE (default, UDP-like, "Datagram cTLS"): S bit
+ *   keeps its DTLS 1.3 meaning (1-byte vs 2-byte encoding) and the sequence
+ *   number is always sent.
+ *
  *       config octet (1)   fixed prefix | C | S | L | EE
  *       sequence number    1 byte (S=0) or 2 bytes (S=1)
  *       length             2 bytes when L=1, absent when L=0
  *
- *   2..5 bytes total; connection id (C) unsupported. The 2 EE bits carry
+ *   CTLS_TRANSPORT_RELIABLE (TCP-like, "Stream cTLS"): S bit MUST be
+ *   cleared and the sequence number field is omitted entirely — ordering
+ *   is the transport's job, not the record layer's.
+ *
+ *       config octet (1)   fixed prefix | C | S=0 | L | EE
+ *       length             2 bytes when L=1, absent when L=0
+ *
+ *   1..4 bytes total; connection id (C) unsupported. The 2 EE bits carry
  *   the low bits of the 64-bit epoch; the receiver reconstructs the full
  *   value (ctls_epoch_expand) from its own current epoch.
  *
@@ -36,8 +51,9 @@
  *
  * Single sequence space: every record, created or received, consumes one
  * sequence number — peers stay in lockstep (CH=0, SH=1, server flight=2,
- * client flight=3). Epoch counts key changes (RFC 9147 §6.1: 0 plaintext,
- * 2 handshake keys), bumped by the key schedule, not per message.
+ * client flight=3) — regardless of whether the number travels on the wire.
+ * Epoch counts key changes (RFC 9147 §6.1: 0 plaintext, 2 handshake keys),
+ * bumped by the key schedule, not per message.
  *
  * # Naming
  *

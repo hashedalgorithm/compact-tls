@@ -27,8 +27,13 @@ ctls_status_t ctls_aad_length_calculate(ctls_unified_header_t *unified_header) {
 
     if (unified_header->config_octet.c_bit != 0) return CTLS_STATUS_RECD_AAD_LEN_CID;
 
+#if CTLS_TRANSPORT_RELIABLE
+    /* Reliable transport: sequence number omitted from the wire (draft §2.2). */
+    unified_header->aad_length = 1U + (unified_header->config_octet.l_bit ? 2U : 0U);
+#else
     unified_header->aad_length = 1U + (unified_header->config_octet.s_bit ? 2U : 1U) + (
                                      unified_header->config_octet.l_bit ? 2U : 0U);
+#endif
 
     return CTLS_STATUS_SUCCESS;
 }
@@ -108,7 +113,12 @@ ctls_status_t ctls_unified_header_build(ctls_unified_header_t *unified_header,
     CTLS_CHECK_NULL_STRUCT(hshk_data);
 
     unified_header->config_octet.c_bit = 0;
+#if CTLS_TRANSPORT_RELIABLE
+    /* Reliable transport: S bit MUST be cleared (draft §2.2). */
+    unified_header->config_octet.s_bit = 0;
+#else
     unified_header->config_octet.s_bit = (hshk_data->sequence_number > 0xFFu) ? 1u : 0u;
+#endif
     unified_header->config_octet.l_bit = (length > 0u) ? 1u : 0u;
     unified_header->config_octet.epoch = ctls_epoch_compress(&hshk_data->epoch);
 
@@ -151,6 +161,9 @@ ctls_status_t ctls_unified_header_serialize(ctls_unified_header_t const *unified
     buffer[(*offset)++] = octet;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
+#if CTLS_TRANSPORT_RELIABLE
+    /* Reliable transport: sequence number omitted from the wire (draft §2.2). */
+#else
     if (unified_header->config_octet.s_bit == 0) {
         result = ctls_write_u8(buffer, offset, (uint8_t) unified_header->sequence_number,
                                CTLS_SIZE_WIRE_BUFFER);
@@ -159,6 +172,7 @@ ctls_status_t ctls_unified_header_serialize(ctls_unified_header_t const *unified
                                 CTLS_SIZE_WIRE_BUFFER);
     }
     if (result != CTLS_STATUS_SUCCESS) return result;
+#endif
 
     if (unified_header->config_octet.l_bit == 1) {
         result = ctls_write_u16(buffer, offset, unified_header->length, CTLS_SIZE_WIRE_BUFFER);
@@ -200,6 +214,17 @@ ctls_status_t ctls_unified_header_deserialize(ctls_unified_header_t *unified_hea
     if (unified_header->config_octet.s_bit > 1 || unified_header->config_octet.s_bit < 0)
         return CTLS_STATUS_RECD_HDR_DESERIALIZE_SEQ;
 
+#if CTLS_TRANSPORT_RELIABLE
+    /*
+     * Reliable transport: sequence number isn't on the wire (draft §2.2) —
+     * the transport itself guarantees order, so trust the local counter
+     * instead of reading one. Still needed below (replay check) and for
+     * AEAD nonce derivation.
+     */
+    ctls_hshk_data_t const *hshk_data = ctls_hshk_data_get();
+    CTLS_CHECK_NULL_STRUCT(hshk_data);
+    unified_header->sequence_number = hshk_data->sequence_number;
+#else
     if (unified_header->config_octet.s_bit == 0) {
         uint8_t sequence_number_u8 = 0;
         result = ctls_read_u8(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &sequence_number_u8);
@@ -210,6 +235,7 @@ ctls_status_t ctls_unified_header_deserialize(ctls_unified_header_t *unified_hea
                                &unified_header->sequence_number);
         if (result != CTLS_STATUS_SUCCESS) return result;
     }
+#endif
     if (unified_header->config_octet.l_bit == 1) {
         result = ctls_read_u16(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &unified_header->length);
         if (result != CTLS_STATUS_SUCCESS) return result;
@@ -587,9 +613,11 @@ ctls_status_t ctls_record_decrypt(ctls_record_t *record,
  */
 ctls_status_t ctls_recd_client_hello_create(ctls_record_t *record) {
     ctls_template_t const *template = ctls_template_get();
+    ctls_hshk_data_t const *hshk_data = ctls_hshk_data_get();
 
     CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL_STRUCT(record);
+    CTLS_CHECK_NULL_STRUCT(hshk_data);
 
     ctls_status_t const result = ctls_recd_buffer_clear(record);
     if (result != CTLS_STATUS_SUCCESS) return result;
@@ -597,7 +625,7 @@ ctls_status_t ctls_recd_client_hello_create(ctls_record_t *record) {
     record->content_type = CTLS_RECD_CONTENT_TYPE_HANDSHAKE;
     record->profile_id = template->profile_id;
     record->type = CTLS_RECORD_TYPE_PLAINTEXT;
-    record->record_body.handshake.sequence_number = 0;
+    record->record_body.handshake.sequence_number = hshk_data->sequence_number;
 
     return ctls_hsmg_client_hello_create(&record->record_body.handshake.
                                          handshake_message_body.client_hello);
@@ -720,9 +748,11 @@ ctls_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
  */
 ctls_status_t ctls_recd_server_hello_create(ctls_record_t *record) {
     ctls_template_t const *template = ctls_template_get();
+    ctls_hshk_data_t const *hshk_data = ctls_hshk_data_get();
 
     CTLS_CHECK_NULL(template);
     CTLS_CHECK_NULL_STRUCT(record);
+    CTLS_CHECK_NULL_STRUCT(hshk_data);
 
     ctls_status_t const result = ctls_recd_buffer_clear(record);
     if (result != CTLS_STATUS_SUCCESS) return result;
@@ -730,7 +760,7 @@ ctls_status_t ctls_recd_server_hello_create(ctls_record_t *record) {
     record->content_type = CTLS_RECD_CONTENT_TYPE_HANDSHAKE;
     record->profile_id = template->profile_id;
     record->type = CTLS_RECORD_TYPE_PLAINTEXT;
-    record->record_body.handshake.sequence_number = 0;
+    record->record_body.handshake.sequence_number = hshk_data->sequence_number;
 
     return ctls_hsmg_server_hello_create(&record->record_body.handshake.
                                          handshake_message_body.server_hello);
@@ -845,7 +875,7 @@ ctls_status_t ctls_recd_server_flight_create(ctls_record_t *record) {
 
     record->type = CTLS_RECORD_TYPE_ENCRYPTED;
     record->content_type = CTLS_RECD_CONTENT_TYPE_HANDSHAKE;
-    record->record_body.handshake.sequence_number = 0;
+    /* Sequencing lives solely in the unified header for encrypted records. */
 
     result = ctls_unified_header_build(&record->unified_header, 0);
     if (result != CTLS_STATUS_SUCCESS) return result;
@@ -934,7 +964,7 @@ ctls_status_t ctls_recd_client_flight_create(ctls_record_t *record) {
 
     record->type = CTLS_RECORD_TYPE_ENCRYPTED;
     record->content_type = CTLS_RECD_CONTENT_TYPE_HANDSHAKE;
-    record->record_body.handshake.sequence_number = 0;
+    /* Sequencing lives solely in the unified header for encrypted records. */
 
     result = ctls_unified_header_build(&record->unified_header, 0);
     if (result != CTLS_STATUS_SUCCESS) return result;

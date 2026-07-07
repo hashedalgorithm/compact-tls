@@ -16,6 +16,20 @@ if(NOT CTLS_CLIENT AND NOT CTLS_SERVER)
     message(FATAL_ERROR "One of CTLS_CLIENT or CTLS_SERVER must be ON")
 endif()
 
+# Transport selection — exactly one must be ON. Selects unified-header wire
+# behavior (sequence number on/off the wire) and the HKDF label prefix.
+# Default (unreliable): cmake -B build
+# Reliable:              cmake -B build -DCTLS_TRANSPORT_UNRELIABLE=OFF -DCTLS_TRANSPORT_RELIABLE=ON
+option(CTLS_TRANSPORT_RELIABLE "Reliable (TCP-like) transport framing" OFF)
+option(CTLS_TRANSPORT_UNRELIABLE "Unreliable (UDP-like) transport framing" ON)
+
+if(CTLS_TRANSPORT_RELIABLE AND CTLS_TRANSPORT_UNRELIABLE)
+    message(FATAL_ERROR "CTLS_TRANSPORT_RELIABLE and CTLS_TRANSPORT_UNRELIABLE cannot both be ON")
+endif()
+if(NOT CTLS_TRANSPORT_RELIABLE AND NOT CTLS_TRANSPORT_UNRELIABLE)
+    message(FATAL_ERROR "One of CTLS_TRANSPORT_RELIABLE or CTLS_TRANSPORT_UNRELIABLE must be ON")
+endif()
+
 list(APPEND CMAKE_PREFIX_PATH "/opt/homebrew")
 
 find_package(MbedTLS REQUIRED)
@@ -55,6 +69,8 @@ add_executable(compact_tls
 target_compile_definitions(compact_tls PRIVATE
         CTLS_CLIENT=$<BOOL:${CTLS_CLIENT}>
         CTLS_SERVER=$<BOOL:${CTLS_SERVER}>
+        CTLS_TRANSPORT_RELIABLE=$<BOOL:${CTLS_TRANSPORT_RELIABLE}>
+        CTLS_TRANSPORT_UNRELIABLE=$<BOOL:${CTLS_TRANSPORT_UNRELIABLE}>
 )
 target_link_libraries(compact_tls
         MbedTLS::tfpsacrypto

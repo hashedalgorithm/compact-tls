@@ -38,6 +38,19 @@ cmake -B build/server -DCTLS_CLIENT=OFF -DCTLS_SERVER=ON
 cmake --build build/server
 ```
 
+Transport is also selected at configure time. Exactly one of `CTLS_TRANSPORT_RELIABLE` /
+`CTLS_TRANSPORT_UNRELIABLE` must be `ON` — default is `CTLS_TRANSPORT_UNRELIABLE` (UDP-like framing,
+matching the UDP sockets in `examples/`). Set `CTLS_TRANSPORT_RELIABLE=ON` for TCP-like transports; this
+switches the unified header's sequence-number framing and the HKDF label prefix
+(`"Sctls "` vs `"Dctls "`, draft-ietf-tls-ctls §2.2/§2.3.2). Not exposed via `build.sh` — pass it to `cmake`
+directly:
+
+```sh
+cmake -B build/client -DCTLS_CLIENT=ON -DCTLS_SERVER=OFF \
+      -DCTLS_TRANSPORT_RELIABLE=ON -DCTLS_TRANSPORT_UNRELIABLE=OFF
+cmake --build build/client
+```
+
 ## Configuration
 
 Set the profile in `include/ctls/config.h` to match the peer:

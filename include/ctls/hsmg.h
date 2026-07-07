@@ -177,8 +177,16 @@ typedef union {
 } ctls_hsmg_body_t;
 
 /**
- * One handshake message (or combined flight). sequence_number is the cTLS
- * handshake-level sequence carried in the compact ClientHello.
+ * One handshake message (or combined flight).
+ *
+ * sequence_number mirrors draft-ietf-tls-ctls's CTLSDatagramHandshake
+ * message_seq (§2.3.1) — present on the wire only for ClientHello/
+ * ServerHello (the two messages with no unified header, CTLS_TRANSPORT_
+ * UNRELIABLE builds only; CTLSHandshake, the reliable-transport variant,
+ * carries no such field, matching TLS 1.3's plain Handshake struct, RFC
+ * 8446 §4). Always populated from hshk_data->sequence_number regardless of
+ * transport (harmless when unused); encrypted flights never touch this
+ * field — their sequencing lives solely in the unified header.
  */
 struct ctls_handshake_message {
     uint16_t sequence_number;

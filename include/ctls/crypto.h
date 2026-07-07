@@ -12,7 +12,8 @@
  *   - RFC 8446 §4.4.4 — Finished verify_data
  *   - RFC 5869 — HKDF
  *   - draft-ietf-tls-ctls — cTLS replaces the "tls13 " HKDF label prefix;
- *     this implementation uses "Sctls " (see ctls_context_string_build)
+ *     this implementation uses CTLS_LABEL_PREFIX, "Sctls " or "Dctls "
+ *     depending on transport reliability (see ctls_context_string_build)
  *
  * # Key schedule (RFC 8446 §7.1, PSK-less profile)
  *
@@ -44,6 +45,18 @@
 
 #include <psa/crypto.h>
 #include "types.h"
+
+/*
+ * cTLS HKDF label prefix (draft-ietf-tls-ctls §2.3.2), replacing RFC 8446's
+ * "tls13 ": "Sctls " for Stream cTLS (reliable transport), "Dctls " for
+ * Datagram cTLS (unreliable transport) — see CTLS_TRANSPORT_RELIABLE /
+ * CTLS_TRANSPORT_UNRELIABLE in config.h.
+ */
+#if CTLS_TRANSPORT_RELIABLE
+#define CTLS_LABEL_PREFIX "Sctls "
+#elif CTLS_TRANSPORT_UNRELIABLE
+#define CTLS_LABEL_PREFIX "Dctls "
+#endif
 
 #define CTLS_SIZE_NONCE 12U
 #define CTLS_SIZE_TRANSCRIPT_HASH 32U
@@ -339,10 +352,10 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t key_usage,
  * @brief Build HkdfLabel or CertificateVerify signing content bytes.
  *
  * For key derivation types: writes an HkdfLabel per RFC 8446 §7.1:
- *   length(u16) | label_len(u8) | "Sctls <label>" | context_len(u8) | context.
+ *   length(u16) | label_len(u8) | CTLS_LABEL_PREFIX "<label>" | context_len(u8) | context.
  * For CTLS_KEY_TYPE_SIGNED_BYTES: writes §4.4.3 content:
  *   64 × 0x20 | context string | 0x00 | Transcript-Hash.
- * The "Sctls " prefix replaces TLS 1.3's "tls13 " per the cTLS draft.
+ * CTLS_LABEL_PREFIX replaces TLS 1.3's "tls13 " per the cTLS draft.
  *
  * @param buffer    Output buffer; must be large enough for the label (caller ensures).
  * @param offset    Current write position in buffer; advanced past written bytes.

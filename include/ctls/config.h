@@ -33,6 +33,27 @@
 #define CTLS_SERVER  0
 #endif
 
+/*
+ * Transport reliability — exactly one of these is 1. Selects between the
+ * two wire behaviors draft-ietf-tls-ctls §2.2 defines for the unified
+ * header's S bit and sequence number field:
+ *
+ *   RELIABLE (TCP-like, "Stream cTLS"): S bit cleared, sequence number
+ *   omitted from the wire entirely — ordering is the transport's job.
+ *   UNRELIABLE (UDP-like, "Datagram cTLS"): S bit keeps its DTLS 1.3
+ *   meaning (1-byte vs 2-byte encoding), sequence number always sent.
+ *
+ * Also selects the cTLS HKDF label prefix (draft §2.3.2): "Sctls " for
+ * reliable, "Dctls " for unreliable — see crypto.h's CTLS_LABEL_PREFIX.
+ * Default is UNRELIABLE: examples/ use UDP sockets.
+ */
+#ifndef CTLS_TRANSPORT_RELIABLE
+#define CTLS_TRANSPORT_RELIABLE    0
+#endif
+#ifndef CTLS_TRANSPORT_UNRELIABLE
+#define CTLS_TRANSPORT_UNRELIABLE  1
+#endif
+
 // default profile parameters — mandatory when CTLS_CLIENT is active
 
 /*
