@@ -1,12 +1,16 @@
 /*
  * cTLS example server.
  *
- * Binds a UDP socket, waits for a ClientHello, runs the server-side
- * handshake to completion, then exchanges one application data message.
+ * Waits for a ClientHello, runs the server-side handshake to completion,
+ * then exchanges one application data message. Transport is hardcoded at
+ * compile time by CTLS_TRANSPORT_RELIABLE / CTLS_TRANSPORT_UNRELIABLE
+ * (config.h, set via CMake — see README's "Build" section): TCP
+ * (SOCK_STREAM, listen/accept/send/recv) when reliable, UDP (SOCK_DGRAM,
+ * recvfrom/sendto) when unreliable.
  *
  * Usage:  ./compact_tls  (port hardcoded below, no command-line args)
  *
- * Wireshark filter:  udp.port == 4433
+ * Wireshark filter:  tcp.port == 4433  (reliable)  |  udp.port == 4433  (unreliable)
  */
 
 #include <stdio.h>
@@ -22,11 +26,47 @@
 #include "ctls/ctls.h"
 
 static int g_sock = -1;
+
+#if CTLS_TRANSPORT_RELIABLE
+
+static int g_client_sock = -1;
+
+static ctls_status_t transport_send(uint8_t *buffer, ctls_size_t length) {
+    ssize_t sent = send(g_client_sock, buffer, length, 0);
+    if (sent < 0) {
+        fprintf(stderr, "send: %s\n", strerror(errno));
+        return CTLS_STATUS_TRANSPORT_SEND_FAILED;
+    }
+    printf("[transport] sent %zd bytes\n", sent);
+    return CTLS_STATUS_SUCCESS;
+}
+
+static ctls_status_t transport_receive(uint8_t *buffer, ctls_size_t *length, ctls_size_t size) {
+    ssize_t received = recv(g_client_sock, buffer, size, 0);
+    if (received < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            fprintf(stderr, "[transport] recv timeout\n");
+        } else {
+            fprintf(stderr, "recv: %s\n", strerror(errno));
+        }
+        return CTLS_STATUS_TRANSPORT_RECV_FAILED;
+    }
+    if (received == 0) {
+        fprintf(stderr, "[transport] connection closed by peer\n");
+        return CTLS_STATUS_TRANSPORT_RECV_FAILED;
+    }
+    *length = (ctls_size_t) received;
+    printf("[transport] received %zd bytes\n", received);
+    return CTLS_STATUS_SUCCESS;
+}
+
+#else /* CTLS_TRANSPORT_UNRELIABLE */
+
 static struct sockaddr_in g_client_addr;
 static socklen_t g_client_addr_len = sizeof(g_client_addr);
 static int g_client_known = 0;
 
-static ctls_status_t udp_send(uint8_t *buffer, ctls_size_t length) {
+static ctls_status_t transport_send(uint8_t *buffer, ctls_size_t length) {
     if (!g_client_known) {
         fprintf(stderr, "[transport] send before client address known\n");
         return CTLS_STATUS_TRANSPORT_SEND_FAILED;
@@ -45,7 +85,7 @@ static ctls_status_t udp_send(uint8_t *buffer, ctls_size_t length) {
     return CTLS_STATUS_SUCCESS;
 }
 
-static ctls_status_t udp_receive(uint8_t *buffer, ctls_size_t *length, ctls_size_t size) {
+static ctls_status_t transport_receive(uint8_t *buffer, ctls_size_t *length, ctls_size_t size) {
     ssize_t received = recvfrom(g_sock,
                                 buffer,
                                 size,
@@ -70,10 +110,16 @@ static ctls_status_t udp_receive(uint8_t *buffer, ctls_size_t *length, ctls_size
     return CTLS_STATUS_SUCCESS;
 }
 
+#endif
+
 int main(void) {
     int port = 4433;
 
+#if CTLS_TRANSPORT_RELIABLE
+    g_sock = socket(AF_INET, SOCK_STREAM, 0);
+#else
     g_sock = socket(AF_INET, SOCK_DGRAM, 0);
+#endif
     if (g_sock < 0) {
         fprintf(stderr, "socket: %s\n", strerror(errno));
         return 1;
@@ -81,10 +127,6 @@ int main(void) {
 
     int reuse = 1;
     setsockopt(g_sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
-
-    /* 10-second receive timeout */
-    struct timeval tv = {.tv_sec = 10, .tv_usec = 0};
-    setsockopt(g_sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
     struct sockaddr_in bind_addr = {
         .sin_family = AF_INET,
@@ -99,7 +141,36 @@ int main(void) {
 
     printf("listening on 0.0.0.0:%d\n", port);
 
-    ctls_transport_t transport = {.recd_send = udp_send, .recd_receive = udp_receive};
+#if CTLS_TRANSPORT_RELIABLE
+    if (listen(g_sock, 1) < 0) {
+        fprintf(stderr, "listen: %s\n", strerror(errno));
+        close(g_sock);
+        return 1;
+    }
+
+    struct sockaddr_in accepted_addr;
+    socklen_t accepted_addr_len = sizeof(accepted_addr);
+    g_client_sock = accept(g_sock, (struct sockaddr *) &accepted_addr, &accepted_addr_len);
+    if (g_client_sock < 0) {
+        fprintf(stderr, "accept: %s\n", strerror(errno));
+        close(g_sock);
+        return 1;
+    }
+
+    char addr_str[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &accepted_addr.sin_addr, addr_str, sizeof(addr_str));
+    printf("accepted connection from %s:%d\n", addr_str, ntohs(accepted_addr.sin_port));
+
+    /* 10-second receive timeout on the accepted connection */
+    struct timeval tv = {.tv_sec = 10, .tv_usec = 0};
+    setsockopt(g_client_sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+#else
+    /* 10-second receive timeout */
+    struct timeval tv = {.tv_sec = 10, .tv_usec = 0};
+    setsockopt(g_sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+#endif
+
+    ctls_transport_t transport = {.recd_send = transport_send, .recd_receive = transport_receive};
 
     ctls_context_t ctx;
     ctls_status_t result = ctls_context_init(&ctx, &transport);
@@ -127,6 +198,9 @@ int main(void) {
         }
     }
 
+#if CTLS_TRANSPORT_RELIABLE
+    close(g_client_sock);
+#endif
     close(g_sock);
     return result == CTLS_STATUS_SUCCESS ? 0 : 1;
 }
