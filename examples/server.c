@@ -196,6 +196,13 @@ int main(void) {
         } else {
             printf("received: %s\n", (char *)plaintext);
         }
+
+        result = ctls_close(&ctx, CTLS_ENTITY_SERVER);
+        if (result != CTLS_STATUS_SUCCESS) {
+            fprintf(stderr, "ctls_close: 0x%04X\n", result);
+        } else {
+            printf("close_notify sent\n");
+        }
     }
 
 #if CTLS_TRANSPORT_RELIABLE

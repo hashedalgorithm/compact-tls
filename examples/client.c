@@ -164,6 +164,13 @@ int main(void) {
         } else {
             printf("sent: %s\n", (char *)msg);
         }
+
+        result = ctls_close(&ctx, CTLS_ENTITY_CLIENT);
+        if (result != CTLS_STATUS_SUCCESS) {
+            fprintf(stderr, "ctls_close: 0x%04X\n", result);
+        } else {
+            printf("close_notify sent\n");
+        }
     }
 
     close(g_sock);

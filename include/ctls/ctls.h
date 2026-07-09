@@ -251,6 +251,27 @@ ctls_status_t ctls_write(uint8_t const *application_data,
                          ctls_entity_t entity);
 
 /**
+ * @brief Voluntarily close a connection: send close_notify (RFC 8446 §6.1).
+ *
+ * "Each party MUST send a close_notify alert before closing its write side
+ * of the connection." Sends a WARNING-level close_notify alert (encrypted,
+ * application-data phase) via ctls_alert_send, then moves the handshake
+ * state to CTLS_HSHK_STATE_CLOSED. Does not close the transport itself —
+ * that remains the caller's responsibility.
+ *
+ * Unlike ctls_alert_send's onerror convention (return the original status
+ * unchanged), this returns CTLS_STATUS_SUCCESS once the alert is sent —
+ * CTLS_STATUS_ALERT_CLOSE_NOTIFY here means "sent successfully," not
+ * failure.
+ *
+ * @param context  Initialized connection context; must not be NULL.
+ * @param entity   CTLS_ENTITY_CLIENT or CTLS_ENTITY_SERVER (selects write key/IV).
+ * @return CTLS_STATUS_SUCCESS once close_notify is sent, or the first error
+ *         encountered mapping/building/sending it.
+ */
+ctls_status_t ctls_close(ctls_context_t *context, ctls_entity_t entity);
+
+/**
  * @brief Map a ctls_status_t to its RFC 8446 §6.2 alert type and level.
  *
  * Direct 1:1 mapping for the CTLS_STATUS_ALERT_* band (types.h,

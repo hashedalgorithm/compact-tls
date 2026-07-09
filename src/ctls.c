@@ -394,6 +394,17 @@ ctls_status_t ctls_write(uint8_t const *application_data,
     return transport->recd_send(buffer, buffer_offset);
 }
 
+ctls_status_t ctls_close(ctls_context_t *context, ctls_entity_t const entity) {
+    CTLS_CHECK_NULL_STRUCT(context);
+
+    ctls_status_t const result = ctls_alert_send(
+            &context->record, CTLS_STATUS_ALERT_CLOSE_NOTIFY, entity,
+            CTLS_PHASE_APPLICATION_DATA);
+    if (result != CTLS_STATUS_ALERT_CLOSE_NOTIFY) return result;
+
+    return ctls_core_handshake_state_update(CTLS_HSHK_STATE_CLOSED);
+}
+
 
 ctls_status_t ctls_status_to_alert_type_map(ctls_status_t const status,
                                             ctls_hsmg_alert_type_t *alert_type,
