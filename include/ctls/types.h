@@ -514,7 +514,16 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_TMPL_TO_WIRE_NULL                        ((ctls_status_t)0x0197u)
 #define CTLS_STATUS_TMPL_EXTN_KEY_SHARE_IN_EXPECTED          ((ctls_status_t)0x0198u)
 #define CTLS_STATUS_TMPL_EXTN_KEY_SHARE_IN_SELF_DELIM        ((ctls_status_t)0x0199u)
-/* 0x019A-0x01C1 reserved */
+
+/* --- 0x019A-0x019F: ctls_template_from_json (jsmn-based JSON loading) --- */
+#define CTLS_STATUS_TMPL_JSON_PARSE_FAILED                   ((ctls_status_t)0x019Au)
+#define CTLS_STATUS_TMPL_JSON_TOO_MANY_TOKENS                ((ctls_status_t)0x019Bu)
+#define CTLS_STATUS_TMPL_JSON_MALFORMED                      ((ctls_status_t)0x019Cu)
+#define CTLS_STATUS_TMPL_JSON_FIELD_MISSING                  ((ctls_status_t)0x019Du)
+#define CTLS_STATUS_TMPL_JSON_FIELD_INVALID                  ((ctls_status_t)0x019Eu)
+#define CTLS_STATUS_TMPL_JSON_UNKNOWN_ENUM_NAME              ((ctls_status_t)0x019Fu)
+#define CTLS_STATUS_TMPL_JSON_FILE_NOT_FOUND                 ((ctls_status_t)0x01A0u)
+/* 0x01A1-0x01C1 reserved */
 
 /* Transport (0x01C2-0x01F3) */
 #define CTLS_STATUS_TRANSPORT_SEND_FAILED           ((ctls_status_t)0x01C2u)

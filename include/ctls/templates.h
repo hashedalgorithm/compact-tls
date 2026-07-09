@@ -143,10 +143,52 @@ struct ctls_template {
 };
 
 
+/** Compiled-in reference template. ctls_template_set (below) seeds its
+ * loaded template from this, for the fields the JSON schema doesn't cover
+ * (known_certificates, finished_size, mutual_auth, handshake_framing,
+ * certificate_request_extension), before overwriting the rest from JSON. */
 extern const ctls_template_t ctls_template_1;
 
-/** Point context->template at the built-in template matching profile_id. */
+/**
+ * Load the active profile from CTLS_TEMPLATE_JSON_PATH (config.h,
+ * "template.json") and parse it via ctls_template_from_json into
+ * context->template. profile_id is accepted for API stability but not
+ * otherwise used yet — the file holds a single profile.
+ *
+ * @return CTLS_STATUS_SUCCESS, CTLS_STATUS_TMPL_JSON_FILE_NOT_FOUND (the
+ *         file doesn't exist / can't be opened), or any status
+ *         ctls_template_from_json can return.
+ */
 ctls_status_t ctls_template_set(uint8_t profile_id, ctls_context_t *context);
+
+/**
+ * Parse a profile JSON document (profile-registry.md's "Profile Table"
+ * schema) into a template struct, via jsmn (include/jsmn.h, vendored,
+ * zero-alloc — CTLS_SIZE_JSON_TOKENS in config.h bounds the token array).
+ * Mandatory fields: profile, version, random, cipherSuite,
+ * signatureAlgorithm, dhGroup — CTLS_STATUS_TMPL_JSON_FIELD_MISSING if
+ * absent. Optional and left untouched if absent: ctlsVersion, each of
+ * clientHelloExtensions/serverHelloExtensions/encryptedExtensions's
+ * expectedExtensions/allowAdditional, and knownCertificates (a JSON object
+ * keyed by bare-hex certificate_id, e.g. "01" -> hex-encoded DER; not an
+ * array — the key already carries the id). Not parsed at all — the JSON
+ * schema doesn't model them: mutual_auth, handshake_framing,
+ * finished_size, certificate_request_extension, and every
+ * predefined_extensions field.
+ *
+ * @param json         Buffer holding the JSON document.
+ * @param json_length  Length of json in bytes.
+ * @param tmpl         Output; only the fields above are written — start
+ *                      from a zeroed struct, or from CTLS_TEMPLATE_1_INIT
+ *                      to inherit its known_certificates/finished_size/etc.
+ * @return CTLS_STATUS_SUCCESS, CTLS_STATUS_TMPL_JSON_PARSE_FAILED,
+ *         CTLS_STATUS_TMPL_JSON_TOO_MANY_TOKENS, CTLS_STATUS_TMPL_JSON_MALFORMED,
+ *         CTLS_STATUS_TMPL_JSON_FIELD_MISSING, CTLS_STATUS_TMPL_JSON_FIELD_INVALID,
+ *         or CTLS_STATUS_TMPL_JSON_UNKNOWN_ENUM_NAME.
+ */
+ctls_status_t ctls_template_from_json(uint8_t const *json,
+                                      ctls_size_t json_length,
+                                      ctls_template_t *tmpl);
 
 /**
  * Serialize one template element as TLV:
