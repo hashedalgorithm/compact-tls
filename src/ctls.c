@@ -48,14 +48,35 @@ ctls_status_t ctls_handshake_state_update(ctls_hshk_state_t *location,
     return CTLS_STATUS_SUCCESS;
 }
 
+/*
+ * Mandatory-field check (ambiguities.md §1.1's mandatory subset: profile_id,
+ * protocol_version, cipher_suite, signature_algorithm, known_certificates —
+ * dhe_group checked too, pre-existing). Each must hold a real value, not a
+ * zero/sentinel default, or the connection is refused before any bytes go
+ * on the wire.
+ */
 ctls_status_t ctls_validate_template() {
     ctls_template_t const *template = g_template;
     if (!template) return CTLS_STATUS_TMPL_NULL;
 
+    if (template->profile_id == 0) return CTLS_STATUS_TMPL_INVALID_PROFILE_ID;
+    if (template->protocol_version != CTLS_HSMG_PROTOCOL_VERSION_1_3)
+        return CTLS_STATUS_TMPL_INVALID_PROTOCOL_VERSION;
     if (template->cipher_suite == 0) return CTLS_STATUS_TMPL_INVALID_CIPHER_SUITE;
     if (template->dhe_group.dhe_group == 0) return CTLS_STATUS_TMPL_INVALID_DHE_GROUP;
     if (template->signature_algorithm.signature_algorithm_type == 0)
         return CTLS_STATUS_TMPL_INVALID_SIG_ALGORITHM;
+
+    uint8_t known_certificate_present = 0;
+    for (ctls_size_t i = 0; i < CTLS_COUNT_KNOWN_CERTIFICATES; i++) {
+        if (template->known_certificates.entries[i].certificate != NULL &&
+            template->known_certificates.entries[i].certificate_length != 0) {
+            known_certificate_present = 1;
+            break;
+        }
+    }
+    if (!known_certificate_present) return CTLS_STATUS_TMPL_INVALID_KNOWN_CERTIFICATES;
+
     return CTLS_STATUS_SUCCESS;
 }
 
@@ -531,9 +552,12 @@ ctls_status_t ctls_status_to_alert_type_map(ctls_status_t const status,
         case CTLS_STATUS_EXTN_INVALID_ENTITY:
         case CTLS_STATUS_EXTN_CERT_STATUS_INVALID_ENTITY:
         case CTLS_STATUS_EXTN_CERT_CREATE_INVALID_ENTITY:
+        case CTLS_STATUS_TMPL_INVALID_PROFILE_ID:
+        case CTLS_STATUS_TMPL_INVALID_PROTOCOL_VERSION:
         case CTLS_STATUS_TMPL_INVALID_CIPHER_SUITE:
         case CTLS_STATUS_TMPL_INVALID_DHE_GROUP:
         case CTLS_STATUS_TMPL_INVALID_SIG_ALGORITHM:
+        case CTLS_STATUS_TMPL_INVALID_KNOWN_CERTIFICATES:
         case CTLS_STATUS_TMPL_INVALID_EXTENSION:
         case CTLS_STATUS_TMPL_UNKNOWN_ELEMENT:
         case CTLS_STATUS_TMPL_EXTN_KEY_SHARE_IN_EXPECTED:

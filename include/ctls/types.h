@@ -523,7 +523,12 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_TMPL_JSON_FIELD_INVALID                  ((ctls_status_t)0x019Eu)
 #define CTLS_STATUS_TMPL_JSON_UNKNOWN_ENUM_NAME              ((ctls_status_t)0x019Fu)
 #define CTLS_STATUS_TMPL_JSON_FILE_NOT_FOUND                 ((ctls_status_t)0x01A0u)
-/* 0x01A1-0x01C1 reserved */
+
+/* --- 0x01A1-0x01A3: ctls_validate_template, mandatory-field checks --- */
+#define CTLS_STATUS_TMPL_INVALID_PROFILE_ID                  ((ctls_status_t)0x01A1u)
+#define CTLS_STATUS_TMPL_INVALID_PROTOCOL_VERSION            ((ctls_status_t)0x01A2u)
+#define CTLS_STATUS_TMPL_INVALID_KNOWN_CERTIFICATES          ((ctls_status_t)0x01A3u)
+/* 0x01A4-0x01C1 reserved */
 
 /* Transport (0x01C2-0x01F3) */
 #define CTLS_STATUS_TRANSPORT_SEND_FAILED           ((ctls_status_t)0x01C2u)
