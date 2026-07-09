@@ -143,12 +143,6 @@ struct ctls_template {
 };
 
 
-/** Compiled-in reference template. ctls_template_set (below) seeds its
- * loaded template from this, for the fields the JSON schema doesn't cover
- * (known_certificates, finished_size, mutual_auth, handshake_framing,
- * certificate_request_extension), before overwriting the rest from JSON. */
-extern const ctls_template_t ctls_template_1;
-
 /**
  * Load the active profile from CTLS_TEMPLATE_JSON_PATH (config.h,
  * "template.json") and parse it via ctls_template_from_json into
@@ -159,7 +153,7 @@ extern const ctls_template_t ctls_template_1;
  *         file doesn't exist / can't be opened), or any status
  *         ctls_template_from_json can return.
  */
-ctls_status_t ctls_template_set(uint8_t profile_id, ctls_context_t *context);
+ctls_status_t ctls_template_set(ctls_context_t *context);
 
 /**
  * Parse a profile JSON document (profile-registry.md's "Profile Table"
@@ -178,9 +172,9 @@ ctls_status_t ctls_template_set(uint8_t profile_id, ctls_context_t *context);
  *
  * @param json         Buffer holding the JSON document.
  * @param json_length  Length of json in bytes.
- * @param tmpl         Output; only the fields above are written — start
- *                      from a zeroed struct, or from CTLS_TEMPLATE_1_INIT
- *                      to inherit its known_certificates/finished_size/etc.
+ * @param tmpl         Output; only the fields above are written — caller
+ *                      should zero the struct first (ctls_template_set
+ *                      does).
  * @return CTLS_STATUS_SUCCESS, CTLS_STATUS_TMPL_JSON_PARSE_FAILED,
  *         CTLS_STATUS_TMPL_JSON_TOO_MANY_TOKENS, CTLS_STATUS_TMPL_JSON_MALFORMED,
  *         CTLS_STATUS_TMPL_JSON_FIELD_MISSING, CTLS_STATUS_TMPL_JSON_FIELD_INVALID,

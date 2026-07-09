@@ -58,7 +58,7 @@
 
 /*
  * Sizes implied by profile 0x01's algorithm choices
- * (TLS_AES_128_GCM_SHA256 + x25519, see CTLS_TEMPLATE_1_INIT below).
+ * (TLS_AES_128_GCM_SHA256 + x25519, see template.json / profile-registry.md).
  * These change if the template picks a different hash/cipher/group.
  */
 #define CTLS_SIZE_RANDOM  32U              /* Hello random, RFC 8446 §4.1.2 */

@@ -18,14 +18,10 @@
  * layouts of the template's canonical wire form.
  */
 
-
 /* Mutable storage for the template ctls_template_set loads from JSON —
- * context->template points here. Seeded from ctls_template_1 (below) for
- * the fields the JSON schema doesn't cover at all (finished_size,
- * mutual_auth, handshake_framing, certificate_request_extension), then
- * overwritten field-by-field by ctls_template_from_json — including
- * known_certificates when the JSON has a knownCertificates block (the
- * ctls_template_1 seed only wins there if it's absent). */
+ * context->template points here. template.json is the sole source of
+ * truth; fields it doesn't cover (finished_size, mutual_auth,
+ * handshake_framing, certificate_request_extension) are left at zero. */
 static ctls_template_t ctls_template_json_storage;
 
 /*
@@ -33,9 +29,8 @@ static ctls_template_t ctls_template_json_storage;
  * parse it via ctls_template_from_json into ctls_template_json_storage.
  * profile_id is not otherwise used yet — the file holds a single profile.
  */
-ctls_status_t ctls_template_set(uint8_t const profile_id, ctls_context_t *context) {
+ctls_status_t ctls_template_set(ctls_context_t *context) {
     CTLS_CHECK_NULL_STRUCT(context);
-    (void) profile_id;
 
     context->template = NULL;
 
@@ -46,12 +41,7 @@ ctls_status_t ctls_template_set(uint8_t const profile_id, ctls_context_t *contex
     size_t const bytes_read = fread(json_buffer, 1, sizeof(json_buffer), file);
     fclose(file);
 
-    /* Seed from the compiled-in reference template so fields the JSON
-     * schema doesn't model (known_certificates, finished_size,
-     * mutual_auth, handshake_framing, certificate_request_extension) keep
-     * a real value instead of zero; ctls_template_from_json then
-     * overwrites everything it does cover. */
-    ctls_template_json_storage = ctls_template_1;
+    memset(&ctls_template_json_storage, 0, sizeof(ctls_template_json_storage));
     ctls_status_t const result = ctls_template_from_json(
             json_buffer, (ctls_size_t) bytes_read, &ctls_template_json_storage);
     if (result != CTLS_STATUS_SUCCESS) return result;
