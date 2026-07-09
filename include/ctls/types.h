@@ -158,11 +158,7 @@ typedef enum {
     CTLS_RECD_CONTENT_TYPE_HANDSHAKE = 0x16,
     CTLS_RECD_CONTENT_TYPE_APPLICATION_DATA = 0x17,
     CTLS_RECD_CONTENT_TYPE_HEARTBEAT = 0x18,
-    /* 28 - 30 is unassigned in IANA registry.
-     * Since ContentType for template is not assigned, we are using 28 for this implementation.
-     * https://arc.net/l/quote/voyphzxt
-     */
-    CTLS_RECD_CONTENT_TYPE_TEMPLATE = 0x1A,
+
     CTLS_RECD_CONTENT_TYPE_SENTINEL = 0xFF, // default value (uninitialized)
 } ctls_recd_content_type_t;
 
@@ -240,6 +236,10 @@ typedef enum {
     CTLS_HSMG_TYPE_FINISHED = 0x14,
     CTLS_HSMG_TYPE_KEY_UPDATE = 0x18,
     CTLS_HSMG_TYPE_MESSAGE_HASH = 0xFE,
+    /* 28 - 30 is unassigned in IANA registry.
+     * Since HandshakeType for template is not assigned https://arc.net/l/quote/izhzkkxc
+     */
+    CTLS_HSMG_TYPE_TEMPLATE = 0x1A,
     // 27, 28 are not assigned in IINA - custom definition
     CTLS_HSMG_TYPE_CLIENT_FLIGHT = 0x27,
     CTLS_HSMG_TYPE_SERVER_FLIGHT = 0x28,

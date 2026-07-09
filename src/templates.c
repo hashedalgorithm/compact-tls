@@ -483,7 +483,7 @@ ctls_status_t ctls_template_element_to_wire(uint8_t *buffer,
 /*
  * Canonical byte form of the active template:
  *
- *     content_type(u8, CTLS_RECD_CONTENT_TYPE_TEMPLATE)
+ *     content_type(u8, CTLS_HSMG_TYPE_TEMPLATE)
  *     | body_length(u24, backfilled)
  *     | ctls_version(u8)
  *     | element_length(u32, backfilled)
@@ -502,7 +502,7 @@ ctls_status_t ctls_template_to_wire(uint8_t *buffer,
     ctls_size_t offset = 0, template_body_length;
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
-    result = ctls_write_u8(buffer, &offset, CTLS_RECD_CONTENT_TYPE_TEMPLATE, limit);
+    result = ctls_write_u8(buffer, &offset, CTLS_HSMG_TYPE_TEMPLATE, limit);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     template_body_length = offset;

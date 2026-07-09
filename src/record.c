@@ -319,7 +319,6 @@ ctls_status_t ctls_record_preprocess(uint8_t const *buffer,
         case CTLS_RECD_CONTENT_TYPE_HANDSHAKE:
         case CTLS_RECD_CONTENT_TYPE_APPLICATION_DATA:
         case CTLS_RECD_CONTENT_TYPE_HEARTBEAT:
-        case CTLS_RECD_CONTENT_TYPE_TEMPLATE:
             record->content_type = content_type_byte;
             return CTLS_STATUS_SUCCESS;
         default:
