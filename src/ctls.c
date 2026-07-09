@@ -96,7 +96,7 @@ ctls_status_t ctls_context_init(ctls_context_t *context,
     memset(&context->record, 0, sizeof(ctls_record_t));
     memset(&g_hshk_buffer_storage, 0, sizeof(g_hshk_buffer_storage));
 
-    ctls_status_t result = ctls_template_set(CTLS_PROFILE_ID, context);
+    ctls_status_t result = ctls_template_set(context);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     context->transport = *transport;

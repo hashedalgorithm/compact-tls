@@ -27,7 +27,6 @@ static ctls_template_t ctls_template_json_storage;
 /*
  * Load the active profile from CTLS_TEMPLATE_JSON_PATH (config.h) and
  * parse it via ctls_template_from_json into ctls_template_json_storage.
- * profile_id is not otherwise used yet — the file holds a single profile.
  */
 ctls_status_t ctls_template_set(ctls_context_t *context) {
     CTLS_CHECK_NULL_STRUCT(context);
