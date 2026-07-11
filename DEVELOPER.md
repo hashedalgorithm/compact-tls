@@ -24,11 +24,9 @@ This document is the API/integration reference. For spec ambiguities, deviations
 
 - CMake ≥ 4.1
 - A C11 compiler (clang or gcc)
-- [Mbed TLS](https://github.com/Mbed-TLS/mbedtls) with the PSA Crypto backend (`tfpsacrypto`)
+- Internet access on first configure (fetches Mbed TLS source once, cached under `build/_deps`)
 
-```sh
-brew install mbedtls   # macOS
-```
+[Mbed TLS](https://github.com/Mbed-TLS/mbedtls)'s PSA Crypto backend (`tfpsacrypto`) is pulled in and built from source automatically via CMake `FetchContent` (see `CMakeLists.txt`) — nothing to install system-wide, and no version-matching against whatever your distro's package manager happens to carry. Mbed TLS 4.x (which this project needs for the standalone `tfpsacrypto` target) predates any stable distro package, which is exactly the problem this sidesteps — e.g. Ubuntu/WSL `apt` only has 2.x/3.x, with no PSA Crypto API at this level. The pinned version and build options (static-only, no test suite, no example programs) live in the `FetchContent_Declare(mbedtls ...)` block near the top of `CMakeLists.txt`; bump the `URL`/`URL_HASH` there to move to a newer Mbed TLS release.
 
 ---
 

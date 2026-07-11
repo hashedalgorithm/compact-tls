@@ -8,13 +8,9 @@ template (profile) that eliminates redundant wire bytes from the TLS handshake.
 
 - CMake ≥ 4.1
 - C11 compiler (clang or gcc)
-- [Mbed TLS](https://github.com/Mbed-TLS/mbedtls) with PSA Crypto backend (`tfpsacrypto`)
+- Internet access on first configure (or a local mirror of the URL below)
 
-Install Mbed TLS via Homebrew (macOS):
-
-```sh
-brew install mbedtls
-```
+[Mbed TLS](https://github.com/Mbed-TLS/mbedtls)'s PSA Crypto backend (`tfpsacrypto`) is fetched and built from source automatically via CMake `FetchContent` — no system package required, no version to match. This also means it works unmodified on Linux/WSL, where Mbed TLS 4.x isn't in any distro's package manager yet. See `CMakeLists.txt` for the pinned version.
 
 ## Build
 
