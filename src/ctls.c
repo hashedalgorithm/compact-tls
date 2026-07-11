@@ -131,6 +131,97 @@ ctls_status_t ctls_context_init(ctls_context_t *context,
     return ctls_validate_template();
 }
 
+/*
+ * ctls_send / ctls_receive — every transport I/O call in this file goes
+ * through these instead of context->transport.recd_send/recd_receive
+ * directly, so CTLS_DATAGRAM builds get retransmission-on-timeout
+ * (RFC 9147 §5.8.1/§5.8.2) without touching the raw transport callbacks or
+ * any caller above this file. CTLS_STREAM has no RFC-mandated timeout
+ * (RFC 8446 assumes a reliable transport underneath), so it's a direct
+ * passthrough.
+ */
+ctls_status_t ctls_send(uint8_t *buffer, ctls_size_t const length) {
+#if CTLS_DATAGRAM
+    ctls_transport_t const *transport = ctls_transport_get();
+    ctls_hshk_buffer_t *hshk_buffer = ctls_hshk_buffer_get();
+
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_STRUCT(transport);
+    CTLS_CHECK_NULL_STRUCT(hshk_buffer);
+    CTLS_CHECK_BOUNDS(0, length, CTLS_SIZE_WIRE_BUFFER);
+
+    /* Stash a copy for ctls_receive to retransmit on timeout — the
+     * caller's buffer may be cleared/reused right after this returns. */
+    memcpy(hshk_buffer->buffer, buffer, length);
+    hshk_buffer->buffer_length = length;
+
+    return transport->recd_send(buffer, length);
+#elif CTLS_STREAM
+    ctls_transport_t const *transport = ctls_transport_get();
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_STRUCT(transport);
+
+    return transport->recd_send(buffer, length);
+
+#else
+    (void) buffer;
+    (void) length;
+    return CTLS_STATUS_INVALID_INVOCATION;
+#endif
+}
+
+ctls_status_t
+ctls_receive(uint8_t *buffer, ctls_size_t *length, ctls_size_t const capacity) {
+#if CTLS_DATAGRAM
+    ctls_transport_t const *transport = ctls_transport_get();
+    ctls_hshk_buffer_t *hshk_buffer = ctls_hshk_buffer_get();
+
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_OFFSET(length);
+    CTLS_CHECK_NULL_STRUCT(transport);
+    CTLS_CHECK_NULL_STRUCT(hshk_buffer);
+
+    uint32_t timeout_ms = CTLS_DTLS_RETRANSMIT_TIMEOUT_INITIAL_MS;
+
+    for (;;) {
+        ctls_status_t const result =
+                transport->recd_receive(buffer, length, capacity, timeout_ms);
+        if (result != CTLS_STATUS_TRANSPORT_TIMEOUT) return result;
+
+        if (timeout_ms >= CTLS_DTLS_RETRANSMIT_TIMEOUT_MAX_MS)
+            return CTLS_STATUS_TRANSPORT_TIMEOUT;
+
+        /* §5.8.1: timer expiry -> retransmit the last flight. Nothing to
+         * retransmit while waiting for the peer's opening message (nothing
+         * sent yet on this side) — just keep waiting with a longer timer. */
+        if (hshk_buffer->buffer_length != 0) {
+            ctls_status_t const send_result =
+                    ctls_send(hshk_buffer->buffer, hshk_buffer->buffer_length);
+            if (send_result != CTLS_STATUS_SUCCESS) return send_result;
+        }
+
+        /* §5.8.2: double the timer, capped at the max. */
+        timeout_ms = (timeout_ms > CTLS_DTLS_RETRANSMIT_TIMEOUT_MAX_MS / 2)
+                             ? CTLS_DTLS_RETRANSMIT_TIMEOUT_MAX_MS
+                             : timeout_ms * 2;
+    }
+#elif CTLS_STREAM
+    ctls_transport_t const *transport = ctls_transport_get();
+    CTLS_CHECK_NULL_BUFFER(buffer);
+    CTLS_CHECK_NULL_OFFSET(length);
+    CTLS_CHECK_NULL_STRUCT(transport);
+
+    /* No RFC-mandated timeout — timeout_ms=0 tells the transport callback
+     * "no deadline, block as usual." */
+    return transport->recd_receive(buffer, length, capacity, 0);
+#else
+    (void) buffer;
+    (void) length;
+    (void) capacity;
+    return CTLS_STATUS_INVALID_INVOCATION;
+#endif
+}
+
 
 /*
  * Full client-side TLS 1.3 handshake sequence (RFC 8446 §2):
@@ -160,7 +251,7 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
                                    CTLS_ENTITY_CLIENT);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
-    result = context->transport.recd_send(buffer, buffer_offset);
+    result = ctls_send(buffer, buffer_offset);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     result = ctls_core_client_hello_internal_op(&context->record);
@@ -170,7 +261,7 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     result = ctls_wire_buffer_clear(buffer, &buffer_offset);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
-    result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
+    result = ctls_receive(buffer, &buffer_offset, sizeof(buffer));
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     result = ctls_record_deserialize(
@@ -191,7 +282,7 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     // Server Flight
-    result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
+    result = ctls_receive(buffer, &buffer_offset, sizeof(buffer));
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     result = ctls_record_deserialize(
@@ -213,7 +304,7 @@ ctls_status_t ctls_handshake(ctls_context_t *context) {
                                        CTLS_ENTITY_CLIENT);
         if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
-        result = context->transport.recd_send(buffer, buffer_offset);
+        result = ctls_send(buffer, buffer_offset);
         if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
         result = ctls_core_client_flight_op(&context->record);
@@ -256,8 +347,7 @@ ctls_status_t ctls_server_handshake(ctls_context_t *context) {
     ctls_size_t buffer_offset = 0;
 
     // Client Hello
-    ctls_status_t result = context->transport.recd_receive(
-            buffer, &buffer_offset, CTLS_SIZE_WIRE_BUFFER);
+    ctls_status_t result = ctls_receive(buffer, &buffer_offset, CTLS_SIZE_WIRE_BUFFER);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     result = ctls_record_deserialize(
@@ -281,7 +371,7 @@ ctls_status_t ctls_server_handshake(ctls_context_t *context) {
                                    CTLS_ENTITY_SERVER);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
-    result = context->transport.recd_send(buffer, buffer_offset);
+    result = ctls_send(buffer, buffer_offset);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     result = ctls_core_server_hello_internal_op(&context->record);
@@ -305,7 +395,7 @@ ctls_status_t ctls_server_handshake(ctls_context_t *context) {
                                    CTLS_ENTITY_SERVER);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
-    result = context->transport.recd_send(buffer, buffer_offset);
+    result = ctls_send(buffer, buffer_offset);
     if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
     result = ctls_core_server_flight_op(&context->record);
@@ -316,7 +406,7 @@ ctls_status_t ctls_server_handshake(ctls_context_t *context) {
         result = ctls_wire_buffer_clear(buffer, &buffer_offset);
         if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
-        result = context->transport.recd_receive(buffer, &buffer_offset, sizeof(buffer));
+        result = ctls_receive(buffer, &buffer_offset, sizeof(buffer));
         if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
         result = ctls_record_deserialize(
@@ -374,14 +464,10 @@ ctls_status_t ctls_read(uint8_t *buffer,
                         uint8_t *application_data,
                         ctls_size_t const application_data_length,
                         ctls_entity_t const entity) {
-    ctls_transport_t const *transport = ctls_transport_get();
-
     CTLS_CHECK_NULL_BUFFER(application_data);
-    CTLS_CHECK_NULL_STRUCT(transport);
 
     ctls_size_t buffer_offset = 0;
-    ctls_status_t result =
-            transport->recd_receive(buffer, &buffer_offset, CTLS_SIZE_WIRE_BUFFER);
+    ctls_status_t result = ctls_receive(buffer, &buffer_offset, CTLS_SIZE_WIRE_BUFFER);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     return ctls_recd_application_data_deserialize(
@@ -391,11 +477,9 @@ ctls_status_t ctls_read(uint8_t *buffer,
 ctls_status_t ctls_write(uint8_t const *application_data,
                          ctls_size_t const application_data_length,
                          ctls_entity_t const entity) {
-    ctls_transport_t const *transport = ctls_transport_get();
     ctls_record_t const *record = ctls_record_get();
 
     CTLS_CHECK_NULL_BUFFER(application_data);
-    CTLS_CHECK_NULL_STRUCT(transport);
     CTLS_CHECK_NULL_STRUCT(record);
 
     uint8_t buffer[CTLS_SIZE_WIRE_BUFFER];
@@ -405,7 +489,7 @@ ctls_status_t ctls_write(uint8_t const *application_data,
             buffer, &buffer_offset, application_data, application_data_length, entity);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    return transport->recd_send(buffer, buffer_offset);
+    return ctls_send(buffer, buffer_offset);
 }
 
 ctls_status_t ctls_close(ctls_context_t *context, ctls_entity_t const entity) {
@@ -680,10 +764,6 @@ ctls_status_t ctls_alert_send(ctls_record_t *record,
                               ctls_status_t const status,
                               ctls_entity_t const entity,
                               ctls_phase_t const phase) {
-    ctls_transport_t const *transport = ctls_transport_get();
-
-    CTLS_CHECK_NULL_STRUCT(transport);
-
     uint8_t buffer[CTLS_SIZE_WIRE_BUFFER];
     ctls_size_t buffer_offset = 0;
     ctls_status_t result = CTLS_STATUS_SUCCESS;
@@ -702,7 +782,7 @@ ctls_status_t ctls_alert_send(ctls_record_t *record,
     result = ctls_recd_alert_to_wire(buffer, &buffer_offset, record, entity, phase);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = transport->recd_send(buffer, buffer_offset);
+    result = ctls_send(buffer, buffer_offset);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     /* Alert consumes one sequence number just like any other record. */

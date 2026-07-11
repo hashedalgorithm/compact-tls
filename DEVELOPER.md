@@ -210,11 +210,14 @@ The examples are the reference integration, but the shape is always the same thr
 
 ```c
 typedef ctls_status_t (*ctls_recd_send)(uint8_t *buffer, ctls_size_t buffer_length);
-typedef ctls_status_t (*ctls_recd_receive)(uint8_t *buffer, ctls_size_t *buffer_length, ctls_size_t buffer_size);
+typedef ctls_status_t (*ctls_recd_receive)(uint8_t *buffer, ctls_size_t *buffer_length,
+                                           ctls_size_t buffer_size, uint32_t timeout_ms);
 ```
 
 - `recd_send`: send exactly `buffer_length` bytes from `buffer` over your transport. Return `CTLS_STATUS_SUCCESS` or `CTLS_STATUS_TRANSPORT_SEND_FAILED`.
-- `recd_receive`: read up to `buffer_size` bytes into `buffer`, write the actual byte count received into `*buffer_length`. Return `CTLS_STATUS_SUCCESS` or `CTLS_STATUS_TRANSPORT_RECV_FAILED`.
+- `recd_receive`: read up to `buffer_size` bytes into `buffer`, write the actual byte count received into `*buffer_length`. Return `CTLS_STATUS_SUCCESS`, `CTLS_STATUS_TRANSPORT_RECV_FAILED` on a real I/O error, or `CTLS_STATUS_TRANSPORT_TIMEOUT` if `timeout_ms` elapses with no data.
+
+You never call these directly, and you don't own retransmission — every send/receive in the library goes through internal `ctls_send`/`ctls_receive` wrappers (`ctls.c`), which is what actually invokes your callbacks. On `CTLS_DATAGRAM` builds, `ctls_receive` drives `timeout_ms` itself per RFC 9147 §5.8.1/§5.8.2: it starts at `CTLS_DTLS_RETRANSMIT_TIMEOUT_INITIAL_MS` (1000ms), and on each `CTLS_STATUS_TRANSPORT_TIMEOUT` it retransmits the last flight and doubles the wait, capped at `CTLS_DTLS_RETRANSMIT_TIMEOUT_MAX_MS` (60000ms) — both in `config.h`. Your `recd_receive` must actually honor `timeout_ms` (e.g. a fresh `SO_RCVTIMEO` per call) for this enforcement to be real; a callback that ignores it and blocks forever defeats the timer. On `CTLS_STREAM` builds there's no RFC-mandated timeout (RFC 8446 assumes a reliable transport) — `ctls_send`/`ctls_receive` always pass `timeout_ms=0`, meaning "block as usual"; your callback may ignore the parameter.
 
 The library treats the transport as a single logical byte stream/datagram source — it doesn't open sockets, resolve addresses, or manage connections itself. `examples/client.c`/`examples/server.c` show both a TCP and a UDP implementation of this contract, selected by `CTLS_STREAM`.
 
@@ -224,9 +227,15 @@ static ctls_status_t my_send(uint8_t *buffer, ctls_size_t length) {
     return (sent < 0) ? CTLS_STATUS_TRANSPORT_SEND_FAILED : CTLS_STATUS_SUCCESS;
 }
 
-static ctls_status_t my_receive(uint8_t *buffer, ctls_size_t *length, ctls_size_t capacity) {
+static ctls_status_t my_receive(uint8_t *buffer, ctls_size_t *length, ctls_size_t capacity,
+                                uint32_t timeout_ms) {
+    struct timeval tv = {.tv_sec = timeout_ms / 1000U, .tv_usec = (timeout_ms % 1000U) * 1000U};
+    setsockopt(my_socket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)); /* CTLS_DATAGRAM only */
     ssize_t received = recv(my_socket, buffer, capacity, 0);
-    if (received < 0) return CTLS_STATUS_TRANSPORT_RECV_FAILED;
+    if (received < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) return CTLS_STATUS_TRANSPORT_TIMEOUT;
+        return CTLS_STATUS_TRANSPORT_RECV_FAILED;
+    }
     *length = (ctls_size_t) received;
     return CTLS_STATUS_SUCCESS;
 }
@@ -348,6 +357,15 @@ ctls_status_t ctls_read(uint8_t *buffer,
 
 Receives and decrypts one application-data record. `buffer` is scratch space for the raw wire bytes (size it `CTLS_SIZE_WIRE_BUFFER`); `application_data` receives the decrypted plaintext. `entity` = the *sender's* role (i.e. whose read key to use). Returns `CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED` on a tag mismatch.
 
+#### `ctls_send` / `ctls_receive` (advanced)
+
+```c
+ctls_status_t ctls_send(uint8_t *buffer, ctls_size_t length);
+ctls_status_t ctls_receive(uint8_t *buffer, ctls_size_t *length, ctls_size_t capacity);
+```
+
+You won't normally call these — `ctls_connect`, `ctls_accept`, `ctls_read`, `ctls_write`, and `ctls_close` already route every wire record through them. They're the thin wrapper over your `ctls_transport_t` callbacks described in [Implement the transport callbacks](#1-implement-the-transport-callbacks): on `CTLS_DATAGRAM` builds they own the RFC 9147 §5.8 retransmit timer (stashing the last-sent record and retransmitting it on each `CTLS_STATUS_TRANSPORT_TIMEOUT`), and on `CTLS_STREAM` builds they pass through directly. Public mainly so custom protocol-level code (e.g. your own alert handling) can reuse the same timeout/retry behavior instead of calling `recd_send`/`recd_receive` directly.
+
 ### Shutdown
 
 #### `ctls_close`
@@ -462,6 +480,7 @@ Full per-code listing: [`error-codes.md`](error-codes.md). Codes an integrator i
 | `CTLS_STATUS_TMPL_JSON_UNKNOWN_ENUM_NAME` | A name string (cipher suite, group, scheme, extension) didn't match any known value — check spelling against the [field reference](#field-reference). |
 | `CTLS_STATUS_TMPL_INVALID_*` | `ctls_validate_template` rejected the loaded profile — some mandatory field is still zero after parsing. |
 | `CTLS_STATUS_TRANSPORT_SEND_FAILED` / `_RECV_FAILED` | Your transport callback returned failure. |
+| `CTLS_STATUS_TRANSPORT_TIMEOUT` | `CTLS_DATAGRAM` only: `ctls_receive` exhausted the RFC 9147 §5.8 retransmit timer (up to `CTLS_DTLS_RETRANSMIT_TIMEOUT_MAX_MS`) with no response — the peer is unreachable or not responding. |
 | `CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED` | AEAD tag mismatch on `ctls_read` — corrupted data, wrong keys, or an out-of-sync sequence number. |
 
 ---
@@ -479,6 +498,8 @@ Compile-time constants from `config.h` you may need to know about (not typically
 | `CTLS_SIZE_KNOWN_CERTIFICATE_MAX` | 700 | Max DER length (bytes) per `knownCertificates` entry. |
 | `CTLS_COUNT_KNOWN_CERTIFICATES` | 2 | Max number of `knownCertificates` entries. |
 | `CTLS_PROFILE_ID` | `0x01` | Unused by the runtime path today (kept for reference — the JSON's own `profile` field is authoritative). |
+| `CTLS_DTLS_RETRANSMIT_TIMEOUT_INITIAL_MS` | 1000 | `CTLS_DATAGRAM` only: initial `ctls_receive` wait before the first retransmit (RFC 9147 §5.8.2). |
+| `CTLS_DTLS_RETRANSMIT_TIMEOUT_MAX_MS` | 60000 | `CTLS_DATAGRAM` only: cap on the doubling retransmit timer; `ctls_receive` gives up with `CTLS_STATUS_TRANSPORT_TIMEOUT` once reached. |
 
 ---
 

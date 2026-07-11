@@ -54,6 +54,16 @@
 #define CTLS_DATAGRAM  1
 #endif
 
+/*
+ * Retransmit timer for CTLS_DATAGRAM builds (RFC 9147 §5.8.2): ctls_receive
+ * (ctls.c) starts a wait at the initial value and doubles it on each
+ * retransmit, capped here — "SHOULD use an initial timer value of 1000ms
+ * and double the value at each retransmission, up to no less than 60
+ * seconds." Not used by CTLS_STREAM builds (no RFC-mandated timeout).
+ */
+#define CTLS_DTLS_RETRANSMIT_TIMEOUT_INITIAL_MS  1000U
+#define CTLS_DTLS_RETRANSMIT_TIMEOUT_MAX_MS      60000U
+
 // default profile parameters — mandatory when CTLS_CLIENT is active
 
 /*

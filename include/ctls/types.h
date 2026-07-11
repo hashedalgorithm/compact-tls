@@ -537,6 +537,10 @@ typedef uint16_t ctls_status_t;
 /* Transport (0x01C2-0x01F3) */
 #define CTLS_STATUS_TRANSPORT_SEND_FAILED           ((ctls_status_t)0x01C2u)
 #define CTLS_STATUS_TRANSPORT_RECV_FAILED           ((ctls_status_t)0x01C3u)
+/* Distinct from RECV_FAILED: recd_receive hit its timeout_ms deadline with
+ * no data — not a real I/O error. ctls_receive (ctls.c) relies on this
+ * distinction to know when to retransmit (RFC 9147 §5.8.1) vs. give up. */
+#define CTLS_STATUS_TRANSPORT_TIMEOUT               ((ctls_status_t)0x01C4u)
 
 /* Handshake State Machine (0x01F4-0x0225) */
 #define CTLS_STATUS_HSHK_INVALID_STATE              ((ctls_status_t)0x01F4u)
@@ -788,10 +792,17 @@ typedef struct ctls_hshk_buffer_block ctls_hshk_buffer_block_t;
 typedef ctls_status_t (*ctls_recd_send)(uint8_t *buffer, ctls_size_t buffer_length);
 /**
  * Receive up to buffer_size bytes into buffer; set *buffer_length to the
- * number of bytes actually received.
+ * number of bytes actually received. timeout_ms is the deadline this
+ * specific call must honor (ctls_receive in ctls.c computes it per RFC 9147
+ * §5.8.2 for CTLS_DATAGRAM builds; CTLS_STREAM always passes 0, meaning
+ * "no deadline, block as usual" — RFC 8446 has no timeout requirement).
+ * On no data within timeout_ms, return CTLS_STATUS_TRANSPORT_TIMEOUT, not
+ * CTLS_STATUS_TRANSPORT_RECV_FAILED — the caller relies on telling the two
+ * apart to know whether to retransmit and keep waiting, or give up.
  */
 typedef ctls_status_t (*ctls_recd_receive)(uint8_t *buffer,
                                            ctls_size_t *buffer_length,
-                                           ctls_size_t buffer_size);
+                                           ctls_size_t buffer_size,
+                                           uint32_t timeout_ms);
 
 #endif

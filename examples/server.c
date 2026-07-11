@@ -41,7 +41,14 @@ static ctls_status_t transport_send(uint8_t *buffer, ctls_size_t length) {
     return CTLS_STATUS_SUCCESS;
 }
 
-static ctls_status_t transport_receive(uint8_t *buffer, ctls_size_t *length, ctls_size_t size) {
+static ctls_status_t transport_receive(uint8_t *buffer,
+                                       ctls_size_t *length,
+                                       ctls_size_t size,
+                                       uint32_t timeout_ms) {
+    /* CTLS_STREAM has no RFC-mandated timeout (RFC 8446 assumes a reliable
+     * transport) — ctls_receive always calls us with timeout_ms=0. The
+     * fixed SO_RCVTIMEO set once in main() is only a demo affordance. */
+    (void) timeout_ms;
     ssize_t received = recv(g_client_sock, buffer, size, 0);
     if (received < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -85,7 +92,16 @@ static ctls_status_t transport_send(uint8_t *buffer, ctls_size_t length) {
     return CTLS_STATUS_SUCCESS;
 }
 
-static ctls_status_t transport_receive(uint8_t *buffer, ctls_size_t *length, ctls_size_t size) {
+static ctls_status_t transport_receive(uint8_t *buffer,
+                                       ctls_size_t *length,
+                                       ctls_size_t size,
+                                       uint32_t timeout_ms) {
+    /* ctls_receive (ctls.c) drives this deadline per RFC 9147 §5.8.1/§5.8.2 —
+     * set SO_RCVTIMEO fresh on every call so each wait/retransmit round uses
+     * the caller's current (possibly doubled) timer value. */
+    struct timeval tv = {.tv_sec = timeout_ms / 1000U, .tv_usec = (timeout_ms % 1000U) * 1000U};
+    setsockopt(g_sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
     ssize_t received = recvfrom(g_sock,
                                 buffer,
                                 size,
@@ -94,10 +110,9 @@ static ctls_status_t transport_receive(uint8_t *buffer, ctls_size_t *length, ctl
                                 &g_client_addr_len);
     if (received < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            fprintf(stderr, "[transport] recv timeout\n");
-        } else {
-            fprintf(stderr, "recv: %s\n", strerror(errno));
+            return CTLS_STATUS_TRANSPORT_TIMEOUT;
         }
+        fprintf(stderr, "recv: %s\n", strerror(errno));
         return CTLS_STATUS_TRANSPORT_RECV_FAILED;
     }
     g_client_known = 1;
@@ -164,11 +179,9 @@ int main(void) {
     /* 10-second receive timeout on the accepted connection */
     struct timeval tv = {.tv_sec = 10, .tv_usec = 0};
     setsockopt(g_client_sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-#else
-    /* 10-second receive timeout */
-    struct timeval tv = {.tv_sec = 10, .tv_usec = 0};
-    setsockopt(g_sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 #endif
+    /* CTLS_DATAGRAM sets SO_RCVTIMEO per call instead (transport_receive),
+     * driven by ctls_receive's retransmit timer (RFC 9147 §5.8.1/§5.8.2). */
 
     ctls_transport_t transport = {.recd_send = transport_send, .recd_receive = transport_receive};
 

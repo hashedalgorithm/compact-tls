@@ -38,7 +38,15 @@ static ctls_status_t transport_send(uint8_t *buffer, ctls_size_t length) {
     return CTLS_STATUS_SUCCESS;
 }
 
-static ctls_status_t transport_receive(uint8_t *buffer, ctls_size_t *length, ctls_size_t size) {
+static ctls_status_t transport_receive(uint8_t *buffer,
+                                       ctls_size_t *length,
+                                       ctls_size_t size,
+                                       uint32_t timeout_ms) {
+    /* CTLS_STREAM has no RFC-mandated timeout (RFC 8446 assumes a reliable
+     * transport) — ctls_receive always calls us with timeout_ms=0. The
+     * fixed SO_RCVTIMEO set once in main() is only a demo affordance so
+     * this example exits when no server is listening. */
+    (void) timeout_ms;
     ssize_t received = recv(g_sock, buffer, size, 0);
     if (received < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -76,14 +84,22 @@ static ctls_status_t transport_send(uint8_t *buffer, ctls_size_t length) {
     return CTLS_STATUS_SUCCESS;
 }
 
-static ctls_status_t transport_receive(uint8_t *buffer, ctls_size_t *length, ctls_size_t size) {
+static ctls_status_t transport_receive(uint8_t *buffer,
+                                       ctls_size_t *length,
+                                       ctls_size_t size,
+                                       uint32_t timeout_ms) {
+    /* ctls_receive (ctls.c) drives this deadline per RFC 9147 §5.8.1/§5.8.2 —
+     * set SO_RCVTIMEO fresh on every call so each wait/retransmit round uses
+     * the caller's current (possibly doubled) timer value. */
+    struct timeval tv = {.tv_sec = timeout_ms / 1000U, .tv_usec = (timeout_ms % 1000U) * 1000U};
+    setsockopt(g_sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
     ssize_t received = recv(g_sock, buffer, size, 0);
     if (received < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            fprintf(stderr, "[transport] recv timeout — no server response\n");
-        } else {
-            fprintf(stderr, "recv: %s\n", strerror(errno));
+            return CTLS_STATUS_TRANSPORT_TIMEOUT;
         }
+        fprintf(stderr, "recv: %s\n", strerror(errno));
         return CTLS_STATUS_TRANSPORT_RECV_FAILED;
     }
     *length = (ctls_size_t) received;
@@ -107,9 +123,13 @@ int main(void) {
         return 1;
     }
 
-    /* 2-second receive timeout — exits cleanly when no server is present */
+#if CTLS_STREAM
+    /* 2-second receive timeout — exits cleanly when no server is present.
+     * CTLS_DATAGRAM sets SO_RCVTIMEO per call instead (transport_receive),
+     * driven by ctls_receive's retransmit timer (RFC 9147 §5.8.1/§5.8.2). */
     struct timeval tv = {.tv_sec = 2, .tv_usec = 0};
     setsockopt(g_sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+#endif
 
     struct sockaddr_in server_addr;
     memset(&server_addr, 0, sizeof(server_addr));
@@ -147,10 +167,13 @@ int main(void) {
     result = ctls_connect(&ctx);
     /*
      * Expected result when no server is listening: ClientHello is sent
-     * (visible in Wireshark), then recv times out and ctls_connect returns
-     * CTLS_STATUS_TRANSPORT_RECV_FAILED. That is not an error here.
+     * (visible in Wireshark), then recv times out. CTLS_STREAM has no
+     * retransmit timer and returns CTLS_STATUS_TRANSPORT_RECV_FAILED right
+     * away; CTLS_DATAGRAM retransmits with a doubling backoff (RFC 9147
+     * §5.8.1/§5.8.2) until CTLS_DTLS_RETRANSMIT_TIMEOUT_MAX_MS is reached,
+     * then returns CTLS_STATUS_TRANSPORT_TIMEOUT. Neither is an error here.
      */
-    if (result == CTLS_STATUS_TRANSPORT_RECV_FAILED) {
+    if (result == CTLS_STATUS_TRANSPORT_RECV_FAILED || result == CTLS_STATUS_TRANSPORT_TIMEOUT) {
         printf("ClientHello sent — no server response (expected). Check Wireshark.\n");
     } else if (result != CTLS_STATUS_SUCCESS) {
         fprintf(stderr, "ctls_connect: 0x%04X\n", result);

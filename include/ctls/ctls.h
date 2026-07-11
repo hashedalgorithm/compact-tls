@@ -209,6 +209,50 @@ ctls_status_t ctls_wire_buffer_clear(uint8_t *buffer, ctls_size_t *buffer_offest
 ctls_status_t ctls_validate_template();
 
 /**
+ * @brief Send one record over the transport, plus CTLS_DATAGRAM bookkeeping.
+ *
+ * Thin wrapper around ctls_transport_t's recd_send — used everywhere in
+ * this library instead of calling context->transport.recd_send directly,
+ * so retransmission-on-timeout (ctls_receive, below) has something to call.
+ * On CTLS_DATAGRAM builds, also stashes a copy of buffer into hshk_buffer
+ * (the caller's buffer may be reused right after this call returns). On
+ * CTLS_STREAM builds this is a direct passthrough — no bookkeeping needed,
+ * RFC 8446 has no retransmission requirement.
+ *
+ * @param buffer  Bytes to send.
+ * @param length  Number of bytes in buffer.
+ * @return Whatever recd_send returns.
+ */
+ctls_status_t ctls_send(uint8_t *buffer, ctls_size_t length);
+
+/**
+ * @brief Receive one record, retransmitting on timeout per RFC 9147 §5.8.
+ *
+ * Thin wrapper around ctls_transport_t's recd_receive — used everywhere in
+ * this library instead of calling context->transport.recd_receive directly.
+ *
+ * On CTLS_DATAGRAM builds: calls recd_receive with a deadline starting at
+ * CTLS_DTLS_RETRANSMIT_TIMEOUT_INITIAL_MS (config.h). On
+ * CTLS_STATUS_TRANSPORT_TIMEOUT, retransmits the last flight sent via
+ * ctls_send (from hshk_buffer) and doubles the deadline, capped at
+ * CTLS_DTLS_RETRANSMIT_TIMEOUT_MAX_MS — once a wait at the cap also times
+ * out, gives up and returns CTLS_STATUS_TRANSPORT_TIMEOUT. Any other
+ * failure from recd_receive propagates immediately, no retry.
+ *
+ * On CTLS_STREAM builds: direct passthrough with timeout_ms=0 ("no
+ * deadline") — RFC 8446 has no timeout/retransmission requirement; TCP
+ * already handles loss and reordering below this layer.
+ *
+ * @param buffer    Output buffer for the received bytes.
+ * @param length    Output: number of bytes actually received.
+ * @param capacity  Size of buffer.
+ * @return CTLS_STATUS_SUCCESS, CTLS_STATUS_TRANSPORT_TIMEOUT (CTLS_DATAGRAM
+ *         only, retries exhausted), or whatever error recd_send/recd_receive
+ *         returned.
+ */
+ctls_status_t ctls_receive(uint8_t *buffer, ctls_size_t *length, ctls_size_t capacity);
+
+/**
  * @brief Run the full client-side cTLS handshake to completion.
  *
  * Drives the TLS 1.3 state machine (CH → SH → key schedule →

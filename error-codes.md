@@ -370,6 +370,7 @@ Sub-band layout:
 |--------|----------------------------------|----------------------------------------------------------------------------------------------------------------------------|
 | 0x01C2 | `CTLS_STATUS_TRANSPORT_SEND_FAILED` | The `recd_send` callback returned non-success. The underlying socket/UART/bus write failed.                                |
 | 0x01C3 | `CTLS_STATUS_TRANSPORT_RECV_FAILED` | The `recd_receive` callback returned non-success. No data arrived, the connection closed, or the driver reported an error. |
+| 0x01C4 | `CTLS_STATUS_TRANSPORT_TIMEOUT` | `recd_receive` hit its `timeout_ms` deadline with no data — distinct from `CTLS_STATUS_TRANSPORT_RECV_FAILED` (a real I/O error). `ctls_receive` (`ctls.c`) uses this to decide when to retransmit (`CTLS_DATAGRAM`, RFC 9147 §5.8.1/§5.8.2) instead of giving up; propagated to the caller only once the retransmit timer reaches `CTLS_DTLS_RETRANSMIT_TIMEOUT_MAX_MS`. |
 
 ---
 
