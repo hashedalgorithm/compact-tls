@@ -158,7 +158,10 @@ typedef enum {
     CTLS_RECD_CONTENT_TYPE_HANDSHAKE = 0x16,
     CTLS_RECD_CONTENT_TYPE_APPLICATION_DATA = 0x17,
     CTLS_RECD_CONTENT_TYPE_HEARTBEAT = 0x18,
-
+    /* 28 - 30 is unassigned in IANA registry.
+     * Since CTLS_HANDSHAKE content type is not assigned https://arc.net/l/quote/yizuvvtp
+     */
+    CTLS_RECD_CONTENT_TYPE_CTLS_HANDSHAKE = 0x1C,
     CTLS_RECD_CONTENT_TYPE_SENTINEL = 0xFF, // default value (uninitialized)
 } ctls_recd_content_type_t;
 

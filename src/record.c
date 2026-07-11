@@ -317,6 +317,7 @@ ctls_status_t ctls_record_preprocess(uint8_t const *buffer,
         case CTLS_RECD_CONTENT_TYPE_CHANGE_CIPHER_SPEC:
         case CTLS_RECD_CONTENT_TYPE_ALERT:
         case CTLS_RECD_CONTENT_TYPE_HANDSHAKE:
+        case CTLS_RECD_CONTENT_TYPE_CTLS_HANDSHAKE:
         case CTLS_RECD_CONTENT_TYPE_APPLICATION_DATA:
         case CTLS_RECD_CONTENT_TYPE_HEARTBEAT:
             record->content_type = content_type_byte;
@@ -431,7 +432,7 @@ ctls_status_t ctls_record_deserialize(ctls_record_t *record,
         return ctls_recd_alert_to_struct(record, buffer);
     }
 
-    if (record->content_type != CTLS_RECD_CONTENT_TYPE_HANDSHAKE)
+    if (record->content_type != CTLS_RECD_CONTENT_TYPE_CTLS_HANDSHAKE)
         return CTLS_STATUS_RECD_INVALID_CONTENT_TYPE;
 
     ctls_size_t offset = 0;
@@ -621,7 +622,7 @@ ctls_status_t ctls_recd_client_hello_create(ctls_record_t *record) {
     ctls_status_t const result = ctls_recd_buffer_clear(record);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    record->content_type = CTLS_RECD_CONTENT_TYPE_HANDSHAKE;
+    record->content_type = CTLS_RECD_CONTENT_TYPE_CTLS_HANDSHAKE;
     record->profile_id = template->profile_id;
     record->type = CTLS_RECORD_TYPE_PLAINTEXT;
     record->record_body.handshake.sequence_number = hshk_data->sequence_number;
@@ -756,7 +757,7 @@ ctls_status_t ctls_recd_server_hello_create(ctls_record_t *record) {
     ctls_status_t const result = ctls_recd_buffer_clear(record);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    record->content_type = CTLS_RECD_CONTENT_TYPE_HANDSHAKE;
+    record->content_type = CTLS_RECD_CONTENT_TYPE_CTLS_HANDSHAKE;
     record->profile_id = template->profile_id;
     record->type = CTLS_RECORD_TYPE_PLAINTEXT;
     record->record_body.handshake.sequence_number = hshk_data->sequence_number;
@@ -873,7 +874,7 @@ ctls_status_t ctls_recd_server_flight_create(ctls_record_t *record) {
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     record->type = CTLS_RECORD_TYPE_ENCRYPTED;
-    record->content_type = CTLS_RECD_CONTENT_TYPE_HANDSHAKE;
+    record->content_type = CTLS_RECD_CONTENT_TYPE_CTLS_HANDSHAKE;
     /* Sequencing lives solely in the unified header for encrypted records. */
 
     result = ctls_unified_header_build(&record->unified_header, 0);
@@ -962,7 +963,7 @@ ctls_status_t ctls_recd_client_flight_create(ctls_record_t *record) {
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     record->type = CTLS_RECORD_TYPE_ENCRYPTED;
-    record->content_type = CTLS_RECD_CONTENT_TYPE_HANDSHAKE;
+    record->content_type = CTLS_RECD_CONTENT_TYPE_CTLS_HANDSHAKE;
     /* Sequencing lives solely in the unified header for encrypted records. */
 
     result = ctls_unified_header_build(&record->unified_header, 0);
