@@ -4,6 +4,12 @@ A compact TLS 1.3 implementation (cTLS) based
 on [draft-ietf-tls-ctls](https://datatracker.ietf.org/doc/draft-ietf-tls-ctls/). Both peers share a pre-negotiated
 template (profile) that eliminates redundant wire bytes from the TLS handshake.
 
+## Documentation
+
+- [DEVELOPER.md](docs/DEVELOPER.md) — quick start, build-time configuration, profile reference, integration guide, full public API reference
+- [error-codes.md](docs/error-codes.md) — full `ctls_status_t` value reference
+- [profile-registry.md](docs/profile-registry.md) — profile ID → algorithm mapping
+
 ## Prerequisites
 
 - CMake ≥ 4.1
@@ -55,7 +61,7 @@ Set the profile in `include/ctls/config.h` to match the peer:
 #define CTLS_PROFILE_ID  0x01
 ```
 
-See `profile-registry.md` for available profile IDs and their algorithm combinations.
+See [docs/profile-registry.md](docs/profile-registry.md) for available profile IDs and their algorithm combinations.
 
 ## Running the example client
 
@@ -114,7 +120,6 @@ int main(void) {
 ```
 include/ctls/   — public headers (ctls.h, crypto.h, types.h, …)
 src/            — implementation (crypto, record, handshake, extensions)
-examples/       — client.c example
-profile-registry.md — profile ID → algorithm mapping
-error-codes.md  — ctls_status_t value reference
+examples/       — client.c, server.c examples
+docs/           — DEVELOPER.md, error-codes.md, profile-registry.md
 ```
