@@ -309,7 +309,7 @@ ctls_status_t ctls_tmpl_extension_to_wire(uint8_t *buffer,
  *     element_type(u16) | element_length(u32) | value
  *
  * Value layouts:
- *     PROFILE_ID          id_length(u8) | profile_id(u8)
+ *     PROFILE_ID          id_length(u8) | profile_id(u32)
  *     VERSION             protocol_version(u16)
  *     CIPHER_SUITE        cipher_suite(u16)
  *     DH_GROUP            dhe_group(u16) | key_share_length(u16)
@@ -335,7 +335,7 @@ ctls_status_t ctls_template_element_to_wire(uint8_t *buffer,
             if (result != CTLS_STATUS_SUCCESS) return result;
             result = ctls_write_u8(buffer, offset, sizeof(tmpl->profile_id), CTLS_SIZE_WIRE_BUFFER);
             if (result != CTLS_STATUS_SUCCESS) return result;
-            result = ctls_write_u8(buffer, offset, tmpl->profile_id, CTLS_SIZE_WIRE_BUFFER);
+            result = ctls_write_u32(buffer, offset, tmpl->profile_id, CTLS_SIZE_WIRE_BUFFER);
             if (result != CTLS_STATUS_SUCCESS) return result;
             break;
         case CTLS_TMPL_TYPE_VERSION:
@@ -896,7 +896,7 @@ ctls_status_t ctls_template_from_json(uint8_t const *json,
     if (index < 0) return CTLS_STATUS_TMPL_JSON_FIELD_MISSING;
     result = ctls_tmpl_json_token_hex_u32(js, &tokens[index], &number);
     if (result != CTLS_STATUS_SUCCESS) return result;
-    tmpl->profile_id = (uint8_t) number;
+    tmpl->profile_id = number;
 
     /* version (hex string) -> protocol_version */
     index = ctls_tmpl_json_object_get(js, tokens, 0, "version");

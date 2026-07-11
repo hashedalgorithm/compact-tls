@@ -114,7 +114,7 @@ Both peers must load byte-identical parameter values out of band — that's the 
 ```json
 {
   "ctlsVersion": 0,
-  "profile": "0x0001",
+  "profile": "0x00000001",
   "version": "0x0304",
   "random": 16,
   "cipherSuite": "TLS_AES_128_GCM_SHA256",
@@ -148,7 +148,7 @@ Both peers must load byte-identical parameter values out of band — that's the 
 
 | JSON key | Maps to | Required? | Notes |
 |---|---|---|---|
-| `profile` | `profile_id` | **Yes** | Hex string, e.g. `"0x0001"`. |
+| `profile` | `profile_id` | **Yes** | Hex string, 4 bytes, e.g. `"0x00000001"`. |
 | `version` | `protocol_version` | **Yes** | Hex string; must be `"0x0304"` (TLS 1.3) — this implementation only speaks 1.3. |
 | `random` | `random` | **Yes** | Plain number, length in bytes of the Hello random. |
 | `cipherSuite` | `cipher_suite` | **Yes** | Name string, see [Cipher suites](#cipher-suites) below. |

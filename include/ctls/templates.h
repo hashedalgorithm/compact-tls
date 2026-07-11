@@ -125,7 +125,7 @@ struct ctls_tmpl_known_certificates {
 
 /** The template itself — see the file header for per-field semantics. */
 struct ctls_template {
-    uint8_t profile_id;
+    uint32_t profile_id;
     uint16_t ctls_version;
     ctls_protocol_version_t protocol_version;
     ctls_cipher_suite_t cipher_suite;

@@ -163,6 +163,18 @@ static inline ctls_status_t ctls_read_u24(uint8_t const *buffer,
     return CTLS_STATUS_SUCCESS;
 }
 
+static inline ctls_status_t ctls_read_u32(uint8_t const *buffer,
+                                          ctls_size_t *offset,
+                                          ctls_size_t const limit,
+                                          uint32_t *value) {
+    ctls_status_t const result = ctls_bounds_check(*offset, 4U, limit);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+    *value = ((uint32_t) buffer[*offset] << 24) | ((uint32_t) buffer[*offset + 1] << 16) |
+             ((uint32_t) buffer[*offset + 2] << 8) | (uint32_t) buffer[*offset + 3];
+    *offset += 4;
+    return CTLS_STATUS_SUCCESS;
+}
+
 static inline ctls_status_t ctls_read_u64(uint8_t const *buffer,
                                           ctls_size_t *offset,
                                           ctls_size_t const limit,

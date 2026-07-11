@@ -637,8 +637,8 @@ ctls_status_t ctls_recd_client_hello_create(ctls_record_t *record) {
  * DEFAULT wire framing (inverse of ctls_recd_client_hello_to_wire DEFAULT):
  *
  *     content_type(u8)
- *     | profile_id_length(u8)  = 0x01
- *     | profile_id(u8)
+ *     | profile_id_length(u8)  = 0x04
+ *     | profile_id(u32)
  *     | compact CH body (see ctls_hsmg_client_hello_to_struct)
  */
 ctls_status_t ctls_recd_client_hello_to_struct(ctls_record_t *record,
@@ -660,9 +660,9 @@ ctls_status_t ctls_recd_client_hello_to_struct(ctls_record_t *record,
     record->content_type = content_type_u8;
 
     result = ctls_read_u8(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &profile_id_length_u8);
-    if (result != CTLS_STATUS_SUCCESS) return result; /* profile_id_length — always 1 */
+    if (result != CTLS_STATUS_SUCCESS) return result; /* profile_id_length — always 4 */
 
-    result = ctls_read_u8(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &record->profile_id);
+    result = ctls_read_u32(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &record->profile_id);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     record->type = CTLS_RECORD_TYPE_PLAINTEXT;
@@ -679,7 +679,7 @@ ctls_status_t ctls_recd_client_hello_to_struct(ctls_record_t *record,
  *
  * DEFAULT (compact cTLS bytes sent on wire):
  *
- *     content_type(u8) | profile_id_length(u8) | profile_id(u8)
+ *     content_type(u8) | profile_id_length(u8) | profile_id(u32)
  *     | compact ClientHello body (see hsmg.c)
  *
  * TRANSCRIPT_HASH (TLS 1.3 record reconstruction, hashed only):
@@ -709,7 +709,7 @@ ctls_status_t ctls_recd_client_hello_to_wire(uint8_t *buffer,
 
         result = ctls_write_u8(buffer, offset, sizeof(record->profile_id), CTLS_SIZE_WIRE_BUFFER);
         if (result != CTLS_STATUS_SUCCESS) return result;
-        result = ctls_write_u8(buffer, offset, record->profile_id, CTLS_SIZE_WIRE_BUFFER);
+        result = ctls_write_u32(buffer, offset, record->profile_id, CTLS_SIZE_WIRE_BUFFER);
         if (result != CTLS_STATUS_SUCCESS) return result;
 
         return ctls_hsmg_client_hello_to_wire(buffer,

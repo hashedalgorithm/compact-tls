@@ -105,7 +105,7 @@ struct ctls_application_data {
 /** One record: framing fields + the handshake message body it carries. */
 struct ctls_record {
     ctls_recd_content_type_t content_type; // Used only in CH, SH
-    uint8_t profile_id; // Used only in CH, SH
+    uint32_t profile_id; // Used only in CH, SH; 4 bytes on the wire in CH only (see record.c)
     ctls_record_type_t type; // For internal reference
     ctls_unified_header_t unified_header;
     union {
@@ -279,7 +279,7 @@ ctls_status_t ctls_recd_server_hello_create(ctls_record_t *record);
 ctls_status_t ctls_recd_server_hello_to_struct(ctls_record_t *record,
                                                uint8_t const *buffer,
                                                ctls_size_t *offset);
-/** Emit a compact ServerHello record: content_type, profile_id, then the handshake body. */
+/** Emit a compact ServerHello record: content_type, record_body_length, then the handshake body — no profile_id (only ClientHello carries it). */
 ctls_status_t ctls_recd_server_hello_to_wire(uint8_t *buffer,
                                              ctls_size_t *offset,
                                              ctls_record_t const *record,
