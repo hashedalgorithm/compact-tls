@@ -57,9 +57,9 @@ ctls_status_t ctls_hsmg_client_hello_create(ctls_hsmg_client_hello_t *client_hel
  *
  *     body_length(u16, consumed but not stored)
  *     | message_type(u8)
- *     | sequence_number(u16) — CTLS_TRANSPORT_UNRELIABLE only (draft §2.3.1
+ *     | sequence_number(u16) — CTLS_DATAGRAM only (draft §2.3.1
  *       message_seq), validated against hshk_data->sequence_number; absent
- *       entirely on CTLS_TRANSPORT_RELIABLE builds
+ *       entirely on CTLS_STREAM builds
  *     | random (template->random bytes, saved to hshk_data->client_random)
  *     | cipher_suite(u16) — only present when template->cipher_suite == 0
  *     | extensions (key_share only; see ctls_extn_client_hello_to_struct)
@@ -88,7 +88,7 @@ ctls_status_t ctls_hsmg_client_hello_to_struct(ctls_handshake_message_t *hsmg,
     ctls_hsmg_type_t const type = type_u8;
     if (type != CTLS_HSMG_TYPE_CLIENT_HELLO) return CTLS_STATUS_HSMG_INVALID_MSG_TYPE;
 
-#if CTLS_TRANSPORT_UNRELIABLE
+#if CTLS_DATAGRAM
     /* message_seq (draft §2.3.1, CTLSDatagramHandshake) — reliable builds omit it. */
     result = ctls_read_u16(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &hsmg->sequence_number);
     if (result != CTLS_STATUS_SUCCESS) return result;
@@ -128,7 +128,7 @@ ctls_status_t ctls_hsmg_client_hello_to_struct(ctls_handshake_message_t *hsmg,
  * DEFAULT (compact cTLS):
  *
  *     body_length(u16, backfilled)
- *     | message_type(u8) | sequence_number(u16), CTLS_TRANSPORT_UNRELIABLE only
+ *     | message_type(u8) | sequence_number(u16), CTLS_DATAGRAM only
  *     | random (template->random bytes, no length)
  *     | cipher_suites block — only when the template does NOT pin a suite
  *     | extensions (key_share bytes only, see extensions.c)
@@ -164,7 +164,7 @@ ctls_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
         result = ctls_write_u8(buffer, offset, CTLS_HSMG_TYPE_CLIENT_HELLO,
                                CTLS_SIZE_WIRE_BUFFER);
         if (result != CTLS_STATUS_SUCCESS) return result;
-#if CTLS_TRANSPORT_UNRELIABLE
+#if CTLS_DATAGRAM
         /* message_seq (draft §2.3.1, CTLSDatagramHandshake) — reliable builds omit it. */
         result = ctls_write_u16(buffer, offset, hsmg->sequence_number, CTLS_SIZE_WIRE_BUFFER);
         if (result != CTLS_STATUS_SUCCESS) return result;
@@ -305,9 +305,9 @@ ctls_status_t ctls_hsmg_server_hello_create(ctls_hsmg_server_hello_t *server_hel
  * Parse a compact ServerHello:
  *
  *     message_type(u8)
- *     | sequence_number(u16) — CTLS_TRANSPORT_UNRELIABLE only (draft §2.3.1
+ *     | sequence_number(u16) — CTLS_DATAGRAM only (draft §2.3.1
  *       message_seq), validated against hshk_data->sequence_number; absent
- *       entirely on CTLS_TRANSPORT_RELIABLE builds
+ *       entirely on CTLS_STREAM builds
  *     | server random (template->random bytes, no length —
  *       saved to hshk_data->server_random)
  *     | cipher_suite(u16)
@@ -337,7 +337,7 @@ ctls_status_t ctls_hsmg_server_hello_to_struct(ctls_handshake_message_t *hsmg,
     ctls_hsmg_type_t const type = type_u8;
     if (type != CTLS_HSMG_TYPE_SERVER_HELLO) return CTLS_STATUS_HSMG_INVALID_MSG_TYPE;
 
-#if CTLS_TRANSPORT_UNRELIABLE
+#if CTLS_DATAGRAM
     /* message_seq (draft §2.3.1, CTLSDatagramHandshake) — reliable builds omit it. */
     result = ctls_read_u16(buffer, offset, CTLS_SIZE_WIRE_BUFFER, &hsmg->sequence_number);
     if (result != CTLS_STATUS_SUCCESS) return result;
@@ -398,7 +398,7 @@ ctls_status_t ctls_hsmg_server_hello_to_wire(uint8_t *buffer,
         /*
          * Compact ServerHello body (matches ctls_hsmg_server_hello_to_struct parse order):
          *     message_type(u8)
-         *     | sequence_number(u16), CTLS_TRANSPORT_UNRELIABLE only
+         *     | sequence_number(u16), CTLS_DATAGRAM only
          *     | random (template->random bytes)
          *     | cipher_suite(u16) — only when template does not pin a suite
          *     | key_share bytes via ctls_extn_server_hello_to_wire DEFAULT
@@ -406,7 +406,7 @@ ctls_status_t ctls_hsmg_server_hello_to_wire(uint8_t *buffer,
         result = ctls_write_u8(buffer, offset, CTLS_HSMG_TYPE_SERVER_HELLO,
                                CTLS_SIZE_WIRE_BUFFER);
         if (result != CTLS_STATUS_SUCCESS) return result;
-#if CTLS_TRANSPORT_UNRELIABLE
+#if CTLS_DATAGRAM
         /* message_seq (draft §2.3.1, CTLSDatagramHandshake) — reliable builds omit it. */
         result = ctls_write_u16(buffer, offset, hsmg->sequence_number, CTLS_SIZE_WIRE_BUFFER);
         if (result != CTLS_STATUS_SUCCESS) return result;

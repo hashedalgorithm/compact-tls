@@ -27,7 +27,7 @@ ctls_status_t ctls_aad_length_calculate(ctls_unified_header_t *unified_header) {
 
     if (unified_header->config_octet.c_bit != 0) return CTLS_STATUS_RECD_AAD_LEN_CID;
 
-#if CTLS_TRANSPORT_RELIABLE
+#if CTLS_STREAM
     /* Reliable transport: sequence number omitted from the wire (draft §2.2). */
     unified_header->aad_length = 1U + (unified_header->config_octet.l_bit ? 2U : 0U);
 #else
@@ -113,7 +113,7 @@ ctls_status_t ctls_unified_header_build(ctls_unified_header_t *unified_header,
     CTLS_CHECK_NULL_STRUCT(hshk_data);
 
     unified_header->config_octet.c_bit = 0;
-#if CTLS_TRANSPORT_RELIABLE
+#if CTLS_STREAM
     /* Reliable transport: S bit MUST be cleared (draft §2.2). */
     unified_header->config_octet.s_bit = 0;
 #else
@@ -161,7 +161,7 @@ ctls_status_t ctls_unified_header_serialize(ctls_unified_header_t const *unified
     buffer[(*offset)++] = octet;
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
-#if CTLS_TRANSPORT_RELIABLE
+#if CTLS_STREAM
     /* Reliable transport: sequence number omitted from the wire (draft §2.2). */
 #else
     if (unified_header->config_octet.s_bit == 0) {
@@ -214,7 +214,7 @@ ctls_status_t ctls_unified_header_deserialize(ctls_unified_header_t *unified_hea
     if (unified_header->config_octet.s_bit > 1 || unified_header->config_octet.s_bit < 0)
         return CTLS_STATUS_RECD_HDR_DESERIALIZE_SEQ;
 
-#if CTLS_TRANSPORT_RELIABLE
+#if CTLS_STREAM
     /*
      * Reliable transport: sequence number isn't on the wire (draft §2.2) —
      * the transport itself guarantees order, so trust the local counter

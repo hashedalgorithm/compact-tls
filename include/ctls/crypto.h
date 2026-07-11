@@ -49,12 +49,12 @@
 /*
  * cTLS HKDF label prefix (draft-ietf-tls-ctls §2.3.2), replacing RFC 8446's
  * "tls13 ": "Sctls " for Stream cTLS (reliable transport), "Dctls " for
- * Datagram cTLS (unreliable transport) — see CTLS_TRANSPORT_RELIABLE /
- * CTLS_TRANSPORT_UNRELIABLE in config.h.
+ * Datagram cTLS (unreliable transport) — see CTLS_STREAM /
+ * CTLS_DATAGRAM in config.h.
  */
-#if CTLS_TRANSPORT_RELIABLE
+#if CTLS_STREAM
 #define CTLS_LABEL_PREFIX "Sctls "
-#elif CTLS_TRANSPORT_UNRELIABLE
+#elif CTLS_DATAGRAM
 #define CTLS_LABEL_PREFIX "Dctls "
 #endif
 

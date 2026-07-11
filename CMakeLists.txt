@@ -19,15 +19,15 @@ endif()
 # Transport selection — exactly one must be ON. Selects unified-header wire
 # behavior (sequence number on/off the wire) and the HKDF label prefix.
 # Default (unreliable): cmake -B build
-# Reliable:              cmake -B build -DCTLS_TRANSPORT_UNRELIABLE=OFF -DCTLS_TRANSPORT_RELIABLE=ON
-option(CTLS_TRANSPORT_RELIABLE "Reliable (TCP-like) transport framing" OFF)
-option(CTLS_TRANSPORT_UNRELIABLE "Unreliable (UDP-like) transport framing" ON)
+# Reliable:              cmake -B build -DCTLS_DATAGRAM=OFF -DCTLS_STREAM=ON
+option(CTLS_STREAM "Reliable (TCP-like) transport framing" OFF)
+option(CTLS_DATAGRAM "Unreliable (UDP-like) transport framing" ON)
 
-if(CTLS_TRANSPORT_RELIABLE AND CTLS_TRANSPORT_UNRELIABLE)
-    message(FATAL_ERROR "CTLS_TRANSPORT_RELIABLE and CTLS_TRANSPORT_UNRELIABLE cannot both be ON")
+if(CTLS_STREAM AND CTLS_DATAGRAM)
+    message(FATAL_ERROR "CTLS_STREAM and CTLS_DATAGRAM cannot both be ON")
 endif()
-if(NOT CTLS_TRANSPORT_RELIABLE AND NOT CTLS_TRANSPORT_UNRELIABLE)
-    message(FATAL_ERROR "One of CTLS_TRANSPORT_RELIABLE or CTLS_TRANSPORT_UNRELIABLE must be ON")
+if(NOT CTLS_STREAM AND NOT CTLS_DATAGRAM)
+    message(FATAL_ERROR "One of CTLS_STREAM or CTLS_DATAGRAM must be ON")
 endif()
 
 list(APPEND CMAKE_PREFIX_PATH "/opt/homebrew")
@@ -69,8 +69,8 @@ add_executable(compact_tls
 target_compile_definitions(compact_tls PRIVATE
         CTLS_CLIENT=$<BOOL:${CTLS_CLIENT}>
         CTLS_SERVER=$<BOOL:${CTLS_SERVER}>
-        CTLS_TRANSPORT_RELIABLE=$<BOOL:${CTLS_TRANSPORT_RELIABLE}>
-        CTLS_TRANSPORT_UNRELIABLE=$<BOOL:${CTLS_TRANSPORT_UNRELIABLE}>
+        CTLS_STREAM=$<BOOL:${CTLS_STREAM}>
+        CTLS_DATAGRAM=$<BOOL:${CTLS_DATAGRAM}>
 )
 target_link_libraries(compact_tls
         MbedTLS::tfpsacrypto

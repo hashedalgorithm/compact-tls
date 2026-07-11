@@ -25,10 +25,10 @@
  * # Unified header wire format (RFC 9147 §4 model)
  *
  * draft-ietf-tls-ctls §2.2 splits the S bit / sequence number field in two,
- * selected at compile time by CTLS_TRANSPORT_RELIABLE / _UNRELIABLE
+ * selected at compile time by CTLS_STREAM / _UNRELIABLE
  * (config.h):
  *
- *   CTLS_TRANSPORT_UNRELIABLE (default, UDP-like, "Datagram cTLS"): S bit
+ *   CTLS_DATAGRAM (default, UDP-like, "Datagram cTLS"): S bit
  *   keeps its DTLS 1.3 meaning (1-byte vs 2-byte encoding) and the sequence
  *   number is always sent.
  *
@@ -36,7 +36,7 @@
  *       sequence number    1 byte (S=0) or 2 bytes (S=1)
  *       length             2 bytes when L=1, absent when L=0
  *
- *   CTLS_TRANSPORT_RELIABLE (TCP-like, "Stream cTLS"): S bit MUST be
+ *   CTLS_STREAM (TCP-like, "Stream cTLS"): S bit MUST be
  *   cleared and the sequence number field is omitted entirely — ordering
  *   is the transport's job, not the record layer's.
  *

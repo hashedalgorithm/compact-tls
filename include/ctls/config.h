@@ -47,11 +47,11 @@
  * reliable, "Dctls " for unreliable — see crypto.h's CTLS_LABEL_PREFIX.
  * Default is UNRELIABLE: examples/ use UDP sockets.
  */
-#ifndef CTLS_TRANSPORT_RELIABLE
-#define CTLS_TRANSPORT_RELIABLE    0
+#ifndef CTLS_STREAM
+#define CTLS_STREAM    0
 #endif
-#ifndef CTLS_TRANSPORT_UNRELIABLE
-#define CTLS_TRANSPORT_UNRELIABLE  1
+#ifndef CTLS_DATAGRAM
+#define CTLS_DATAGRAM  1
 #endif
 
 // default profile parameters — mandatory when CTLS_CLIENT is active

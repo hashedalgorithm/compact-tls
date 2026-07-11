@@ -3,7 +3,7 @@
  *
  * Waits for a ClientHello, runs the server-side handshake to completion,
  * then exchanges one application data message. Transport is hardcoded at
- * compile time by CTLS_TRANSPORT_RELIABLE / CTLS_TRANSPORT_UNRELIABLE
+ * compile time by CTLS_STREAM / CTLS_DATAGRAM
  * (config.h, set via CMake — see README's "Build" section): TCP
  * (SOCK_STREAM, listen/accept/send/recv) when reliable, UDP (SOCK_DGRAM,
  * recvfrom/sendto) when unreliable.
@@ -27,7 +27,7 @@
 
 static int g_sock = -1;
 
-#if CTLS_TRANSPORT_RELIABLE
+#if CTLS_STREAM
 
 static int g_client_sock = -1;
 
@@ -60,7 +60,7 @@ static ctls_status_t transport_receive(uint8_t *buffer, ctls_size_t *length, ctl
     return CTLS_STATUS_SUCCESS;
 }
 
-#else /* CTLS_TRANSPORT_UNRELIABLE */
+#else /* CTLS_DATAGRAM */
 
 static struct sockaddr_in g_client_addr;
 static socklen_t g_client_addr_len = sizeof(g_client_addr);
@@ -115,7 +115,7 @@ static ctls_status_t transport_receive(uint8_t *buffer, ctls_size_t *length, ctl
 int main(void) {
     int port = 4433;
 
-#if CTLS_TRANSPORT_RELIABLE
+#if CTLS_STREAM
     g_sock = socket(AF_INET, SOCK_STREAM, 0);
 #else
     g_sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -141,7 +141,7 @@ int main(void) {
 
     printf("listening on 0.0.0.0:%d\n", port);
 
-#if CTLS_TRANSPORT_RELIABLE
+#if CTLS_STREAM
     if (listen(g_sock, 1) < 0) {
         fprintf(stderr, "listen: %s\n", strerror(errno));
         close(g_sock);
@@ -205,7 +205,7 @@ int main(void) {
         }
     }
 
-#if CTLS_TRANSPORT_RELIABLE
+#if CTLS_STREAM
     close(g_client_sock);
 #endif
     close(g_sock);

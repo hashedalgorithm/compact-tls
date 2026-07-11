@@ -3,7 +3,7 @@
  *
  * Runs the full client-side handshake against a server, then exchanges one
  * application data message. Transport is hardcoded at compile time by
- * CTLS_TRANSPORT_RELIABLE / CTLS_TRANSPORT_UNRELIABLE (config.h, set via
+ * CTLS_STREAM / CTLS_DATAGRAM (config.h, set via
  * CMake — see README's "Build" section): TCP (SOCK_STREAM, connect/send/recv)
  * when reliable, UDP (SOCK_DGRAM, sendto/recv) when unreliable.
  *
@@ -26,7 +26,7 @@
 
 static int g_sock = -1;
 
-#if CTLS_TRANSPORT_RELIABLE
+#if CTLS_STREAM
 
 static ctls_status_t transport_send(uint8_t *buffer, ctls_size_t length) {
     ssize_t sent = send(g_sock, buffer, length, 0);
@@ -57,7 +57,7 @@ static ctls_status_t transport_receive(uint8_t *buffer, ctls_size_t *length, ctl
     return CTLS_STATUS_SUCCESS;
 }
 
-#else /* CTLS_TRANSPORT_UNRELIABLE */
+#else /* CTLS_DATAGRAM */
 
 static struct sockaddr_in g_server_addr;
 
@@ -97,7 +97,7 @@ int main(void) {
     const char *host = "127.0.0.1";
     int port = 4433;
 
-#if CTLS_TRANSPORT_RELIABLE
+#if CTLS_STREAM
     g_sock = socket(AF_INET, SOCK_STREAM, 0);
 #else
     g_sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -123,7 +123,7 @@ int main(void) {
 
     printf("connecting to %s:%d\n", host, port);
 
-#if CTLS_TRANSPORT_RELIABLE
+#if CTLS_STREAM
     if (connect(g_sock, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
         fprintf(stderr, "connect: %s\n", strerror(errno));
         close(g_sock);

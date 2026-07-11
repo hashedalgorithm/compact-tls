@@ -88,16 +88,16 @@ Two independent pairs of mutually-exclusive `option()`s, set via `-D` at `cmake 
 |---|---|---|
 | `CTLS_CLIENT` | `ON` | Build as the client role. Compiles out server-only code paths. |
 | `CTLS_SERVER` | `OFF` | Build as the server role. Compiles out client-only code paths. |
-| `CTLS_TRANSPORT_RELIABLE` | `OFF` | TCP-like framing: unified-header sequence number omitted from the wire, `"Sctls "` HKDF label prefix. |
-| `CTLS_TRANSPORT_UNRELIABLE` | `ON` | UDP-like (DTLS 1.3-style) framing: sequence number always on the wire, `"Dctls "` HKDF label prefix. |
+| `CTLS_STREAM` | `OFF` | TCP-like framing: unified-header sequence number omitted from the wire, `"Sctls "` HKDF label prefix. |
+| `CTLS_DATAGRAM` | `ON` | UDP-like (DTLS 1.3-style) framing: sequence number always on the wire, `"Dctls "` HKDF label prefix. |
 
-Exactly one of `CTLS_CLIENT`/`CTLS_SERVER` must be `ON`, and exactly one of `CTLS_TRANSPORT_RELIABLE`/`CTLS_TRANSPORT_UNRELIABLE` must be `ON`. All four combinations build and pass end-to-end.
+Exactly one of `CTLS_CLIENT`/`CTLS_SERVER` must be `ON`, and exactly one of `CTLS_STREAM`/`CTLS_DATAGRAM` must be `ON`. All four combinations build and pass end-to-end.
 
 ```sh
 # Server, reliable (TCP-like) transport
 cmake -B build/server_tcp \
   -DCTLS_CLIENT=OFF -DCTLS_SERVER=ON \
-  -DCTLS_TRANSPORT_RELIABLE=ON -DCTLS_TRANSPORT_UNRELIABLE=OFF
+  -DCTLS_STREAM=ON -DCTLS_DATAGRAM=OFF
 cmake --build build/server_tcp
 ```
 
@@ -216,7 +216,7 @@ typedef ctls_status_t (*ctls_recd_receive)(uint8_t *buffer, ctls_size_t *buffer_
 - `recd_send`: send exactly `buffer_length` bytes from `buffer` over your transport. Return `CTLS_STATUS_SUCCESS` or `CTLS_STATUS_TRANSPORT_SEND_FAILED`.
 - `recd_receive`: read up to `buffer_size` bytes into `buffer`, write the actual byte count received into `*buffer_length`. Return `CTLS_STATUS_SUCCESS` or `CTLS_STATUS_TRANSPORT_RECV_FAILED`.
 
-The library treats the transport as a single logical byte stream/datagram source — it doesn't open sockets, resolve addresses, or manage connections itself. `examples/client.c`/`examples/server.c` show both a TCP and a UDP implementation of this contract, selected by `CTLS_TRANSPORT_RELIABLE`.
+The library treats the transport as a single logical byte stream/datagram source — it doesn't open sockets, resolve addresses, or manage connections itself. `examples/client.c`/`examples/server.c` show both a TCP and a UDP implementation of this contract, selected by `CTLS_STREAM`.
 
 ```c
 static ctls_status_t my_send(uint8_t *buffer, ctls_size_t length) {
