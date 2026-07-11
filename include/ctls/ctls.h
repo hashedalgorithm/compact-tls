@@ -113,6 +113,7 @@ struct ctls_transport {
 /** Top-level connection object. Passed into every public API call. */
 struct ctls_context {
     ctls_template_t const *template;
+    char const *template_path;
     ctls_crypto_t crypto;
     ctls_hshk_buffer_t *hshk_buffer;
     ctls_hshk_data_t hshk_data;
@@ -137,19 +138,37 @@ ctls_transport_t *ctls_transport_get(void);
 ctls_record_t *ctls_record_get(void);
 
 /**
+ * @brief Record the path ctls_template_set should load the profile from.
+ *
+ * Writes into context->template_path — no separate global, just a field on
+ * the context the caller already owns. Used once, at init time, by
+ * ctls_context_init (which calls this before ctls_template_set).
+ *
+ * @param context  Context to write into; must not be NULL.
+ * @param path     Filesystem path to the profile JSON; must not be NULL.
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_TMPL_PATH_NULL if path is NULL.
+ */
+ctls_status_t ctls_template_path_set(ctls_context_t *context, char const *path);
+
+/**
  * @brief Initialize the connection context and underlying crypto layer.
  *
- * Stores the template (resolved from config.h profile id), copies the
- * transport callbacks, zeroes hshk_data, and calls ctls_crypto_init()
- * (psa_crypto_init, transcript hash start, algorithm/family selection).
- * Must be called before ctls_connect() or ctls_accept().
+ * Records template_path on the context (ctls_template_path_set), loads and
+ * parses the profile from it (ctls_template_set), copies the transport
+ * callbacks, zeroes hshk_data, and calls ctls_crypto_init() (psa_crypto_init,
+ * transcript hash start, algorithm/family selection). Must be called before
+ * ctls_connect() or ctls_accept().
  *
- * @param context    Caller-allocated context to initialize; must not be NULL.
- * @param transport  Send/receive callback pair; must not be NULL.
- * @return CTLS_STATUS_SUCCESS, or a CTLS_STATUS_CRYPTO_* code on init failure.
+ * @param context        Caller-allocated context to initialize; must not be NULL.
+ * @param transport      Send/receive callback pair; must not be NULL.
+ * @param template_path  Filesystem path to the profile JSON; must not be NULL.
+ * @return CTLS_STATUS_SUCCESS, CTLS_STATUS_TMPL_PATH_NULL,
+ *         CTLS_STATUS_TMPL_JSON_FILE_NOT_FOUND, any status
+ *         ctls_template_from_json can return, or a CTLS_STATUS_CRYPTO_* code.
  */
 ctls_status_t ctls_context_init(ctls_context_t *context,
-                                ctls_transport_t const *transport);
+                                ctls_transport_t const *transport,
+                                char const *template_path);
 
 /**
  * @brief Advance the handshake state machine to a new state.

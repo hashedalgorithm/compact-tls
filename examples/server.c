@@ -173,7 +173,7 @@ int main(void) {
     ctls_transport_t transport = {.recd_send = transport_send, .recd_receive = transport_receive};
 
     ctls_context_t ctx;
-    ctls_status_t result = ctls_context_init(&ctx, &transport);
+    ctls_status_t result = ctls_context_init(&ctx, &transport, "template.json");
     if (result != CTLS_STATUS_SUCCESS) {
         fprintf(stderr, "ctls_context_init failed: 0x%04X\n", result);
         close(g_sock);

@@ -144,12 +144,13 @@ struct ctls_template {
 
 
 /**
- * Load the active profile from CTLS_TEMPLATE_JSON_PATH (config.h,
- * "template.json") and parse it via ctls_template_from_json into
- * context->template.
+ * Load the active profile from context->template_path (set by
+ * ctls_template_path_set, called from ctls_context_init before this) and
+ * parse it via ctls_template_from_json into context->template.
  *
- * @return CTLS_STATUS_SUCCESS, CTLS_STATUS_TMPL_JSON_FILE_NOT_FOUND (the
- *         file doesn't exist / can't be opened), or any status
+ * @return CTLS_STATUS_SUCCESS, CTLS_STATUS_TMPL_PATH_NULL (template_path
+ *         was never set), CTLS_STATUS_TMPL_JSON_FILE_NOT_FOUND (the file
+ *         doesn't exist / can't be opened), or any status
  *         ctls_template_from_json can return.
  */
 ctls_status_t ctls_template_set(ctls_context_t *context);

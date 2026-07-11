@@ -83,10 +83,6 @@
  * document; no heap allocation. */
 #define CTLS_SIZE_JSON_TOKENS 96U
 
-/* File ctls_template_set (templates.c) loads the active profile from, and
- * the buffer size bound for reading it. Large enough for two DER
- * certificates hex-encoded inline (knownCertificates). */
-#define CTLS_TEMPLATE_JSON_PATH "template.json"
 #define CTLS_SIZE_JSON_BUFFER 4096U
 
 /* Per-entry capacity for known_certificates decoded from JSON hex text

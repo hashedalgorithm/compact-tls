@@ -3,7 +3,6 @@
 //
 
 #include "ctls/templates.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,7 +24,8 @@
 static ctls_template_t ctls_template_json_storage;
 
 /*
- * Load the active profile from CTLS_TEMPLATE_JSON_PATH (config.h) and
+ * Load the active profile from context->template_path (set by
+ * ctls_template_path_set, called from ctls_context_init before this) and
  * parse it via ctls_template_from_json into ctls_template_json_storage.
  */
 ctls_status_t ctls_template_set(ctls_context_t *context) {
@@ -33,7 +33,9 @@ ctls_status_t ctls_template_set(ctls_context_t *context) {
 
     context->template = NULL;
 
-    FILE *file = fopen(CTLS_TEMPLATE_JSON_PATH, "rb");
+    if (context->template_path == NULL) return CTLS_STATUS_TMPL_PATH_NULL;
+
+    FILE *file = fopen(context->template_path, "rb");
     if (file == NULL) return CTLS_STATUS_TMPL_JSON_FILE_NOT_FOUND;
 
     static uint8_t json_buffer[CTLS_SIZE_JSON_BUFFER];

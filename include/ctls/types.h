@@ -528,7 +528,8 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_TMPL_INVALID_PROFILE_ID                  ((ctls_status_t)0x01A1u)
 #define CTLS_STATUS_TMPL_INVALID_PROTOCOL_VERSION            ((ctls_status_t)0x01A2u)
 #define CTLS_STATUS_TMPL_INVALID_KNOWN_CERTIFICATES          ((ctls_status_t)0x01A3u)
-/* 0x01A4-0x01C1 reserved */
+#define CTLS_STATUS_TMPL_PATH_NULL                           ((ctls_status_t)0x01A4u)
+/* 0x01A5-0x01C1 reserved */
 
 /* Transport (0x01C2-0x01F3) */
 #define CTLS_STATUS_TRANSPORT_SEND_FAILED           ((ctls_status_t)0x01C2u)

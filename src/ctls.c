@@ -90,13 +90,27 @@ ctls_status_t ctls_wire_buffer_clear(uint8_t *buffer, ctls_size_t *buffer_offest
     return CTLS_STATUS_SUCCESS;
 }
 
+ctls_status_t ctls_template_path_set(ctls_context_t *context, char const *path) {
+    CTLS_CHECK_NULL_STRUCT(context);
+    CTLS_CHECK_NULL(path);
+
+    context->template_path = path;
+    return CTLS_STATUS_SUCCESS;
+}
+
 ctls_status_t ctls_context_init(ctls_context_t *context,
-                                ctls_transport_t const *transport) {
+                                ctls_transport_t const *transport,
+                                char const *template_path) {
+    CTLS_CHECK_NULL(template_path);
+
     memset(context, 0, sizeof(ctls_context_t));
     memset(&context->record, 0, sizeof(ctls_record_t));
     memset(&g_hshk_buffer_storage, 0, sizeof(g_hshk_buffer_storage));
 
-    ctls_status_t result = ctls_template_set(context);
+    ctls_status_t result = ctls_template_path_set(context, template_path);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_template_set(context);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     context->transport = *transport;
