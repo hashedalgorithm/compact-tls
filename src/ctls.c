@@ -182,14 +182,19 @@ ctls_receive(uint8_t *buffer, ctls_size_t *length, ctls_size_t const capacity) {
     CTLS_CHECK_NULL_STRUCT(hshk_buffer);
 
     uint32_t timeout_ms = CTLS_DTLS_RETRANSMIT_TIMEOUT_INITIAL_MS;
+    uint32_t retry_count = 0;
 
     for (;;) {
         ctls_status_t const result =
                 transport->recd_receive(buffer, length, capacity, timeout_ms);
         if (result != CTLS_STATUS_TRANSPORT_TIMEOUT) return result;
 
-        if (timeout_ms >= CTLS_DTLS_RETRANSMIT_TIMEOUT_MAX_MS)
+        /* Give up after CTLS_DTLS_RETRANSMIT_MAX_RETRIES retransmits rather
+         * than doubling all the way out to the RFC's 60s timer cap — bounds
+         * how long a stuck handshake blocks the caller. */
+        if (retry_count >= CTLS_DTLS_RETRANSMIT_MAX_RETRIES)
             return CTLS_STATUS_TRANSPORT_TIMEOUT;
+        retry_count++;
 
         /* §5.8.1: timer expiry -> retransmit the last flight. Nothing to
          * retransmit while waiting for the peer's opening message (nothing
