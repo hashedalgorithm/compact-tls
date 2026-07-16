@@ -64,6 +64,14 @@
 #define CTLS_DTLS_RETRANSMIT_TIMEOUT_INITIAL_MS  1000U
 #define CTLS_DTLS_RETRANSMIT_TIMEOUT_MAX_MS      60000U
 
+/*
+ * Cap on retransmit attempts (project-specific — the RFC caps the timer
+ * value, not a retry count). Once ctls_receive has retransmitted this many
+ * times with no response, it gives up and aborts the handshake rather than
+ * doubling all the way out to CTLS_DTLS_RETRANSMIT_TIMEOUT_MAX_MS.
+ */
+#define CTLS_DTLS_RETRANSMIT_MAX_RETRIES         3U
+
 // default profile parameters — mandatory when CTLS_CLIENT is active
 
 /*
