@@ -278,22 +278,42 @@ ctls_status_t ctls_connect(ctls_context_t *context);
 ctls_status_t ctls_accept(ctls_context_t *context);
 
 /**
- * @brief Receive and decrypt one application data record.
+ * @brief Receive and decrypt one application-data-phase record.
  *
  * Reads from the transport, strips the unified header, and AEAD-decrypts the
- * body into application_data. The caller must supply a buffer of at least
- * application_data_length bytes. Consumes one sequence number on success.
+ * body. Unlike a plain AEAD-decrypt-and-return, this inspects the decrypted
+ * record's real content type (RFC 8446 §5.2 TLSInnerPlaintext) instead of
+ * assuming every post-handshake record is application data:
  *
- * @param buffer                Wire buffer (CTLS_SIZE_WIRE_BUFFER bytes) for the raw record.
- * @param application_data      Output buffer for the decrypted plaintext.
- * @param application_data_length  Size of application_data in bytes.
- * @param entity                CTLS_ENTITY_CLIENT or CTLS_ENTITY_SERVER (selects read key).
- * @return CTLS_STATUS_SUCCESS on success, CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED on tag mismatch,
- *         or CTLS_STATUS_TRANSPORT_RECV_FAILED on I/O error.
+ *   - application_data: copies the plaintext into application_data and
+ *     writes the actual byte count into *application_data_length. Returns
+ *     CTLS_STATUS_SUCCESS. application_data must be at least
+ *     CTLS_SIZE_WIRE_BUFFER bytes — not bounds-checked against a smaller
+ *     caller-supplied capacity.
+ *   - alert, close_notify: the peer is closing the connection. Moves the
+ *     handshake state to CTLS_HSHK_STATE_CLOSED and returns
+ *     CTLS_STATUS_ALERT_CLOSE_NOTIFY — same convention ctls_close() uses for
+ *     a locally-initiated close, so callers can check for this one status
+ *     regardless of which side started the shutdown. *application_data_length
+ *     is set to 0.
+ *   - alert, anything else: returns CTLS_STATUS_RECD_PEER_ALERT_RECEIVED.
+ *     *application_data_length is set to 0.
+ *   - any other content type (e.g. a handshake message during the
+ *     application-data phase): returns CTLS_STATUS_RECD_INVALID_CONTENT_TYPE
+ *     — not supported by this implementation.
+ *
+ * @param buffer                      Wire buffer (CTLS_SIZE_WIRE_BUFFER bytes) for the raw record.
+ * @param application_data            Output buffer for the decrypted plaintext.
+ * @param application_data_length     Output: bytes actually written to application_data.
+ * @param entity                      CTLS_ENTITY_CLIENT or CTLS_ENTITY_SERVER (selects read key).
+ * @return CTLS_STATUS_SUCCESS, CTLS_STATUS_ALERT_CLOSE_NOTIFY,
+ *         CTLS_STATUS_RECD_PEER_ALERT_RECEIVED, CTLS_STATUS_RECD_INVALID_CONTENT_TYPE,
+ *         CTLS_STATUS_CRYPTO_AEAD_DECRYPT_FAILED on tag mismatch, or
+ *         CTLS_STATUS_TRANSPORT_RECV_FAILED / CTLS_STATUS_TRANSPORT_TIMEOUT on I/O error.
  */
 ctls_status_t ctls_read(uint8_t *buffer,
                         uint8_t *application_data,
-                        ctls_size_t application_data_length,
+                        ctls_size_t *application_data_length,
                         ctls_entity_t entity);
 
 /**
