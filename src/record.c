@@ -1157,14 +1157,21 @@ ctls_status_t ctls_recd_alert_to_wire(uint8_t *buffer,
     uint8_t plaintext[CTLS_SIZE_WIRE_BUFFER];
     ctls_size_t plaintext_offset = 0;
 
-    result = ctls_hsmg_alert_to_wire(record->type == CTLS_RECORD_TYPE_PLAINTEXT
-                                         ? buffer
-                                         : plaintext,
-                                     record->type == CTLS_RECORD_TYPE_PLAINTEXT
-                                         ? offset
-                                         : &plaintext_offset,
-                                     &record->record_body.alert);
+    result = ctls_hsmg_alert_to_wire(
+            plaintext, &plaintext_offset, &record->record_body.alert);
     if (result != CTLS_STATUS_SUCCESS) return result;
+
+    if (record->type == CTLS_RECORD_TYPE_PLAINTEXT) {
+        result = ctls_write_u8(
+                buffer, offset, record->content_type, CTLS_SIZE_WIRE_BUFFER);
+        if (result != CTLS_STATUS_SUCCESS) return result;
+
+        result = ctls_write_u16(buffer, offset, plaintext_offset, CTLS_SIZE_WIRE_BUFFER);
+        if (result != CTLS_STATUS_SUCCESS) return result;
+
+        return ctls_write_bytes(
+                buffer, offset, plaintext_offset, plaintext, CTLS_SIZE_WIRE_BUFFER);
+    }
 
     if (record->type == CTLS_RECORD_TYPE_ENCRYPTED) {
         result = ctls_write_u8(plaintext, &plaintext_offset, record->content_type,
