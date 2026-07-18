@@ -467,16 +467,33 @@ ctls_status_t ctls_accept(ctls_context_t *context) {
 
 ctls_status_t ctls_read(uint8_t *buffer,
                         uint8_t *application_data,
-                        ctls_size_t const application_data_length,
+                        ctls_size_t *application_data_length,
                         ctls_entity_t const entity) {
     CTLS_CHECK_NULL_BUFFER(application_data);
+    CTLS_CHECK_NULL_OFFSET(application_data_length);
 
     ctls_size_t buffer_offset = 0;
     ctls_status_t result = ctls_receive(buffer, &buffer_offset, CTLS_SIZE_WIRE_BUFFER);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    return ctls_recd_application_data_deserialize(
-            buffer, application_data, application_data_length, entity);
+    ctls_record_t *record = ctls_record_get();
+    CTLS_CHECK_NULL_STRUCT(record);
+
+    ctls_recd_content_type_t content_type = CTLS_RECD_CONTENT_TYPE_INVALID;
+    result = ctls_recd_application_data_deserialize(
+            buffer, application_data, application_data_length, &content_type, entity);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    if (content_type == CTLS_RECD_CONTENT_TYPE_ALERT) {
+        if (record->record_body.alert.description == CTLS_HSMG_ALERT_TYPE_CLOSE_NOTIFY) {
+            result = ctls_core_handshake_state_update(CTLS_HSHK_STATE_CLOSED);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            return CTLS_STATUS_ALERT_CLOSE_NOTIFY;
+        }
+        return CTLS_STATUS_RECD_PEER_ALERT_RECEIVED;
+    }
+
+    return CTLS_STATUS_SUCCESS;
 }
 
 ctls_status_t ctls_write(uint8_t const *application_data,

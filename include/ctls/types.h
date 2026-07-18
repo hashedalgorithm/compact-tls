@@ -486,7 +486,10 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_RECD_CV_CREATE_INVALID_ENTITY   ((ctls_status_t)0x0156u)
 #define CTLS_STATUS_RECD_FIN_CREATE_INVALID_ENTITY  ((ctls_status_t)0x0157u)
 #define CTLS_STATUS_RECD_CR_NO_MUTUAL_AUTH          ((ctls_status_t)0x0158u)
-/* 0x0159-0x015D reserved */
+/* ctls_read (ctls.c) received a fatal alert other than close_notify during
+ * the application-data phase — record_body.alert holds the description. */
+#define CTLS_STATUS_RECD_PEER_ALERT_RECEIVED        ((ctls_status_t)0x0159u)
+/* 0x015A-0x015D reserved */
 
 /* Handshake Messages (0x015E-0x018F) */
 #define CTLS_STATUS_HSMG_INVALID_WIRE_FORMAT        ((ctls_status_t)0x015Eu)

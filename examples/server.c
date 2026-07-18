@@ -202,19 +202,37 @@ int main(void) {
 
         uint8_t wire_buf[CTLS_SIZE_WIRE_BUFFER];
         uint8_t plaintext[CTLS_SIZE_WIRE_BUFFER];
+        ctls_size_t plaintext_length = 0;
         memset(plaintext, 0, sizeof(plaintext));
-        result = ctls_read(wire_buf, plaintext, sizeof(plaintext) - 1, CTLS_ENTITY_CLIENT);
-        if (result != CTLS_STATUS_SUCCESS) {
+        result = ctls_read(wire_buf, plaintext, &plaintext_length, CTLS_ENTITY_CLIENT);
+        if (result == CTLS_STATUS_ALERT_CLOSE_NOTIFY) {
+            printf("client closed the connection (close_notify)\n");
+        } else if (result != CTLS_STATUS_SUCCESS) {
             fprintf(stderr, "ctls_read: 0x%04X\n", result);
         } else {
-            printf("received: %s\n", (char *)plaintext);
+            printf("received (%u bytes): %.*s\n",
+                   (unsigned) plaintext_length, (int) plaintext_length, (char *) plaintext);
+
+            /* The client sends its own close_notify right after the app-data
+             * message — read again to actually observe it instead of just
+             * assuming the peer will eventually go away. */
+            result = ctls_read(wire_buf, plaintext, &plaintext_length, CTLS_ENTITY_CLIENT);
+            if (result == CTLS_STATUS_ALERT_CLOSE_NOTIFY) {
+                printf("client closed the connection (close_notify)\n");
+            } else if (result != CTLS_STATUS_SUCCESS) {
+                fprintf(stderr, "ctls_read (waiting for close_notify): 0x%04X\n", result);
+            }
         }
 
-        result = ctls_close(&ctx, CTLS_ENTITY_SERVER);
-        if (result != CTLS_STATUS_SUCCESS) {
-            fprintf(stderr, "ctls_close: 0x%04X\n", result);
-        } else {
-            printf("close_notify sent\n");
+        /* If the client already sent close_notify, the connection is done —
+         * don't send our own close_notify on top of an already-closed state. */
+        if (result != CTLS_STATUS_ALERT_CLOSE_NOTIFY) {
+            result = ctls_close(&ctx, CTLS_ENTITY_SERVER);
+            if (result != CTLS_STATUS_SUCCESS) {
+                fprintf(stderr, "ctls_close: 0x%04X\n", result);
+            } else {
+                printf("close_notify sent\n");
+            }
         }
     }
 

@@ -1033,32 +1033,77 @@ ctls_status_t ctls_recd_client_flight_to_wire(uint8_t *buffer,
 
 ctls_status_t ctls_recd_application_data_deserialize(uint8_t const *buffer,
                                                      uint8_t *application_data,
-                                                     ctls_size_t application_data_length,
-                                                     ctls_entity_t const entity) {
+                                       ctls_size_t *application_data_length,
+                                       ctls_recd_content_type_t *content_type,
+                                       ctls_entity_t const entity) {
     ctls_record_t *record = ctls_record_get();
 
     CTLS_CHECK_NULL_BUFFER(buffer);
     CTLS_CHECK_NULL_BUFFER(application_data);
+    CTLS_CHECK_NULL_OFFSET(application_data_length);
+    CTLS_CHECK_NULL(content_type);
     CTLS_CHECK_NULL_STRUCT(record);
 
-    ctls_status_t const result = ctls_recd_buffer_clear(record);
+    ctls_status_t result = ctls_recd_buffer_clear(record);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    return ctls_record_decrypt(record,
-                               buffer,
-                               application_data,
-                               &application_data_length,
-                               CTLS_PHASE_APPLICATION_DATA,
-                               entity);
+    *application_data_length = 0;
+
+    uint8_t plaintext[CTLS_SIZE_WIRE_BUFFER];
+    ctls_size_t plaintext_length = 0;
+
+    result = ctls_record_decrypt(record,
+                                 buffer,
+                                 plaintext,
+                                 &plaintext_length,
+                                 CTLS_PHASE_APPLICATION_DATA,
+                                 entity);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    /* TLSInnerPlaintext (RFC 8446 §5.2): content || content_type — the
+     * trailing byte is the real content type, same convention already used
+     * by ctls_record_preprocess for handshake-phase records. */
+    if (plaintext_length == 0) return CTLS_STATUS_RECD_INVALID_CONTENT_TYPE;
+    *content_type = plaintext[plaintext_length - 1];
+
+    switch (*content_type) {
+        case CTLS_RECD_CONTENT_TYPE_APPLICATION_DATA: {
+            record->content_type = CTLS_RECD_CONTENT_TYPE_APPLICATION_DATA;
+
+            ctls_size_t read_offset = 0;
+            result = ctls_read_bytes(application_data,
+                                     plaintext_length - 1,
+                                     plaintext,
+                                     &read_offset,
+                                     CTLS_SIZE_WIRE_BUFFER);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+
+            *application_data_length = plaintext_length - 1;
+            return CTLS_STATUS_SUCCESS;
+        }
+
+        case CTLS_RECD_CONTENT_TYPE_ALERT: {
+            /* Alert body is level(u8) + description(u8) — the same 2-byte
+             * layout ctls_hsmg_alert_to_struct already parses for plaintext
+             * alerts, just read from the decrypted buffer instead. */
+            record->content_type = CTLS_RECD_CONTENT_TYPE_ALERT;
+            ctls_size_t alert_offset = 0;
+            return ctls_hsmg_alert_to_struct(
+                    &record->record_body.alert, plaintext, &alert_offset);
+        }
+
+        default:
+            return CTLS_STATUS_RECD_INVALID_CONTENT_TYPE;
+    }
 }
 
 
-ctls_status_t ctls_recd_application_data_serialize(uint8_t *buffer,
-                                                   ctls_size_t *offset,
-                                                   uint8_t const *application_data,
-                                                   ctls_size_t const
-                                                   application_data_length,
-                                                   ctls_entity_t const entity) {
+ctls_status_t
+ctls_recd_application_data_serialize(uint8_t *buffer,
+                                     ctls_size_t *offset,
+                                     uint8_t const *application_data,
+                                     ctls_size_t const application_data_length,
+                                     ctls_entity_t const entity) {
     ctls_record_t *record = ctls_record_get();
 
     CTLS_CHECK_NULL_BUFFER(application_data);
@@ -1101,13 +1146,27 @@ ctls_status_t ctls_recd_application_data_serialize(uint8_t *buffer,
 ctls_status_t ctls_recd_alert_create(ctls_record_t *record,
                                      ctls_hsmg_alert_type_t const description,
                                      ctls_hsmg_alert_level_t const alert_level) {
+    ctls_hshk_data_t const *hshk_data = ctls_hshk_data_get();
+
     CTLS_CHECK_NULL_STRUCT(record);
+    CTLS_CHECK_NULL_STRUCT(hshk_data);
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
     result = ctls_recd_buffer_clear(record);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     record->content_type = CTLS_RECD_CONTENT_TYPE_ALERT;
+
+    /* Plaintext only while no write key exists yet — CTLS_HSHK_STATE_START
+     * (nothing sent) and _WAIT_SERVER_HELLO (CH sent, SH not yet processed)
+     * are the only states before ctls_key_schedule() runs (core.c's
+     * ctls_core_server_hello_internal_op, both roles). Every other state,
+     * CTLS_HSHK_STATE_ERROR included, has at least handshake keys — RFC 8446
+     * §5.1 requires alerts to be protected once keys are established. */
+    record->type = (hshk_data->state == CTLS_HSHK_STATE_START ||
+                    hshk_data->state == CTLS_HSHK_STATE_WAIT_SERVER_HELLO)
+                           ? CTLS_RECORD_TYPE_PLAINTEXT
+                           : CTLS_RECORD_TYPE_ENCRYPTED;
 
     result = ctls_unified_header_build(&record->unified_header, 0);
     if (result != CTLS_STATUS_SUCCESS) return result;

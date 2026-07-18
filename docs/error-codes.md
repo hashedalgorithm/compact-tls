@@ -250,7 +250,7 @@ Sub-band layout:
   ├─ 0x0134–0x013B  Header field violations (per call-site)
   ├─ 0x013C–0x0147  Message-type dispatch failures (per call-site; 0x0142–0x0147 reserved)
   ├─ 0x0148–0x0155  Wire-format guard, one code per _to_wire function (0x0151–0x0155 reserved)
-  └─ 0x0156–0x015D  Entity / protocol violations (per call-site; 0x0159–0x015D reserved)
+  └─ 0x0156–0x015D  Entity / protocol violations (per call-site; 0x015A–0x015D reserved)
 ```
 
 ### 0x012C–0x0133: Existing shared codes (preserved)
@@ -311,6 +311,7 @@ Sub-band layout:
 | 0x0156 | `CTLS_STATUS_RECD_CV_CREATE_INVALID_ENTITY`  | `ctls_recd_certificate_verify_create`: `entity` is neither `CTLS_ENTITY_CLIENT` nor `CTLS_ENTITY_SERVER`.                                                |
 | 0x0157 | `CTLS_STATUS_RECD_FIN_CREATE_INVALID_ENTITY` | `ctls_recd_finished_create`: `entity` is neither `CTLS_ENTITY_CLIENT` nor `CTLS_ENTITY_SERVER`.                                                          |
 | 0x0158 | `CTLS_STATUS_RECD_CR_NO_MUTUAL_AUTH`         | `ctls_recd_certificate_request_to_struct`: `template->mutual_auth == 0`. CertificateRequest received on a non-mutual-auth profile; protocol violation.   |
+| 0x0159 | `CTLS_STATUS_RECD_PEER_ALERT_RECEIVED`       | `ctls_read` (`ctls.c`): decrypted an application-data-phase alert that isn't `close_notify` — `record->record_body.alert` holds the description. Distinct from `CTLS_STATUS_ALERT_CLOSE_NOTIFY`, which is the expected graceful-shutdown case. |
 
 ---
 
