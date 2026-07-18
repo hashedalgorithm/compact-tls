@@ -336,14 +336,40 @@ ctls_status_t ctls_recd_client_flight_to_wire(uint8_t *buffer,
                                               ctls_entity_t entity);
 
 /**
- * Receive an encrypted application data record: AEAD-decrypt from buffer
- * into application_data (caller-allocated, application_data_length bytes).
- * entity selects the read key / IV. On success consumes one sequence number.
+ * Receive an encrypted application-data-phase record: AEAD-decrypt from
+ * buffer, then dispatch on the decrypted TLSInnerPlaintext's trailing
+ * content_type byte (RFC 8446 §5.2) instead of assuming it's always
+ * application_data.
+ *
+ * On CTLS_RECD_CONTENT_TYPE_APPLICATION_DATA: copies the real plaintext into
+ * application_data and writes its actual length into *application_data_length.
+ * application_data is NOT bounds-checked against a caller-supplied capacity —
+ * the caller must supply a buffer of at least CTLS_SIZE_WIRE_BUFFER bytes
+ * (the same size as the wire buffer plaintext is decrypted into).
+ *
+ * On CTLS_RECD_CONTENT_TYPE_ALERT: parses the 2-byte alert body into
+ * record->record_body.alert and leaves *application_data_length at 0 —
+ * caller (ctls_read) is responsible for acting on the alert.
+ *
+ * Any other content type is rejected with CTLS_STATUS_RECD_INVALID_CONTENT_TYPE
+ * — this project doesn't support handshake messages (e.g. NewSessionTicket,
+ * KeyUpdate) arriving during the application-data phase.
+ *
+ * @param buffer                    Raw wire bytes for one record.
+ * @param application_data          Output buffer for decrypted application data;
+ *                                  must be at least CTLS_SIZE_WIRE_BUFFER bytes.
+ * @param application_data_length   Output: bytes actually written to application_data
+ *                                  (0 unless content_type is APPLICATION_DATA).
+ * @param content_type              Output: the decrypted record's real content type.
+ * @param entity                    Selects the read key / IV (the sender's role).
+ * @return CTLS_STATUS_SUCCESS, CTLS_STATUS_RECD_INVALID_CONTENT_TYPE on an
+ *         unsupported content type, or a CTLS_STATUS_CRYPTO_* code from decryption.
  */
 ctls_status_t ctls_recd_application_data_deserialize(uint8_t const *buffer,
                                                      uint8_t *application_data,
-                                                     ctls_size_t application_data_length,
-                                                     ctls_entity_t entity);
+                                       ctls_size_t *application_data_length,
+                                       ctls_recd_content_type_t *content_type,
+                                       ctls_entity_t entity);
 /**
  * Send an application data record: AEAD-encrypt application_data into
  * buffer with unified header prepended. *offset advances past the whole
