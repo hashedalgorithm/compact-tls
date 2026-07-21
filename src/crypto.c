@@ -1613,9 +1613,56 @@ cleanup:
     return CTLS_STATUS_CRYPTO_HMAC_VERIFY_DATA_FAILED;
 }
 
+ctls_status_t ctls_handshake_keys_cleanup(void) {
+    ctls_crypto_t *crypto = ctls_crypto_get();
+    ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
+    CTLS_CHECK_NULL_STRUCT(crypto);
+    CTLS_CHECK_NULL(hshk_data);
+
+    /* derived_secret is NOT here — ctls_master_secret_generate (called
+     * right after this, first step of ctls_application_key_schedule)
+     * still reads it as Master Secret's salt. */
+    psa_key_id_t *handshake_keys[] = {
+        &crypto->self_ephemeral_key_pair,
+        &crypto->peer_public_ephemeral_key,
+        &crypto->shared_ephemeral_secret,
+        &crypto->early_secret,
+        &crypto->handshake_secret,
+        &crypto->client_handshake_traffic_secret,
+        &crypto->client_handshake_write_key,
+        &crypto->client_handshake_iv_key,
+        &crypto->server_handshake_traffic_secret,
+        &crypto->server_handshake_write_key,
+        &crypto->server_handshake_iv_key,
+        &crypto->self_certificate_key_pair,
+        &crypto->peer_certificate_public_key,
+        &crypto->client_finished_key,
+        &crypto->server_finished_key,
+    };
+
+    for (size_t i = 0; i < sizeof(handshake_keys) / sizeof(handshake_keys[0]); i++) {
+        if (*handshake_keys[i] != PSA_KEY_ID_NULL) {
+            psa_destroy_key(*handshake_keys[i]);
+            *handshake_keys[i] = PSA_KEY_ID_NULL;
+        }
+    }
+
+    memset(hshk_data->client_signature, 0, sizeof(hshk_data->client_signature));
+    memset(hshk_data->server_signature, 0, sizeof(hshk_data->server_signature));
+    memset(hshk_data->client_verify_data, 0, sizeof(hshk_data->client_verify_data));
+    memset(hshk_data->server_verify_data, 0, sizeof(hshk_data->server_verify_data));
+    hshk_data->client_verify_data_length = 0;
+    hshk_data->server_verify_data_length = 0;
+
+    return CTLS_STATUS_SUCCESS;
+}
+
 ctls_status_t ctls_application_key_schedule(void) {
     ctls_crypto_t *crypto = ctls_crypto_get();
     CTLS_CHECK_NULL_STRUCT(crypto);
+
+    ctls_status_t const cleanup_result = ctls_handshake_keys_cleanup();
+    if (cleanup_result != CTLS_STATUS_SUCCESS) return cleanup_result;
 
     ctls_status_t result = ctls_master_secret_generate(crypto);
     if (result != CTLS_STATUS_SUCCESS) return result;

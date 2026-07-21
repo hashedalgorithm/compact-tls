@@ -668,11 +668,39 @@ ctls_status_t ctls_finished_key_generate(ctls_entity_t entity);
 ctls_status_t ctls_verify_data_generate(ctls_entity_t entity, uint8_t *verify_data);
 
 /**
+ * @brief Destroy every PSA key that's exclusively handshake-scoped.
+ *
+ * Frees the ephemeral ECDHE pair, shared secret, early/handshake secrets,
+ * handshake traffic/write/IV keys (both entities), certificate signing and
+ * peer-verification keys, and Finished keys — everything the handshake
+ * produced that application_key_schedule no longer needs. Also zeroes
+ * hshk_data's CertificateVerify signature and Finished verify_data bytes
+ * (both entities), since they're only needed to authenticate the handshake
+ * itself.
+ *
+ * crypto->derived_secret is deliberately left alone: ctls_master_secret_generate
+ * (the first step of ctls_application_key_schedule, called right after this)
+ * still reads it as Master Secret's salt.
+ *
+ * Exists because PSA's default key-slot limit (16 on mbed TLS) is smaller
+ * than the number of keys a full handshake-plus-application-phase
+ * connection needs concurrently — without this, application_key_schedule's
+ * first key import fails with PSA_ERROR_INSUFFICIENT_MEMORY once 16
+ * handshake-scoped keys are already live.
+ *
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_NULL_STRUCT if crypto or
+ *         hshk_data aren't initialized.
+ */
+ctls_status_t ctls_handshake_keys_cleanup(void);
+
+/**
  * @brief Run the post-Finished key schedule (RFC 8446 §7.1 second half).
  *
  * Derives master_secret → application traffic secrets → application write
  * keys and IVs for both entities, then bumps the epoch twice. Call after
  * both Finished messages are verified and CTLS_HSHK_STATE_CONNECTED is set.
+ * Calls ctls_handshake_keys_cleanup() first to free the PSA key slots the
+ * handshake-only keys were holding.
  *
  * @return CTLS_STATUS_SUCCESS, or the first CTLS_STATUS_CRYPTO_* error.
  */
