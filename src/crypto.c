@@ -404,7 +404,7 @@ ctls_status_t ctls_key_schedule() {
     ctls_status_t result = ctls_early_secret_generate(crypto);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_derived_secret_generate(crypto);
+    result = ctls_derived_secret_generate(crypto, &crypto->early_secret);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     result = ctls_shared_ephemeral_secret_generate(crypto);
@@ -880,8 +880,9 @@ cleanup:
 }
 
 
-ctls_status_t ctls_derived_secret_generate(ctls_crypto_t *crypto) {
+ctls_status_t ctls_derived_secret_generate(ctls_crypto_t *crypto, psa_key_id_t const *salt) {
     CTLS_CHECK_NULL_STRUCT(crypto);
+    CTLS_CHECK_NULL_KEY_ID(salt);
 
     uint8_t info[49U];
     ctls_size_t offset = 0U;
@@ -894,7 +895,7 @@ ctls_status_t ctls_derived_secret_generate(ctls_crypto_t *crypto) {
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
     result = ctls_hkdf_expand(&crypto->derived_secret,
-                              &crypto->early_secret,
+                              salt,
                               CTLS_KEY_USAGE_HKDF_EXPAND,
                               info,
                               offset);
@@ -1619,15 +1620,15 @@ ctls_status_t ctls_handshake_keys_cleanup(void) {
     CTLS_CHECK_NULL_STRUCT(crypto);
     CTLS_CHECK_NULL(hshk_data);
 
-    /* derived_secret is NOT here — ctls_master_secret_generate (called
-     * right after this, first step of ctls_application_key_schedule)
-     * still reads it as Master Secret's salt. */
+    /* handshake_secret and derived_secret are NOT here — ctls_master_secret_generate
+     * (called right after this, first step of ctls_application_key_schedule)
+     * still needs handshake_secret to compute Master Secret's salt, and
+     * destroys both itself once master_secret is produced. */
     psa_key_id_t *handshake_keys[] = {
         &crypto->self_ephemeral_key_pair,
         &crypto->peer_public_ephemeral_key,
         &crypto->shared_ephemeral_secret,
         &crypto->early_secret,
-        &crypto->handshake_secret,
         &crypto->client_handshake_traffic_secret,
         &crypto->client_handshake_write_key,
         &crypto->client_handshake_iv_key,
@@ -1705,6 +1706,14 @@ ctls_status_t ctls_master_secret_generate(ctls_crypto_t *crypto) {
     ctls_status_t result = ctls_key_schedule_operator_reset(crypto);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
+    /* RFC 8446 §7.1: Master Secret's salt is Derive-Secret(Handshake
+     * Secret, "derived", ""), a fresh derivation from handshake_secret —
+     * NOT the derived_secret already sitting in crypto (that one salted
+     * handshake_secret itself, from early_secret). Overwrites
+     * crypto->derived_secret with this second value. */
+    result = ctls_derived_secret_generate(crypto, &crypto->handshake_secret);
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+
     result = ctls_key_attributes_set(CTLS_KEY_USAGE_HKDF_EXTRACT, &ikm_attributes);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
 
@@ -1713,6 +1722,15 @@ ctls_status_t ctls_master_secret_generate(ctls_crypto_t *crypto) {
 
     result = ctls_hkdf_extract(&crypto->master_secret, &crypto->derived_secret, &ikm);
     if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+
+    psa_destroy_key(ikm);
+    /* handshake_secret and derived_secret (now holding the second
+     * Derive-Secret value) are both fully consumed — nothing downstream
+     * reads either again. */
+    psa_destroy_key(crypto->handshake_secret);
+    crypto->handshake_secret = PSA_KEY_ID_NULL;
+    psa_destroy_key(crypto->derived_secret);
+    crypto->derived_secret = PSA_KEY_ID_NULL;
 
     return CTLS_STATUS_SUCCESS;
 cleanup:

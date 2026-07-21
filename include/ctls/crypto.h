@@ -388,15 +388,21 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
 ctls_status_t ctls_early_secret_generate(ctls_crypto_t *crypto);
 
 /**
- * @brief Expand-Label(early_secret, "derived", H(""), 32) → derived_secret.
+ * @brief Expand-Label(salt, "derived", H(""), 32) → derived_secret.
  *
- * Output used as salt in the next HKDF-Extract (handshake_secret).
- * Result stored in crypto->derived_secret.
+ * RFC 8446 §7.1's key schedule computes this Derive-Secret step twice, from
+ * two different salts — once from early_secret (salting handshake_secret),
+ * once from handshake_secret (salting master_secret) — so salt is a
+ * parameter, not hardcoded. Result always overwrites crypto->derived_secret;
+ * it's a transient value with no use after whichever HKDF-Extract consumes
+ * it next.
  *
  * @param crypto  Crypto state; derived_secret field is set on success.
+ * @param salt    early_secret (first call, in ctls_key_schedule) or
+ *                handshake_secret (second call, in ctls_master_secret_generate).
  * @return CTLS_STATUS_SUCCESS, or a CTLS_STATUS_CRYPTO_HKDF_EXPAND_* error.
  */
-ctls_status_t ctls_derived_secret_generate(ctls_crypto_t *crypto);
+ctls_status_t ctls_derived_secret_generate(ctls_crypto_t *crypto, psa_key_id_t const *salt);
 
 /**
  * @brief psa_raw_key_agreement(ECDH, self_key_pair, peer_public_key) → shared_ephemeral_secret.
@@ -678,9 +684,12 @@ ctls_status_t ctls_verify_data_generate(ctls_entity_t entity, uint8_t *verify_da
  * (both entities), since they're only needed to authenticate the handshake
  * itself.
  *
- * crypto->derived_secret is deliberately left alone: ctls_master_secret_generate
- * (the first step of ctls_application_key_schedule, called right after this)
- * still reads it as Master Secret's salt.
+ * crypto->handshake_secret and crypto->derived_secret are deliberately left
+ * alone: ctls_master_secret_generate (the first step of
+ * ctls_application_key_schedule, called right after this) still needs
+ * handshake_secret to compute Master Secret's salt (overwriting
+ * derived_secret with that fresh value) — it destroys both itself once
+ * master_secret is produced.
  *
  * Exists because PSA's default key-slot limit (16 on mbed TLS) is smaller
  * than the number of keys a full handshake-plus-application-phase
