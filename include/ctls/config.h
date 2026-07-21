@@ -72,6 +72,25 @@
  */
 #define CTLS_DTLS_RETRANSMIT_MAX_RETRIES         3U
 
+/*
+ * RFC 9147 §5.8 flight retransmission on timeout — CTLS_DATAGRAM only.
+ * Default ON: ctls_receive owns loss recovery itself (timer + retransmit
+ * loop above). Turn OFF when the host transport already recovers lost
+ * fragments below cTLS (e.g. SCHC ACK_ALWAYS mode) — retransmitting the
+ * flight here too would be redundant, so ctls_receive instead does one
+ * blocking receive with a CTLS_DTLS_RECEIVE_TIMEOUT_MS deadline and fails
+ * outright on timeout, no retry.
+ */
+#ifndef CTLS_DTLS_RETRANSMISSION_ENABLED
+#define CTLS_DTLS_RETRANSMISSION_ENABLED 1
+#endif
+
+/* CTLS_DTLS_RETRANSMISSION_ENABLED == 0 only: how long ctls_receive waits
+ * on the single blocking receive before giving up, since there's no
+ * retransmit loop to fall back into if the host's own recovery is still
+ * in flight. */
+#define CTLS_DTLS_RECEIVE_TIMEOUT_MS              60000U
+
 // default profile parameters — mandatory when CTLS_CLIENT is active
 
 /*
