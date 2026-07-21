@@ -230,7 +230,7 @@ ctls_status_t ctls_hsmg_client_hello_to_wire(uint8_t *buffer,
         if (result != CTLS_STATUS_SUCCESS) return result;
         result = ctls_write_u16(buffer,
                        offset,
-                       sizeof(hsmg->handshake_message_body.client_hello.cipher_suite),
+                       sizeof(uint16_t), // TLS cipher suite is 2 bytes on the wire, not sizeof(enum)
                        CTLS_SIZE_WIRE_BUFFER);
         if (result != CTLS_STATUS_SUCCESS) return result;
         result = ctls_write_u16(buffer,
