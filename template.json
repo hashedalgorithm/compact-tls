@@ -1,6 +1,6 @@
 {
   "ctlsVersion": 0,
-  "profile": "0x00000001",
+  "profile": "0x00000005",
   "version": "0x0304",
   "random": 16,
   "cipherSuite": "TLS_AES_128_GCM_SHA256",
