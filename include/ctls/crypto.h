@@ -388,15 +388,21 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
 ctls_status_t ctls_early_secret_generate(ctls_crypto_t *crypto);
 
 /**
- * @brief Expand-Label(early_secret, "derived", H(""), 32) → derived_secret.
+ * @brief Expand-Label(salt, "derived", H(""), 32) → derived_secret.
  *
- * Output used as salt in the next HKDF-Extract (handshake_secret).
- * Result stored in crypto->derived_secret.
+ * RFC 8446 §7.1's key schedule computes this Derive-Secret step twice, from
+ * two different salts — once from early_secret (salting handshake_secret),
+ * once from handshake_secret (salting master_secret) — so salt is a
+ * parameter, not hardcoded. Result always overwrites crypto->derived_secret;
+ * it's a transient value with no use after whichever HKDF-Extract consumes
+ * it next.
  *
  * @param crypto  Crypto state; derived_secret field is set on success.
+ * @param salt    early_secret (first call, in ctls_key_schedule) or
+ *                handshake_secret (second call, in ctls_master_secret_generate).
  * @return CTLS_STATUS_SUCCESS, or a CTLS_STATUS_CRYPTO_HKDF_EXPAND_* error.
  */
-ctls_status_t ctls_derived_secret_generate(ctls_crypto_t *crypto);
+ctls_status_t ctls_derived_secret_generate(ctls_crypto_t *crypto, psa_key_id_t const *salt);
 
 /**
  * @brief psa_raw_key_agreement(ECDH, self_key_pair, peer_public_key) → shared_ephemeral_secret.
@@ -668,11 +674,42 @@ ctls_status_t ctls_finished_key_generate(ctls_entity_t entity);
 ctls_status_t ctls_verify_data_generate(ctls_entity_t entity, uint8_t *verify_data);
 
 /**
+ * @brief Destroy every PSA key that's exclusively handshake-scoped.
+ *
+ * Frees the ephemeral ECDHE pair, shared secret, early/handshake secrets,
+ * handshake traffic/write/IV keys (both entities), certificate signing and
+ * peer-verification keys, and Finished keys — everything the handshake
+ * produced that application_key_schedule no longer needs. Also zeroes
+ * hshk_data's CertificateVerify signature and Finished verify_data bytes
+ * (both entities), since they're only needed to authenticate the handshake
+ * itself.
+ *
+ * crypto->handshake_secret and crypto->derived_secret are deliberately left
+ * alone: ctls_master_secret_generate (the first step of
+ * ctls_application_key_schedule, called right after this) still needs
+ * handshake_secret to compute Master Secret's salt (overwriting
+ * derived_secret with that fresh value) — it destroys both itself once
+ * master_secret is produced.
+ *
+ * Exists because PSA's default key-slot limit (16 on mbed TLS) is smaller
+ * than the number of keys a full handshake-plus-application-phase
+ * connection needs concurrently — without this, application_key_schedule's
+ * first key import fails with PSA_ERROR_INSUFFICIENT_MEMORY once 16
+ * handshake-scoped keys are already live.
+ *
+ * @return CTLS_STATUS_SUCCESS, or CTLS_STATUS_NULL_STRUCT if crypto or
+ *         hshk_data aren't initialized.
+ */
+ctls_status_t ctls_handshake_keys_cleanup(void);
+
+/**
  * @brief Run the post-Finished key schedule (RFC 8446 §7.1 second half).
  *
  * Derives master_secret → application traffic secrets → application write
  * keys and IVs for both entities, then bumps the epoch twice. Call after
  * both Finished messages are verified and CTLS_HSHK_STATE_CONNECTED is set.
+ * Calls ctls_handshake_keys_cleanup() first to free the PSA key slots the
+ * handshake-only keys were holding.
  *
  * @return CTLS_STATUS_SUCCESS, or the first CTLS_STATUS_CRYPTO_* error.
  */
