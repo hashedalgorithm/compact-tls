@@ -181,6 +181,16 @@ ctls_receive(uint8_t *buffer, ctls_size_t *length, ctls_size_t const capacity) {
     CTLS_CHECK_NULL_STRUCT(transport);
     CTLS_CHECK_NULL_STRUCT(hshk_buffer);
 
+#if !CTLS_DTLS_RETRANSMISSION_ENABLED
+    /* Host transport handles loss recovery (e.g. SCHC ACK_ALWAYS) —
+     * single blocking receive, fail on timeout. No flight retransmit here. */
+    (void) hshk_buffer;
+    return transport->recd_receive(buffer, length, capacity,
+                                   CTLS_DTLS_RECEIVE_TIMEOUT_MS);
+#else
+    /* RFC 9147 §5.8: receive with a doubling timer; on each timeout,
+     * retransmit the last flight and back off, giving up after
+     * CTLS_DTLS_RETRANSMIT_MAX_RETRIES. */
     uint32_t timeout_ms = CTLS_DTLS_RETRANSMIT_TIMEOUT_INITIAL_MS;
     uint32_t retry_count = 0;
 
@@ -210,6 +220,7 @@ ctls_receive(uint8_t *buffer, ctls_size_t *length, ctls_size_t const capacity) {
                              ? CTLS_DTLS_RETRANSMIT_TIMEOUT_MAX_MS
                              : timeout_ms * 2;
     }
+#endif
 #elif CTLS_STREAM
     ctls_transport_t const *transport = ctls_transport_get();
     CTLS_CHECK_NULL_BUFFER(buffer);
