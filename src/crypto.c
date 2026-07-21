@@ -1221,8 +1221,15 @@ ctls_status_t ctls_nonce_generate(uint8_t *buffer,
     ctls_status_t const result = ctls_write_bytes(buffer, &offset, CTLS_SIZE_NONCE, iv_key,
                                                   CTLS_SIZE_NONCE);
     if (result != CTLS_STATUS_SUCCESS) return result;
+    /* Widen before shifting: *sequence_number is uint16_t, promoted to a
+     * 32-bit int in the shift expression below — shifting by i*8U >= 32
+     * (i >= 4) would be UB on a 32-bit operand (C11 6.5.7p3), and platforms
+     * disagree on the result (x86 masks the count mod 32, ARM zeroes shifts
+     * >= width). uint64_t keeps every shift amount (up to 56) within the
+     * operand's width on every platform. */
+    uint64_t const seq64 = (uint64_t) *sequence_number;
     for (int i = 0; i < 8; i++) {
-        buffer[11 - i] ^= (uint8_t) (*sequence_number >> (i * 8U));
+        buffer[11 - i] ^= (uint8_t) (seq64 >> (i * 8U));
     }
 
     return CTLS_STATUS_SUCCESS;
