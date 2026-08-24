@@ -21,14 +21,9 @@ template (profile) that eliminates redundant wire bytes from the TLS handshake.
 ## Build
 
 Role is selected at configure time. Exactly one of `CTLS_CLIENT` / `CTLS_SERVER` must be `ON`.
-
-```sh
-./build.sh          # client (default) → build/client/compact_tls
-./build.sh client   # same
-./build.sh server   # server build    → build/server/compact_tls
-```
-
-Or manually:
+Each combination needs its own build directory — `cmake -B <dir>` configures it once, then
+`cmake --build <dir>` compiles; running `--build` against a directory that was never configured
+fails with "is not a directory".
 
 ```sh
 # Client
@@ -44,8 +39,7 @@ Transport is also selected at configure time. Exactly one of `CTLS_STREAM` /
 `CTLS_DATAGRAM` must be `ON` — default is `CTLS_DATAGRAM` (UDP-like framing,
 matching the UDP sockets in `examples/`). Set `CTLS_STREAM=ON` for TCP-like transports; this
 switches the unified header's sequence-number framing and the HKDF label prefix
-(`"Sctls "` vs `"Dctls "`, draft-ietf-tls-ctls §2.2/§2.3.2). Not exposed via `build.sh` — pass it to `cmake`
-directly:
+(`"Sctls "` vs `"Dctls "`, draft-ietf-tls-ctls §2.2/§2.3.2):
 
 ```sh
 cmake -B build/client -DCTLS_CLIENT=ON -DCTLS_SERVER=OFF \

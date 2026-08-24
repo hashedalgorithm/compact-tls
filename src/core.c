@@ -171,25 +171,33 @@ ctls_core_certificate_internal_op(ctls_hsmg_certificate_t const *certificate) {
 }
 
 /*
- * CertificateVerify — individual hook (not invoked in current flow).
+ * CertificateVerify — invoked from ctls_core_server_flight_op (verifying
+ * the server's signature, entity=CTLS_ENTITY_SERVER) and
+ * ctls_core_client_flight_op (mutual auth, verifying the client's
+ * signature, entity=CTLS_ENTITY_CLIENT). entity selects whose signature
+ * (ctls_signed_bytes_verify picks client_signature vs server_signature and
+ * the matching RFC 8446 §4.4.3 context string).
  */
-ctls_status_t ctls_core_certificate_verify_internal_op() {
+ctls_status_t ctls_core_certificate_verify_internal_op(ctls_entity_t const entity) {
     ctls_crypto_t const *crypto = ctls_crypto_get();
     CTLS_CHECK_NULL_STRUCT(crypto);
 
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
-    result = ctls_signed_bytes_verify(&crypto->peer_certificate_public_key,
-                                      CTLS_ENTITY_SERVER);
+    result = ctls_signed_bytes_verify(&crypto->peer_certificate_public_key, entity);
     if (result != CTLS_STATUS_SUCCESS) return CTLS_STATUS_ALERT_DECRYPT_ERROR;
 
     return result;
 }
 
 /*
- * Finished — individual hook (not invoked in current flow).
+ * Finished — invoked from ctls_core_server_flight_op (verifying the
+ * server's Finished, entity=CTLS_ENTITY_SERVER) and
+ * ctls_core_client_flight_op (mutual auth, verifying the client's
+ * Finished, entity=CTLS_ENTITY_CLIENT). entity selects whose finished_key
+ * and verify_data (client_verify_data vs server_verify_data) to check.
  */
-ctls_status_t ctls_core_finished_internal_op() {
+ctls_status_t ctls_core_finished_internal_op(ctls_entity_t const entity) {
     ctls_hshk_data_t *hshk_data = ctls_hshk_data_get();
 
     CTLS_CHECK_NULL_STRUCT(hshk_data);
@@ -197,14 +205,16 @@ ctls_status_t ctls_core_finished_internal_op() {
     uint8_t verify_data_expected[CTLS_SIZE_HASH];
     ctls_status_t result = CTLS_STATUS_SUCCESS;
 
-    result = ctls_finished_key_generate(CTLS_ENTITY_SERVER);
+    result = ctls_finished_key_generate(entity);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_verify_data_generate(CTLS_ENTITY_SERVER, verify_data_expected);
+    result = ctls_verify_data_generate(entity, verify_data_expected);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    if (memcmp(verify_data_expected, hshk_data->server_verify_data, CTLS_SIZE_HASH) !=
-        0) {
+    uint8_t const *verify_data_actual = entity == CTLS_ENTITY_CLIENT
+                                            ? hshk_data->client_verify_data
+                                            : hshk_data->server_verify_data;
+    if (memcmp(verify_data_expected, verify_data_actual, CTLS_SIZE_HASH) != 0) {
         return CTLS_STATUS_ALERT_DECODE_ERROR;
     }
 
@@ -243,10 +253,10 @@ ctls_status_t ctls_core_server_flight_op(ctls_record_t const *record) {
     result = ctls_core_handshake_state_update(CTLS_HSHK_STATE_WAIT_FINISHED);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_core_certificate_verify_internal_op();
+    result = ctls_core_certificate_verify_internal_op(CTLS_ENTITY_SERVER);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_core_finished_internal_op();
+    result = ctls_core_finished_internal_op(CTLS_ENTITY_SERVER);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     return ctls_transcript_hash_update(record, CTLS_HSMG_TYPE_SERVER_FLIGHT);
@@ -283,10 +293,10 @@ ctls_status_t ctls_core_client_flight_op(ctls_record_t const *record) {
     result = ctls_core_handshake_state_update(CTLS_HSHK_STATE_WAIT_FINISHED);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_core_certificate_verify_internal_op();
+    result = ctls_core_certificate_verify_internal_op(CTLS_ENTITY_CLIENT);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
-    result = ctls_core_finished_internal_op();
+    result = ctls_core_finished_internal_op(CTLS_ENTITY_CLIENT);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
     return ctls_transcript_hash_update(record, CTLS_HSMG_TYPE_CLIENT_FLIGHT);

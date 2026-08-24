@@ -112,7 +112,12 @@
 #define CTLS_SIZE_TICKET 32U
 #define CTLS_SIZE_PSK_IDENTITY 64U
 #define CTLS_SIZE_PSK_BINDER CTLS_SIZE_HASH
-#define CTLS_ENTITY_CERTIFICATE_ID 0x01    /* this build's own cert in the dictionary */
+/* known_certificates dictionary ids (template.json's knownCertificates
+ * keys) — which entry is "my own cert" depends on which role is building
+ * the Certificate message (RFC 8446 §4.4.2), not a single fixed value.
+ * ctls_hsmg_certificate_create (hsmg.c) selects by entity. */
+#define CTLS_SERVER_CERTIFICATE_ID 0x01
+#define CTLS_CLIENT_CERTIFICATE_ID 0x02
 #define CTLS_SIZE_CERTIFICATE_KEY_LENGTH 65U
 
 /* jsmn token budget for ctls_template_from_json (templates.c) — bounds the

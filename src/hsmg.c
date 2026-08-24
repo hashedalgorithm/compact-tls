@@ -689,10 +689,11 @@ ctls_status_t ctls_hsmg_certificate_request_to_wire(uint8_t *buffer,
 
 /*
  * Build a Certificate message (RFC 8446 §4.4.2) with the cTLS certificate
- * dictionary: a single entry carrying this build's certificate_id
- * (CTLS_ENTITY_CERTIFICATE_ID) instead of DER, echoing the stored
- * certificate_request_context, plus per-entry extensions (OCSP/SCT) the
- * peer requested.
+ * dictionary: a single entry carrying entity's own certificate_id
+ * (CTLS_SERVER_CERTIFICATE_ID or CTLS_CLIENT_CERTIFICATE_ID — whichever
+ * known_certificates entry is "my cert" depends on who's building the
+ * message) instead of DER, echoing the stored certificate_request_context,
+ * plus per-entry extensions (OCSP/SCT) the peer requested.
  */
 ctls_status_t ctls_hsmg_certificate_create(ctls_hsmg_certificate_t *certificate,
                                            ctls_entity_t const entity) {
@@ -701,12 +702,18 @@ ctls_status_t ctls_hsmg_certificate_create(ctls_hsmg_certificate_t *certificate,
     CTLS_CHECK_NULL_STRUCT(certificate);
     CTLS_CHECK_NULL(hshk_data);
 
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_CRYPTO_INVALID_ARG;
+
     certificate->certificate_request_context.buffer = hshk_data->
             certificate_request_context;
     certificate->certificate_request_context.buffer_length =
             CTLS_SIZE_CERTIFICATE_REQUEST_CONTEXT;
 
-    certificate->certificate_entries[0].certificate_id = CTLS_ENTITY_CERTIFICATE_ID;
+    certificate->certificate_entries[0].certificate_id =
+            (entity == CTLS_ENTITY_SERVER)
+                ? CTLS_SERVER_CERTIFICATE_ID
+                : CTLS_CLIENT_CERTIFICATE_ID;
 
     certificate->certificate_count = 1;
 
