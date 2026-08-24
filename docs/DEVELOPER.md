@@ -48,16 +48,13 @@ cmake -B build/server -DCTLS_CLIENT=OFF -DCTLS_SERVER=ON
 cmake --build build/server
 ```
 
-Or use the shortcut script (client/server only, transport left at its UDP default):
-
-```sh
-./build.sh client
-./build.sh server
-```
+Each role×transport combination needs its own build directory — `cmake -B <dir>` configures it
+once; `cmake --build <dir>` only compiles an already-configured directory and fails with "is not
+a directory" if you skip the configure step.
 
 ### 2. Make sure `template.json` exists
 
-Both the client and server binaries load their profile from a JSON file at startup — by default `template.json`, resolved relative to the process's current working directory. The repo root already has a working one for profile `0x01` (`TLS_AES_128_GCM_SHA256` + `x25519` + `ed25519`), so if you run the binaries from the repo root you don't need to do anything. See [The profile](#the-profile-templatejson) to write your own.
+Both the client and server binaries load their profile from a JSON file at startup — by default `template.json`, resolved relative to the process's current working directory. The repo root already has a working one (`TLS_AES_128_GCM_SHA256` + `x25519` + `ed25519`, mutual auth on), so if you run the binaries from the repo root you don't need to do anything. See [The profile](#the-profile-templatejson) to write your own.
 
 ### 3. Run the server, then the client
 
