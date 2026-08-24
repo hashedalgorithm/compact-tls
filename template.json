@@ -1,5 +1,6 @@
 {
   "ctlsVersion": 0,
+  "mutualAuth": true,
   "profile": "0x00000005",
   "version": "0x0304",
   "random": 16,

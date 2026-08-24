@@ -266,9 +266,9 @@ ctls_status_t ctls_hsmg_certificate_request_to_wire(uint8_t *buffer,
                                                     ctls_wire_format_t wire_format);
 
 /**
- * Fill a Certificate message: one entry carrying this build's own
- * certificate id (CTLS_ENTITY_CERTIFICATE_ID) plus per-entry extensions the
- * peer requested (OCSP status / SCT).
+ * Fill a Certificate message: one entry carrying entity's own certificate
+ * id (CTLS_SERVER_CERTIFICATE_ID or CTLS_CLIENT_CERTIFICATE_ID) plus
+ * per-entry extensions the peer requested (OCSP status / SCT).
  */
 ctls_status_t ctls_hsmg_certificate_create(ctls_hsmg_certificate_t *certificate,
                                            ctls_entity_t entity);

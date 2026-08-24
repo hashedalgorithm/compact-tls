@@ -161,14 +161,14 @@ ctls_status_t ctls_template_set(ctls_context_t *context);
  * zero-alloc — CTLS_SIZE_JSON_TOKENS in config.h bounds the token array).
  * Mandatory fields: profile, version, random, cipherSuite,
  * signatureAlgorithm, dhGroup — CTLS_STATUS_TMPL_JSON_FIELD_MISSING if
- * absent. Optional and left untouched if absent: ctlsVersion, each of
- * clientHelloExtensions/serverHelloExtensions/encryptedExtensions's
- * expectedExtensions/allowAdditional, and knownCertificates (a JSON object
- * keyed by bare-hex certificate_id, e.g. "01" -> hex-encoded DER; not an
- * array — the key already carries the id). Not parsed at all — the JSON
- * schema doesn't model them: mutual_auth, handshake_framing,
- * finished_size, certificate_request_extension, and every
- * predefined_extensions field.
+ * absent. Optional and left untouched (default false/0) if absent:
+ * ctlsVersion, mutualAuth, each of clientHelloExtensions/
+ * serverHelloExtensions/encryptedExtensions's expectedExtensions/
+ * allowAdditional, and knownCertificates (a JSON object keyed by bare-hex
+ * certificate_id, e.g. "01" -> hex-encoded DER; not an array — the key
+ * already carries the id). Not parsed at all — the JSON schema doesn't
+ * model them: handshake_framing, finished_size,
+ * certificate_request_extension, and every predefined_extensions field.
  *
  * @param json         Buffer holding the JSON document.
  * @param json_length  Length of json in bytes.

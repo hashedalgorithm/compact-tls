@@ -19,8 +19,9 @@
 
 /* Mutable storage for the template ctls_template_set loads from JSON —
  * context->template points here. template.json is the sole source of
- * truth; fields it doesn't cover (finished_size, mutual_auth,
- * handshake_framing, certificate_request_extension) are left at zero. */
+ * truth; fields it doesn't cover (finished_size, handshake_framing,
+ * certificate_request_extension) are left at zero. mutual_auth is parsed
+ * (optional "mutualAuth" key, default false) — see ctls_template_from_json. */
 static ctls_template_t ctls_template_json_storage;
 
 /*
@@ -911,6 +912,14 @@ ctls_status_t ctls_template_from_json(uint8_t const *json,
         result = ctls_tmpl_json_token_u32(js, &tokens[index], &number);
         if (result != CTLS_STATUS_SUCCESS) return result;
         tmpl->ctls_version = (uint16_t) number;
+    }
+
+    /* mutualAuth (bool, optional) -> mutual_auth. Absent = 0 (no client
+     * cert required), matching the pre-existing default. */
+    index = ctls_tmpl_json_object_get(js, tokens, 0, "mutualAuth");
+    if (index >= 0) {
+        if (tokens[index].type != JSMN_PRIMITIVE) return CTLS_STATUS_TMPL_JSON_FIELD_INVALID;
+        tmpl->mutual_auth = (js[tokens[index].start] == 't') ? 1U : 0U;
     }
 
     /* random (number) -> random */
