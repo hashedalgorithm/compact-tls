@@ -295,12 +295,22 @@ ctls_status_t ctls_record_preprocess(uint8_t const *buffer,
                         record->unified_header.aad_length + CTLS_SIZE_AEAD_TAG);
         }
 
+        /* This receives whatever the peer sent — Server Flight (client
+         * build, sender=server) or Client Flight (server build,
+         * sender=client) — so the decrypt entity is always the peer's
+         * role, never our own. */
         result = ctls_record_decrypt(record,
                                      buffer,
                                      plaintext,
                                      plaintext_offset,
                                      CTLS_PHASE_HANDSHAKE,
+#if CTLS_CLIENT
                                      CTLS_ENTITY_SERVER);
+#elif CTLS_SERVER
+                                     CTLS_ENTITY_CLIENT);
+#else
+                                     CTLS_ENTITY_CLIENT);
+#endif
         if (result != CTLS_STATUS_SUCCESS) return result;
 
         /* Inner plaintext layout is body || content_type (RFC 8446 §5.2);

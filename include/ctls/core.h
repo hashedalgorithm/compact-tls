@@ -77,15 +77,21 @@ ctls_status_t ctls_core_certificate_internal_op(
 
 /**
  * @brief Hook called after CertificateVerify is deserialized and signature checked.
+ * @param entity  Whose signature is being verified: CTLS_ENTITY_SERVER from
+ *                ctls_core_server_flight_op, CTLS_ENTITY_CLIENT (mutual
+ *                auth) from ctls_core_client_flight_op.
  * @return CTLS_STATUS_SUCCESS to continue, any error to abort the handshake.
  */
-ctls_status_t ctls_core_certificate_verify_internal_op();
+ctls_status_t ctls_core_certificate_verify_internal_op(ctls_entity_t entity);
 
 /**
  * @brief Hook called after Finished is deserialized and verify_data is authenticated.
+ * @param entity  Whose Finished is being checked: CTLS_ENTITY_SERVER from
+ *                ctls_core_server_flight_op, CTLS_ENTITY_CLIENT (mutual
+ *                auth) from ctls_core_client_flight_op.
  * @return CTLS_STATUS_SUCCESS to continue, any error to abort the handshake.
  */
-ctls_status_t ctls_core_finished_internal_op();
+ctls_status_t ctls_core_finished_internal_op(ctls_entity_t entity);
 
 /**
  * @brief Hook called after the client flight (Certificate+CertVerify+Finished) is sent.

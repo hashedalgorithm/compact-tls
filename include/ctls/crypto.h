@@ -112,8 +112,7 @@ struct ctls_crypto {
     psa_key_id_t server_handshake_write_key; // Expand-Label(s_hs_traffic, "key", "", 16)
     psa_key_id_t server_handshake_iv_key; // Expand-Label(s_hs_traffic, "iv",  "", 12)
     psa_key_id_t self_certificate_key_pair;
-    // own Ed25519 private key for CertificateVerify
-    psa_key_id_t peer_certificate_public_key; // peer's Ed25519 public key for verify
+    psa_key_id_t peer_certificate_public_key; // peer's certificate public key for verify (ECDSA P-256; PSA has no Ed25519 support)
     psa_key_id_t client_finished_key; // Expand-Label(c_hs_traffic, "finished", "", 32)
     psa_key_id_t server_finished_key; // Expand-Label(s_hs_traffic, "finished", "", 32)
     psa_key_id_t master_secret;

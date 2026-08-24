@@ -429,11 +429,12 @@ ctls_status_t ctls_server_handshake(ctls_context_t *context) {
                 &context->record, CTLS_HSMG_TYPE_CLIENT_FLIGHT, buffer, buffer_offset);
         if (result != CTLS_STATUS_SUCCESS) goto onerror;
 
+        /* ctls_core_client_flight_op's SERVER branch already hashes Client
+         * Flight into the transcript as its own last step — an extra call
+         * here would hash it twice, diverging from the client's single
+         * hash and corrupting the application traffic secret derivation
+         * (RFC 8446 §7.1 needs Transcript-Hash(...client Finished)). */
         result = ctls_core_client_flight_op(&context->record);
-        if (result != CTLS_STATUS_SUCCESS) goto onerror;
-
-        result = ctls_transcript_hash_update(&context->record,
-                                             CTLS_HSMG_TYPE_CLIENT_FLIGHT);
         if (result != CTLS_STATUS_SUCCESS) goto onerror;
     }
 
