@@ -286,8 +286,6 @@ ctls_status_t ctls_record_preprocess(uint8_t const *buffer,
 
         if ((record->unified_header.epoch & 0x03) != (hshk_data->epoch & 0x03)) return
                 CTLS_STATUS_RECD_EPOCH_MISMATCH;
-        if (record->unified_header.sequence_number != hshk_data->sequence_number) return
-                CTLS_STATUS_RECD_SEQUENCE_NUMBER_MISMATCH;
 
         if (record->unified_header.length == 0) {
             record->unified_header.length =
@@ -312,6 +310,15 @@ ctls_status_t ctls_record_preprocess(uint8_t const *buffer,
                                      CTLS_ENTITY_CLIENT);
 #endif
         if (result != CTLS_STATUS_SUCCESS) return result;
+
+        /* Sequence number match: checked here, after decrypt, not before —
+         * on CTLS_DATAGRAM the wire bytes are masked (RFC 9147 §4.2.3) and
+         * ctls_record_decrypt unmasks record->unified_header.sequence_number
+         * in place as part of AEAD decryption; only past this point does it
+         * hold the true value to compare. (On CTLS_STREAM this is a no-op
+         * tautology — the field is always set from the local counter.) */
+        if (record->unified_header.sequence_number != hshk_data->sequence_number)
+            return CTLS_STATUS_RECD_SEQUENCE_NUMBER_MISMATCH;
 
         /* Inner plaintext layout is body || content_type (RFC 8446 §5.2);
          * content_type is the last byte, at index (length - 1), not at
@@ -546,6 +553,39 @@ ctls_status_t ctls_record_encrypt(uint8_t *buffer,
                           &ciphertext_length_s);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
+#if CTLS_DATAGRAM
+    {
+        /* RFC 9147 §4.2.3: mask the wire sequence number using the
+         * ciphertext's own first 16 bytes (always available — even a
+         * 0-length plaintext yields a 16-byte GCM tag). The AAD above
+         * already used the true, unmasked value — masking only touches
+         * the header bytes already written to buffer, not what was
+         * authenticated. */
+        psa_key_id_t const *sn_key;
+        if (entity == CTLS_ENTITY_CLIENT) {
+            sn_key = phase == CTLS_PHASE_HANDSHAKE
+                         ? &crypto->client_handshake_sn_key
+                         : &crypto->client_application_sn_key;
+        } else {
+            sn_key = phase == CTLS_PHASE_HANDSHAKE
+                         ? &crypto->server_handshake_sn_key
+                         : &crypto->server_application_sn_key;
+        }
+
+        uint8_t mask[CTLS_SIZE_AEAD_KEY];
+        result = ctls_sequence_number_mask_generate(
+                sn_key, &buffer[unified_header->aad_length], mask);
+        if (result != CTLS_STATUS_SUCCESS) return result;
+
+        /* Sequence number field starts right after the 1-byte config
+         * octet. */
+        buffer[1] ^= mask[0];
+        if (unified_header->config_octet.s_bit == 1) {
+            buffer[2] ^= mask[1];
+        }
+    }
+#endif
+
     *offset += (ctls_size_t) ciphertext_length_s;
     *ciphertext_length = ciphertext_length_s;
 
@@ -598,6 +638,54 @@ ctls_status_t ctls_record_decrypt(ctls_record_t *record,
                      : &crypto->server_application_iv_key;
     }
 
+#if CTLS_DATAGRAM
+    {
+        /* RFC 9147 §4.2.3: the wire sequence number bytes are masked —
+         * unmask using the ciphertext's own first 16 bytes, then rebuild
+         * the exact AAD the sender authenticated (which used the true,
+         * unmasked value). The wire buffer itself is left untouched
+         * (const) — aad_buffer is a fresh reconstruction, not a patched
+         * copy of it. */
+        psa_key_id_t const *sn_key;
+        if (entity == CTLS_ENTITY_CLIENT) {
+            sn_key = phase == CTLS_PHASE_HANDSHAKE
+                         ? &crypto->client_handshake_sn_key
+                         : &crypto->client_application_sn_key;
+        } else {
+            sn_key = phase == CTLS_PHASE_HANDSHAKE
+                         ? &crypto->server_handshake_sn_key
+                         : &crypto->server_application_sn_key;
+        }
+
+        uint8_t mask[CTLS_SIZE_AEAD_KEY];
+        result = ctls_sequence_number_mask_generate(sn_key, &buffer[offset], mask);
+        if (result != CTLS_STATUS_SUCCESS) return result;
+
+        if (record->unified_header.config_octet.s_bit == 0) {
+            record->unified_header.sequence_number =
+                    (uint16_t) (record->unified_header.sequence_number ^ mask[0]);
+        } else {
+            record->unified_header.sequence_number = (uint16_t) (
+                    record->unified_header.sequence_number ^
+                    (uint16_t) (((uint16_t) mask[0] << 8) | mask[1]));
+        }
+    }
+
+    uint8_t aad_buffer[8];
+    ctls_size_t aad_offset = 0;
+    result = ctls_unified_header_serialize(&record->unified_header, aad_buffer, &aad_offset);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_decrypt(write_key,
+                          iv_key,
+                          &record->unified_header.sequence_number,
+                          aad_buffer,
+                          aad_offset,
+                          &buffer[offset],
+                          record->unified_header.length,
+                          plaintext,
+                          &plaintext_bytes_written_s);
+#else
     result = ctls_decrypt(write_key,
                           iv_key,
                           &record->unified_header.sequence_number,
@@ -607,6 +695,7 @@ ctls_status_t ctls_record_decrypt(ctls_record_t *record,
                           record->unified_header.length,
                           plaintext,
                           &plaintext_bytes_written_s);
+#endif
 
     if (result != CTLS_STATUS_SUCCESS) return result;
 

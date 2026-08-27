@@ -186,6 +186,14 @@ All errors in this band originate inside crypto operations backed by Mbed TLS PS
 | 0x00BD | `CTLS_STATUS_CRYPTO_KEY_ATTR_UNKNOWN_USAGE`           | `ctls_key_attributes_set` switch hit the `default` case. `CTLS_KEY_USAGE_*` value has no PSA attribute configuration.                   |
 | 0x00BE | `CTLS_STATUS_CRYPTO_CONTEXT_STR_UNKNOWN_KEY_TYPE`     | `ctls_context_string_build` switch hit the `default` case. A `ctls_key_type_t` value has no HkdfLabel encoder.                           |
 
+### 0x00BF–0x00C1: Sequence number mask (RFC 9147 §4.2.3, CTLS_DATAGRAM only)
+
+| Code   | Name                                                  | Reason / Trigger                                                                                                                         |
+|--------|-------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
+| 0x00BF | `CTLS_STATUS_CRYPTO_HS_SN_KEY_EXPAND_FAILED`          | `ctls_handshake_sn_key_generate`: `HKDF-Expand-Label(hs_traffic_secret, "sn", "", 16)` failed.                                           |
+| 0x00C0 | `CTLS_STATUS_CRYPTO_APP_SN_KEY_EXPAND_FAILED`         | `ctls_application_sn_key_generate`: `HKDF-Expand-Label(app_traffic_secret, "sn", "", 16)` failed.                                        |
+| 0x00C1 | `CTLS_STATUS_CRYPTO_SN_MASK_FAILED`                   | `ctls_sequence_number_mask_generate`: `psa_cipher_encrypt` (AES-ECB) over the ciphertext prefix failed, or didn't return 16 bytes.       |
+
 ---
 
 ## 0x00C8–0x012B — Extension Serialization / Deserialization Errors
@@ -216,7 +224,7 @@ All errors in this band originate inside crypto operations backed by Mbed TLS PS
 | 0x00D9 | `CTLS_STATUS_EXTN_ALPN_INVALID_FORM`    | `ctls_extn_alpn_serialize`: extension `form` is neither `CTLS_DATA_FORM_OPAQUE` nor `CTLS_DATA_FORM_PARSED`. Struct not initialized.    |
 | 0x00DA | `CTLS_STATUS_EXTN_CERT_AUTH_INVALID_FORM` | `ctls_extn_certificate_authorities_serialize`: extension `form` is neither opaque nor parsed. Struct not initialized.                  |
 
-### 0x00E1–0x00E8: Entity guards for crypto key schedule functions
+### 0x00E1–0x00EA: Entity guards for crypto key schedule functions
 
 | Code   | Name                                                   | Reason / Trigger                                                                                                                         |
 |--------|--------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
@@ -228,6 +236,8 @@ All errors in this band originate inside crypto operations backed by Mbed TLS PS
 | 0x00E6 | `CTLS_STATUS_EXTN_APP_TRAFFIC_SECRET_INVALID_ENTITY`   | `ctls_application_traffic_secret_generate`: `entity` not CLIENT/SERVER.                                                                  |
 | 0x00E7 | `CTLS_STATUS_EXTN_APP_WRITE_KEY_INVALID_ENTITY`        | `ctls_application_write_key_generate`: `entity` not CLIENT/SERVER.                                                                       |
 | 0x00E8 | `CTLS_STATUS_EXTN_APP_IV_KEY_INVALID_ENTITY`           | `ctls_application_iv_key_generate`: `entity` not CLIENT/SERVER.                                                                          |
+| 0x00E9 | `CTLS_STATUS_EXTN_HS_SN_KEY_INVALID_ENTITY`            | `ctls_handshake_sn_key_generate`: `entity` not CLIENT/SERVER.                                                                            |
+| 0x00EA | `CTLS_STATUS_EXTN_APP_SN_KEY_INVALID_ENTITY`           | `ctls_application_sn_key_generate`: `entity` not CLIENT/SERVER.                                                                          |
 
 ### 0x00F1–0x00F5: Wire-format guards per extension `_to_wire` function
 

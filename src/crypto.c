@@ -19,6 +19,10 @@
 
 psa_algorithm_t const CTLS_ECDHE_ALGORITHM = PSA_ALG_ECDH;
 psa_algorithm_t const CTLS_GCM_ALGORITHM = PSA_ALG_GCM;
+/* RFC 9147 §4.2.3 sequence number mask: AES run forward (encrypt) in ECB
+ * mode over a 16-byte ciphertext prefix — the mask, not a general cipher
+ * mode, so no padding/IV semantics apply. */
+psa_algorithm_t const CTLS_ECB_ALGORITHM = PSA_ALG_ECB_NO_PADDING;
 
 psa_algorithm_t const CTLS_CERTIFICATE_SIGNATURE_ALGORITHM =
         PSA_ALG_ECDSA(PSA_ALG_SHA_256);
@@ -119,6 +123,8 @@ ctls_status_t ctls_key_bits_get(psa_algorithm_t const *algorithm, ctls_size_t *k
         case PSA_ALG_ECDSA(PSA_ALG_SHA_256): *key_bits = 256U;
             break;
         case PSA_ALG_GCM: *key_bits = 128U;
+            break;
+        case PSA_ALG_ECB_NO_PADDING: *key_bits = 128U;
             break;
         default: return CTLS_STATUS_CRYPTO_KEY_BITS_UNKNOWN_ALG;
     }
@@ -434,6 +440,16 @@ ctls_status_t ctls_key_schedule() {
     result = ctls_handshake_iv_key_generate(crypto, CTLS_ENTITY_SERVER);
     if (result != CTLS_STATUS_SUCCESS) return result;
 
+#if CTLS_DATAGRAM
+    /* RFC 9147 §4.2.3 sequence number mask keys — CTLS_STREAM has no wire
+     * sequence number to mask, so these are never generated on that build. */
+    result = ctls_handshake_sn_key_generate(crypto, CTLS_ENTITY_CLIENT);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_handshake_sn_key_generate(crypto, CTLS_ENTITY_SERVER);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+#endif
+
     /* Keys switched to handshake traffic keys — new epoch. RFC 9147 §6.1
        numbering: epoch 0 plaintext, 1 early data (unsupported, skipped),
        2 handshake keys. */
@@ -494,6 +510,20 @@ ctls_status_t ctls_key_attributes_set(ctls_key_usage_t const key_usage,
                                     PSA_KEY_USAGE_EXPORT);
             psa_set_key_algorithm(key_attribute, CTLS_GCM_ALGORITHM);
             result = ctls_key_bits_get(&CTLS_GCM_ALGORITHM, &key_bits);
+            if (result != CTLS_STATUS_SUCCESS)
+                return CTLS_STATUS_CRYPTO_KEY_ATTR_AEAD_BITS_FAILED;
+            psa_set_key_bits(key_attribute, key_bits);
+        }
+        break;
+        case CTLS_KEY_USAGE_SN_MASK: {
+            /* Encrypt-only: the mask is always computed by running AES
+             * forward, both when masking (sender) and unmasking
+             * (receiver) — RFC 9147 §4.2.3. */
+            psa_set_key_type(key_attribute, PSA_KEY_TYPE_AES);
+            psa_set_key_usage_flags(key_attribute,
+                                    PSA_KEY_USAGE_ENCRYPT | PSA_KEY_USAGE_EXPORT);
+            psa_set_key_algorithm(key_attribute, CTLS_ECB_ALGORITHM);
+            result = ctls_key_bits_get(&CTLS_ECB_ALGORITHM, &key_bits);
             if (result != CTLS_STATUS_SUCCESS)
                 return CTLS_STATUS_CRYPTO_KEY_ATTR_AEAD_BITS_FAILED;
             psa_set_key_bits(key_attribute, key_bits);
@@ -660,6 +690,26 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
             if (result != CTLS_STATUS_SUCCESS) return result;
         }
         break;
+        case CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_SN_KEY: {
+            /* RFC 9147 §4.2.3: [sender]_sn_key = HKDF-Expand-Label(Secret,
+             * "sn", "", key_length) — key_length matches the AEAD key
+             * size (16 for AES-128), same as the "key" label above. */
+            context_string = CTLS_LABEL_PREFIX "sn";
+            context_string_length = strlen(context_string) - 1U;
+
+            result = ctls_write_u16(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x10, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, context_string_length, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_char_bytes(buffer, offset, context_string_length,
+                                           context_string, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+        }
+        break;
         case CTLS_KEY_TYPE_SIGNED_BYTES: {
             if (entity == CTLS_ENTITY_CLIENT) {
                 context_string = "TLS 1.3, client CertificateVerify";
@@ -811,6 +861,23 @@ ctls_status_t ctls_context_string_build(uint8_t *buffer,
             result = ctls_write_u16(buffer, offset, 0x00, limit);
             if (result != CTLS_STATUS_SUCCESS) return result;
             result = ctls_write_u8(buffer, offset, 0x0C, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, context_string_length, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_char_bytes(buffer, offset, context_string_length,
+                                           context_string, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+        }
+        break;
+        case CTLS_KEY_TYPE_APPLICATION_TRAFFIC_SN_KEY: {
+            context_string = CTLS_LABEL_PREFIX "sn";
+            context_string_length = strlen(context_string) - 1U;
+
+            result = ctls_write_u16(buffer, offset, 0x00, limit);
+            if (result != CTLS_STATUS_SUCCESS) return result;
+            result = ctls_write_u8(buffer, offset, 0x10, limit);
             if (result != CTLS_STATUS_SUCCESS) return result;
             result = ctls_write_u8(buffer, offset, context_string_length, limit);
             if (result != CTLS_STATUS_SUCCESS) return result;
@@ -1073,6 +1140,37 @@ ctls_status_t ctls_handshake_iv_key_generate(ctls_crypto_t *crypto,
                             info_offset);
 cleanup:
     return CTLS_STATUS_CRYPTO_HS_IV_KEY_EXPAND_FAILED;
+}
+
+ctls_status_t ctls_handshake_sn_key_generate(ctls_crypto_t *crypto,
+                                             ctls_entity_t const entity) {
+    CTLS_CHECK_NULL_STRUCT(crypto);
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_EXTN_HS_SN_KEY_INVALID_ENTITY;
+
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
+    uint8_t info[12U];
+    ctls_size_t info_offset = 0U;
+
+    result = ctls_context_string_build(info,
+                                       &info_offset,
+                                       entity,
+                                       CTLS_KEY_TYPE_HANDSHAKE_TRAFFIC_SN_KEY,
+                                       sizeof(info));
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+
+    return ctls_hkdf_expand(entity == CTLS_ENTITY_CLIENT
+                                ? &crypto->client_handshake_sn_key
+                                : &crypto->server_handshake_sn_key,
+                            entity == CTLS_ENTITY_CLIENT
+                                ? &crypto->client_handshake_traffic_secret
+                                : &crypto->server_handshake_traffic_secret,
+                            CTLS_KEY_USAGE_SN_MASK,
+                            info,
+                            info_offset);
+cleanup:
+    return CTLS_STATUS_CRYPTO_HS_SN_KEY_EXPAND_FAILED;
 }
 
 /*
@@ -1635,9 +1733,11 @@ ctls_status_t ctls_handshake_keys_cleanup(void) {
         &crypto->client_handshake_traffic_secret,
         &crypto->client_handshake_write_key,
         &crypto->client_handshake_iv_key,
+        &crypto->client_handshake_sn_key, // PSA_KEY_ID_NULL on CTLS_STREAM (never generated) — guard below handles it
         &crypto->server_handshake_traffic_secret,
         &crypto->server_handshake_write_key,
         &crypto->server_handshake_iv_key,
+        &crypto->server_handshake_sn_key,
         &crypto->self_certificate_key_pair,
         &crypto->peer_certificate_public_key,
         &crypto->client_finished_key,
@@ -1688,6 +1788,16 @@ ctls_status_t ctls_application_key_schedule(void) {
 
     result = ctls_application_iv_key_generate(crypto, CTLS_ENTITY_SERVER);
     if (result != CTLS_STATUS_SUCCESS) return result;
+
+#if CTLS_DATAGRAM
+    /* RFC 9147 §4.2.3 sequence number mask keys — CTLS_STREAM has no wire
+     * sequence number to mask, so these are never generated on that build. */
+    result = ctls_application_sn_key_generate(crypto, CTLS_ENTITY_CLIENT);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+
+    result = ctls_application_sn_key_generate(crypto, CTLS_ENTITY_SERVER);
+    if (result != CTLS_STATUS_SUCCESS) return result;
+#endif
 
     /* Keys switched to handshake traffic keys — new epoch. RFC 9147 §6.1
        numbering: epoch 0 plaintext, 1 early data (unsupported, skipped),
@@ -1866,4 +1976,59 @@ ctls_status_t ctls_application_iv_key_generate(ctls_crypto_t *crypto,
                             info_offset);
 cleanup:
     return CTLS_STATUS_CRYPTO_APP_IV_KEY_EXPAND_FAILED;
+}
+
+ctls_status_t ctls_application_sn_key_generate(ctls_crypto_t *crypto,
+                                               ctls_entity_t const entity) {
+    CTLS_CHECK_NULL_STRUCT(crypto);
+    if (entity != CTLS_ENTITY_CLIENT && entity != CTLS_ENTITY_SERVER)
+        return CTLS_STATUS_EXTN_APP_SN_KEY_INVALID_ENTITY;
+
+    ctls_status_t result = CTLS_STATUS_SUCCESS;
+
+    uint8_t info[12U];
+    ctls_size_t info_offset = 0U;
+
+    result = ctls_context_string_build(info,
+                                       &info_offset,
+                                       entity,
+                                       CTLS_KEY_TYPE_APPLICATION_TRAFFIC_SN_KEY,
+                                       sizeof(info));
+    if (result != CTLS_STATUS_SUCCESS) goto cleanup;
+
+    return ctls_hkdf_expand(entity == CTLS_ENTITY_CLIENT
+                                ? &crypto->client_application_sn_key
+                                : &crypto->server_application_sn_key,
+                            entity == CTLS_ENTITY_CLIENT
+                                ? &crypto->client_application_traffic_secret
+                                : &crypto->server_application_traffic_secret,
+                            CTLS_KEY_USAGE_SN_MASK,
+                            info,
+                            info_offset);
+cleanup:
+    return CTLS_STATUS_CRYPTO_APP_SN_KEY_EXPAND_FAILED;
+}
+
+ctls_status_t ctls_sequence_number_mask_generate(psa_key_id_t const *sn_key,
+                                                 uint8_t const *ciphertext_prefix,
+                                                 uint8_t *mask) {
+    CTLS_CHECK_NULL_KEY_ID(sn_key);
+    CTLS_CHECK_NULL_BUFFER(ciphertext_prefix);
+    CTLS_CHECK_NULL_BUFFER(mask);
+
+    size_t mask_length = 0;
+    /* ECB_NO_PADDING has no IV — output is exactly the one encrypted
+     * 16-byte block, no leading IV bytes to skip (unlike psa_cipher_encrypt
+     * with an IV-bearing mode). */
+    psa_status_t const psa_st = psa_cipher_encrypt(*sn_key,
+                                                   CTLS_ECB_ALGORITHM,
+                                                   ciphertext_prefix,
+                                                   CTLS_SIZE_AEAD_KEY,
+                                                   mask,
+                                                   CTLS_SIZE_AEAD_KEY,
+                                                   &mask_length);
+    if (psa_st != PSA_SUCCESS || mask_length != CTLS_SIZE_AEAD_KEY)
+        return CTLS_STATUS_CRYPTO_SN_MASK_FAILED;
+
+    return CTLS_STATUS_SUCCESS;
 }

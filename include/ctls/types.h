@@ -388,7 +388,11 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_CRYPTO_KEY_BITS_UNKNOWN_ALG              ((ctls_status_t)0x00BCu)
 #define CTLS_STATUS_CRYPTO_KEY_ATTR_UNKNOWN_USAGE            ((ctls_status_t)0x00BDu)
 #define CTLS_STATUS_CRYPTO_CONTEXT_STR_UNKNOWN_KEY_TYPE      ((ctls_status_t)0x00BEu)
-/* 0x00BF-0x00C7 reserved */
+/* --- 0x00BF-0x00C1: sequence number mask (RFC 9147 §4.2.3) --- */
+#define CTLS_STATUS_CRYPTO_HS_SN_KEY_EXPAND_FAILED           ((ctls_status_t)0x00BFu)
+#define CTLS_STATUS_CRYPTO_APP_SN_KEY_EXPAND_FAILED          ((ctls_status_t)0x00C0u)
+#define CTLS_STATUS_CRYPTO_SN_MASK_FAILED                    ((ctls_status_t)0x00C1u)
+/* 0x00C2-0x00C7 reserved */
 
 /* Extension Ser/Deser (0x00C8-0x012B) */
 #define CTLS_STATUS_EXTN_INVALID_SIZE_FLAG          ((ctls_status_t)0x00C8u)
@@ -420,7 +424,9 @@ typedef uint16_t ctls_status_t;
 #define CTLS_STATUS_EXTN_APP_TRAFFIC_SECRET_INVALID_ENTITY   ((ctls_status_t)0x00E6u)
 #define CTLS_STATUS_EXTN_APP_WRITE_KEY_INVALID_ENTITY        ((ctls_status_t)0x00E7u)
 #define CTLS_STATUS_EXTN_APP_IV_KEY_INVALID_ENTITY           ((ctls_status_t)0x00E8u)
-/* 0x00E9-0x00F0 reserved */
+#define CTLS_STATUS_EXTN_HS_SN_KEY_INVALID_ENTITY            ((ctls_status_t)0x00E9u)
+#define CTLS_STATUS_EXTN_APP_SN_KEY_INVALID_ENTITY           ((ctls_status_t)0x00EAu)
+/* 0x00EB-0x00F0 reserved */
 
 /* --- 0x00F1-0x00FC: INVALID_WIRE_FORMAT per _to_wire function --- */
 #define CTLS_STATUS_EXTN_CH_INVALID_WIRE_FORMAT              ((ctls_status_t)0x00F1u)
